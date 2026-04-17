@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /guide
+Disallow: /app/
+Disallow: /onboarding/
+Disallow: /login
+Disallow: /signup
+
+Sitemap: https://repaihub.com/sitemap.xml
+
+# Crawl-delay for responsible bots
+Crawl-delay: 10

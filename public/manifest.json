@@ -1,0 +1,40 @@
+{
+  "name": "REPAIHUB — NRO Remittance",
+  "short_name": "REPAIHUB",
+  "description": "Transfer your Indian NRO savings to Canada. Legally. Digitally. In 24–48 hours.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1C2C",
+  "theme_color": "#0B1C2C",
+  "lang": "en-CA",
+  "scope": "/",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Transfer",
+      "short_name": "Transfer",
+      "description": "Start a new NRO remittance",
+      "url": "/app/new-transfer",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your transfer dashboard",
+      "url": "/app/dashboard",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
