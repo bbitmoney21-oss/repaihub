@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useStore } from '../../store/useStore'
+import { useStore, mapApiTransfer } from '../../store/useStore'
+import { apiGetTransfer } from '../../lib/api'
 import { formatINR, formatCAD, formatDate, statusLabel, statusColor } from '../../lib/utils'
 import { ArrowLeft, Check, Clock, AlertCircle } from 'lucide-react'
 
@@ -10,9 +12,14 @@ const ALL_STATUSES = [
 
 export default function TransferDetail() {
   const { id } = useParams()
-  const { transfers } = useStore()
+  const { transfers, updateTransfer, token } = useStore()
   const nav = useNavigate()
   const t = transfers.find(x => x.id === id)
+
+  useEffect(() => {
+    if (!id || !token) return
+    apiGetTransfer(id).then(r => updateTransfer(id, mapApiTransfer(r.data.transfer))).catch(() => {})
+  }, [id, token])
 
   if (!t) return (
     <div style={{ padding: '3rem', textAlign: 'center' }}>

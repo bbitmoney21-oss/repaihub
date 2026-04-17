@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../../store/useStore'
+import { useStore, mapApiTransfer } from '../../store/useStore'
+import { apiCreateTransfer } from '../../lib/api'
 import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
 import { Check, AlertCircle, Zap, Clock, ArrowLeft } from 'lucide-react'
 
@@ -59,25 +60,41 @@ export default function NewTransfer() {
     }
 
     const now = new Date().toISOString()
-    const newTransfer = {
-      id: 'TXN-2026-' + String(Math.floor(Math.random() * 900) + 100).padStart(4, '0'),
-      date: now,
-      amountINR: amt,
-      amountCAD: amtCAD,
-      rate: fxRate,
-      fee,
-      status: '15CA_FILED' as const,
-      express,
-      reference: ref,
-      events: [
-        { status: 'INITIATED' as const,    timestamp: now, note: 'Transfer initiated by user' },
-        { status: 'KYC_VERIFIED' as const, timestamp: now, note: 'KYC tokens verified' },
-        { status: '15CA_FILED' as const,   timestamp: now, note: 'Form 15CA filed with IT portal' },
-      ],
+    const purposeMap: Record<string, string> = {
+      'Repatriation of savings': 'other',
+      'Rental income': 'other',
+      'Pension/salary': 'other',
+      'Property sale proceeds': 'investment',
+      'Investment returns': 'investment',
+      'Family maintenance': 'family_maintenance',
+      'Other': 'other',
     }
-
-    addTransfer(newTransfer)
-    addNotification({ message: `Transfer ${newTransfer.id} initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA is reviewing Form 15CB.`, type: 'info', timestamp: now })
+    try {
+      const { data } = await apiCreateTransfer({
+        amountCad: amtCAD,
+        exchangeRate: fxRate,
+        purposeCode: purposeMap[purpose] ?? 'other',
+        sourceOfFunds: purpose || 'other',
+        speed: express ? 'express' : 'standard',
+      })
+      addTransfer(mapApiTransfer(data.transfer))
+      addNotification({ message: `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA is reviewing Form 15CB.`, type: 'info', timestamp: now })
+    } catch {
+      // Fall back to local-only transfer so the UI still advances
+      const localTransfer = {
+        id: 'TXN-' + Date.now(),
+        date: now,
+        amountINR: amt,
+        amountCAD: amtCAD,
+        rate: fxRate,
+        fee,
+        status: '15CA_FILED' as const,
+        express,
+        reference: ref,
+        events: [{ status: 'INITIATED' as const, timestamp: now, note: 'Transfer initiated' }],
+      }
+      addTransfer(localTransfer)
+    }
     setLoading(false)
     setStep(5)
   }

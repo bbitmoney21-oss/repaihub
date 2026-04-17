@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import type { ResidencyStatus } from '../../store/useStore'
+import { apiUpdateProfile } from '../../lib/api'
 import { Check } from 'lucide-react'
 
 const OPTIONS: { id: ResidencyStatus; title: string; desc: string; note: string }[] = [
@@ -20,7 +21,9 @@ export default function ResidencySelect() {
   const handleContinue = async () => {
     if (!selected) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 500))
+    try {
+      await apiUpdateProfile({ residency: selected })
+    } catch { /* non-fatal: store locally regardless */ }
     setResidency(selected)
     nav('/onboarding/canada-bank')
   }

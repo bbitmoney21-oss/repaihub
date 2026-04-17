@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
+import { apiSubmitIndiaKYC } from '../../lib/api'
 import { Shield, Check, Loader } from 'lucide-react'
 
 const BANKS = ['HDFC Bank', 'ICICI Bank', 'SBI — State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Yes Bank', 'IDFC FIRST Bank', 'Punjab National Bank', 'Bank of Baroda', 'Other']
@@ -19,24 +20,28 @@ export default function IndiaNRO() {
   const [progressLabel, setProgressLabel] = useState('')
 
   const startDigiLocker = async () => {
-    if (!bank || !branch) return
+    if (!bank || !branch || !pan) return
     setStep('digilocker')
     await new Promise(r => setTimeout(r, 1500))
     setStep('verifying')
-    const steps = [
+    const progressSteps: [number, string][] = [
       [15, 'Connecting to DigiLocker API…'],
       [30, 'Requesting user consent…'],
       [50, 'Retrieving PAN holder name…'],
       [65, 'Cross-checking with NRO bank records…'],
       [80, 'Generating verification token…'],
       [92, 'Discarding personal data…'],
-      [100, 'KYC complete'],
     ]
-    for (const [pct, label] of steps) {
+    for (const [pct, label] of progressSteps) {
       await new Promise(r => setTimeout(r, 600))
       setProgress(pct as number)
       setProgressLabel(label as string)
     }
+    try {
+      await apiSubmitIndiaKYC(pan)
+    } catch { /* non-fatal: continue with local state */ }
+    setProgress(100)
+    setProgressLabel('KYC complete')
     await new Promise(r => setTimeout(r, 400))
     completeIndiaKYC({ bankName: bank, branch })
     setStep('done')

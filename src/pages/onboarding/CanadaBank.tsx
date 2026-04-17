@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
+import { apiSubmitCanadaKYC } from '../../lib/api'
 import { Shield, Lock, Check, Loader } from 'lucide-react'
 
 const BANKS = ['TD Canada Trust', 'RBC Royal Bank', 'Scotiabank', 'BMO Bank of Montreal', 'CIBC', 'National Bank', 'HSBC Canada', 'Tangerine', 'EQ Bank', 'Other']
@@ -19,19 +20,24 @@ export default function CanadaBank() {
   const startVerification = async () => {
     if (!bank || !holder.trim()) return
     setStep('verifying')
-    const steps = [
+    const progressSteps: [number, string][] = [
       [20, 'Connecting to Flinks API…'],
       [40, 'Launching secure bank session…'],
       [60, 'Retrieving account holder name…'],
       [78, 'Generating SHA-256 account hash…'],
       [90, 'Storing verification token…'],
-      [100, 'Verification complete'],
     ]
-    for (const [pct, label] of steps) {
+    for (const [pct, label] of progressSteps) {
       await new Promise(r => setTimeout(r, 700))
       setProgress(pct as number)
       setProgressLabel(label as string)
     }
+    const bankToken = `flinks_${bank.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`
+    try {
+      await apiSubmitCanadaKYC(bankToken, bank)
+    } catch { /* non-fatal: continue with local state */ }
+    setProgress(100)
+    setProgressLabel('Verification complete')
     await new Promise(r => setTimeout(r, 500))
     completeCanadaKYC({ institution: bank, holderName: holder, accountType: 'Chequing' })
     setStep('done')

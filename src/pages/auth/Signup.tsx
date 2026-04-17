@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
+import { apiRegister } from '../../lib/api'
 import { Eye, EyeOff, Check } from 'lucide-react'
 
 export default function Signup() {
-  const { login } = useStore()
+  const { setAuth } = useStore()
   const nav = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', phone: '', pw: '', agree: false })
   const [showPw, setShowPw] = useState(false)
@@ -25,9 +26,16 @@ export default function Signup() {
     e.preventDefault()
     if (!validate()) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    login(form.email, form.name)
-    nav('/onboarding/residency')
+    try {
+      const { data } = await apiRegister(form.email, form.pw)
+      setAuth(data.token, data.user)
+      nav('/onboarding/residency')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setErrors(ex => ({ ...ex, email: msg || 'Registration failed. Please try again.' }))
+    } finally {
+      setLoading(false)
+    }
   }
 
   const Field = ({ id, label, type = 'text', value, placeholder, error, extra }: {

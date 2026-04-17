@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { ApiTransfer } from '../lib/api'
 
 export type ResidencyStatus = 'citizen' | 'pr' | 'oci' | 'work_permit' | ''
 export type TransferStatus =
@@ -31,8 +32,8 @@ export interface User {
   canadaBank?: { institution: string; holderName: string; accountType: string }
   indiaBank?: { bankName: string; branch: string }
   kycCompletedAt?: string
-  annualLimitUsed: number // CAD
-  annualLimitTotal: number // CAD ~1M USD converted
+  annualLimitUsed: number
+  annualLimitTotal: number
 }
 
 interface Notification {
@@ -43,20 +44,50 @@ interface Notification {
   timestamp: string
 }
 
+// Map API transfer status (lowercase) → frontend TransferStatus (uppercase)
+const API_STATUS_MAP: Record<string, TransferStatus> = {
+  initiated:       'INITIATED',
+  kyc_verified:    'KYC_VERIFIED',
+  '15ca_filed':    '15CA_FILED',
+  '15cb_certified':'15CB_CERTIFIED',
+  bank_processing: 'BANK_PROCESSING',
+  swift_sent:      'SWIFT_SENT',
+  completed:       'COMPLETED',
+  failed:          'FAILED',
+}
+
+export function mapApiTransfer(t: ApiTransfer): Transfer {
+  const status: TransferStatus = API_STATUS_MAP[t.status.toLowerCase()] ?? 'INITIATED'
+  return {
+    id: t.id,
+    date: t.createdAt,
+    amountINR: parseFloat(t.amountInr),
+    amountCAD: parseFloat(t.amountCad),
+    rate: parseFloat(t.exchangeRate),
+    fee: parseFloat(t.feeCad),
+    status,
+    express: t.speed === 'express',
+    reference: `RH-${t.id.slice(0, 6).toUpperCase()}`,
+    events: [{ status: 'INITIATED', timestamp: t.createdAt, note: 'Transfer initiated' }],
+  }
+}
+
 interface AppState {
+  token: string | null
   user: User | null
   isAuthenticated: boolean
   transfers: Transfer[]
   notifications: Notification[]
-  fxRate: number // INR per 1 CAD (e.g. 63.2)
+  fxRate: number
   fxLastUpdated: string
 
   // Actions
-  login: (email: string, name: string) => void
+  setAuth: (token: string, apiUser: { id: string; email: string; residency?: string | null; status?: string }) => void
   logout: () => void
   setResidency: (status: ResidencyStatus) => void
   completeCanadaKYC: (bank: User['canadaBank']) => void
   completeIndiaKYC: (bank: User['indiaBank']) => void
+  setTransfers: (ts: Transfer[]) => void
   addTransfer: (t: Transfer) => void
   updateTransfer: (id: string, updates: Partial<Transfer>) => void
   markNotificationRead: (id: string) => void
@@ -64,95 +95,26 @@ interface AppState {
   setFxRate: (rate: number) => void
 }
 
-const MOCK_TRANSFERS: Transfer[] = [
-  {
-    id: 'TXN-2026-0042',
-    date: '2026-04-02T08:30:00Z',
-    amountINR: 500000,
-    amountCAD: 7891.45,
-    rate: 63.36,
-    fee: 24.99,
-    status: 'COMPLETED',
-    express: false,
-    reference: 'RH-042-APR',
-    events: [
-      { status: 'INITIATED',       timestamp: '2026-04-02T08:30:00Z', note: 'Transfer initiated by user' },
-      { status: 'KYC_VERIFIED',    timestamp: '2026-04-02T08:31:15Z', note: 'KYC tokens verified' },
-      { status: '15CA_FILED',      timestamp: '2026-04-02T09:05:22Z', note: 'Form 15CA filed with IT portal' },
-      { status: '15CB_CERTIFIED',  timestamp: '2026-04-02T11:22:10Z', note: 'CA certified Form 15CB' },
-      { status: 'BANK_PROCESSING', timestamp: '2026-04-02T12:00:00Z', note: 'Submitted to Indian bank partner' },
-      { status: 'SWIFT_SENT',      timestamp: '2026-04-03T04:15:00Z', note: 'SWIFT message received' },
-      { status: 'COMPLETED',       timestamp: '2026-04-03T16:42:00Z', note: 'CAD credited to your account' },
-    ],
-  },
-  {
-    id: 'TXN-2026-0039',
-    date: '2026-03-15T10:00:00Z',
-    amountINR: 750000,
-    amountCAD: 11823.10,
-    rate: 63.44,
-    fee: 24.99,
-    status: 'COMPLETED',
-    express: true,
-    reference: 'RH-039-MAR',
-    events: [
-      { status: 'INITIATED',       timestamp: '2026-03-15T10:00:00Z', note: 'Express transfer initiated' },
-      { status: 'KYC_VERIFIED',    timestamp: '2026-03-15T10:01:30Z', note: 'KYC tokens verified' },
-      { status: '15CA_FILED',      timestamp: '2026-03-15T10:30:00Z', note: 'Form 15CA filed' },
-      { status: '15CB_CERTIFIED',  timestamp: '2026-03-15T12:45:00Z', note: 'CA certified Form 15CB' },
-      { status: 'BANK_PROCESSING', timestamp: '2026-03-15T13:00:00Z', note: 'Processing with bank' },
-      { status: 'SWIFT_SENT',      timestamp: '2026-03-15T18:00:00Z', note: 'SWIFT sent' },
-      { status: 'COMPLETED',       timestamp: '2026-03-15T22:10:00Z', note: 'Completed — 12 hours express' },
-    ],
-  },
-  {
-    id: 'TXN-2026-0028',
-    date: '2026-02-20T14:22:00Z',
-    amountINR: 300000,
-    amountCAD: 4718.10,
-    rate: 63.58,
-    fee: 14.99,
-    status: 'COMPLETED',
-    express: false,
-    reference: 'RH-028-FEB',
-    events: [
-      { status: 'INITIATED',   timestamp: '2026-02-20T14:22:00Z', note: 'Transfer initiated' },
-      { status: 'COMPLETED',   timestamp: '2026-02-22T11:00:00Z', note: 'CAD credited to your account' },
-    ],
-  },
-]
-
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      token: null,
       user: null,
       isAuthenticated: false,
-      transfers: MOCK_TRANSFERS,
+      transfers: [],
       fxRate: 63.42,
       fxLastUpdated: new Date().toISOString(),
-      notifications: [
-        {
-          id: 'n1',
-          message: 'Your transfer TXN-2026-0042 is complete — ₹5,00,000 → CAD $7,891.45 credited.',
-          type: 'success',
-          read: false,
-          timestamp: '2026-04-03T16:42:00Z',
-        },
-        {
-          id: 'n2',
-          message: 'Live FX rate updated: 1 CAD = ₹63.42',
-          type: 'info',
-          read: true,
-          timestamp: '2026-04-12T08:00:00Z',
-        },
-      ],
+      notifications: [],
 
-      login: (email, name) => set({
+      setAuth: (token, apiUser) => set({
+        token,
         isAuthenticated: true,
         user: {
-          id: 'usr_' + Date.now(),
-          name, email, phone: '',
-          residencyStatus: '',
+          id: apiUser.id,
+          name: apiUser.email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          email: apiUser.email,
+          phone: '',
+          residencyStatus: (apiUser.residency as ResidencyStatus) || '',
           canadaBankVerified: false,
           indiaNROVerified: false,
           annualLimitUsed: 0,
@@ -160,7 +122,13 @@ export const useStore = create<AppState>()(
         },
       }),
 
-      logout: () => set({ isAuthenticated: false, user: null, transfers: [] }),
+      logout: () => set({
+        token: null,
+        isAuthenticated: false,
+        user: null,
+        transfers: [],
+        notifications: [],
+      }),
 
       setResidency: (status) => set(s => ({
         user: s.user ? { ...s.user, residencyStatus: status } : s.user,
@@ -178,6 +146,8 @@ export const useStore = create<AppState>()(
           kycCompletedAt: new Date().toISOString(),
         } : s.user,
       })),
+
+      setTransfers: (ts) => set({ transfers: ts }),
 
       addTransfer: (t) => set(s => ({ transfers: [t, ...s.transfers] })),
 

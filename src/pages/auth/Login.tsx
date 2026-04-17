@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
+import { apiLogin } from '../../lib/api'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
-  const { login } = useStore()
+  const { setAuth } = useStore()
   const nav = useNavigate()
   const [email, setEmail] = useState('')
   const [pw, setPw]       = useState('')
@@ -16,30 +17,25 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 800))
-    if (email && pw.length >= 6) {
-      login(email, email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
+    try {
+      const { data } = await apiLogin(email, pw)
+      setAuth(data.token, data.user)
       nav('/app/dashboard')
-    } else {
-      setError('Invalid email or password. Try any email + 6+ character password.')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setError(msg || 'Invalid email or password.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }
-
-  const demoLogin = () => {
-    login('raj@example.com', 'Raj Sharma')
-    nav('/app/dashboard')
   }
 
   const S = { page: { background: '#0B1C2C', minHeight: '100vh', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '2rem' } }
 
   return (
     <div style={S.page}>
-      {/* Glow */}
       <div style={{ position: 'fixed', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,150,58,0.08) 0%, transparent 70%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }} />
 
       <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <Link to="/" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.15em', textTransform: 'uppercase', textDecoration: 'none' }}>
             Repaihub
@@ -80,19 +76,6 @@ export default function Login() {
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
-
-          <div style={{ margin: '1.5rem 0', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(201,150,58,0.2)' }} />
-            <span style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>or</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(201,150,58,0.2)' }} />
-          </div>
-
-          <button onClick={demoLogin}
-            style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,150,58,0.3)', color: '#C9963A', padding: '0.85rem', fontFamily: "'DM Sans'", fontSize: '0.82rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,150,58,0.08)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-            🎭 Try Demo Account
-          </button>
 
           <p style={{ fontSize: '0.82rem', color: '#8BA0B4', textAlign: 'center', marginTop: '1.5rem' }}>
             No account?{' '}
