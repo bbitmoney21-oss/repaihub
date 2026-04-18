@@ -4,6 +4,11 @@ import { useStore } from '../../store/useStore'
 import { apiRegister } from '../../lib/api'
 import { Eye, EyeOff, Check } from 'lucide-react'
 
+const labelStyle: React.CSSProperties = {
+  fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em',
+  textTransform: 'uppercase', color: '#8BA0B4', display: 'block', marginBottom: '0.5rem',
+}
+
 export default function Signup() {
   const { setAuth } = useStore()
   const nav = useNavigate()
@@ -38,22 +43,6 @@ export default function Signup() {
     }
   }
 
-  const Field = ({ id, label, type = 'text', value, placeholder, error, extra }: {
-    id: string; label: string; type?: string; value: string; placeholder: string; error?: string; extra?: React.ReactNode
-  }) => (
-    <div>
-      <label style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8BA0B4', display: 'block', marginBottom: '0.5rem' }}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <input type={id === 'pw' ? (showPw ? 'text' : 'password') : type} value={value}
-          onChange={e => setForm(f => ({ ...f, [id]: (e.target as HTMLInputElement).value })) } placeholder={placeholder}
-          className="input-field" style={{ display: 'block', paddingRight: extra ? '3rem' : undefined }}
-          required />
-        {extra}
-      </div>
-      {error && <p style={{ fontSize: '0.75rem', color: '#E74C3C', marginTop: '0.35rem' }}>{error}</p>}
-    </div>
-  )
-
   return (
     <div style={{ background: '#0B1C2C', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
       <div style={{ position: 'fixed', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,150,58,0.08) 0%, transparent 70%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }} />
@@ -64,7 +53,7 @@ export default function Signup() {
           <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.5rem' }}>Create your account — takes 2 minutes</p>
         </div>
 
-        {/* Progress indicator */}
+        {/* Progress */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
           {['Account', 'Residency', 'Canada KYC', 'India KYC'].map((step, i) => (
             <div key={step} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem' }}>
@@ -79,15 +68,61 @@ export default function Signup() {
           <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Step 1 of 4 — Basic information</p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Field id="name" label="Full Name" value={form.name} placeholder="Raj Sharma" error={errors.name} />
-            <Field id="email" label="Email Address" type="email" value={form.email} placeholder="raj@example.com" error={errors.email} />
-            <Field id="phone" label="Canadian Phone (Optional)" type="tel" value={form.phone} placeholder="+1-647-555-0100" />
+
+            {/* Full Name */}
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8BA0B4', display: 'block', marginBottom: '0.5rem' }}>Password</label>
+              <label style={labelStyle}>Full Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Raj Sharma"
+                className="input-field"
+                style={{ display: 'block' }}
+              />
+              {errors.name && <p style={{ fontSize: '0.75rem', color: '#E74C3C', marginTop: '0.35rem' }}>{errors.name}</p>}
+            </div>
+
+            {/* Email */}
+            <div>
+              <label style={labelStyle}>Email Address</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="raj@example.com"
+                className="input-field"
+                style={{ display: 'block' }}
+              />
+              {errors.email && <p style={{ fontSize: '0.75rem', color: '#E74C3C', marginTop: '0.35rem' }}>{errors.email}</p>}
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label style={labelStyle}>Canadian Phone (Optional)</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+1-647-555-0100"
+                className="input-field"
+                style={{ display: 'block' }}
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label style={labelStyle}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input type={showPw ? 'text' : 'password'} value={form.pw}
-                  onChange={e => setForm(f => ({ ...f, pw: e.target.value }))} placeholder="8+ characters" required
-                  className="input-field" style={{ display: 'block', paddingRight: '3rem' }} />
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  value={form.pw}
+                  onChange={e => setForm(f => ({ ...f, pw: e.target.value }))}
+                  placeholder="8+ characters"
+                  required
+                  className="input-field"
+                  style={{ display: 'block', paddingRight: '3rem' }}
+                />
                 <button type="button" onClick={() => setShowPw(!showPw)}
                   style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8BA0B4', cursor: 'pointer' }}>
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
