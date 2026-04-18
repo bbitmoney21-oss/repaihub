@@ -122,7 +122,7 @@ interface AppState {
 
 export const useStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isAuthenticated: false,
       transfers: [],
@@ -185,9 +185,6 @@ export const useStore = create<AppState>()(
       })),
 
       setFxRate: (rate) => set({ fxRate: rate, fxLastUpdated: new Date().toISOString() }),
-
-      // silence unused-var warning for get
-      _get: get,
     }),
     { name: 'repaihub-store' }
   )
