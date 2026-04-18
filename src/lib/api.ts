@@ -2,13 +2,14 @@ import { supabase } from './supabase'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export async function apiRegister(email: string, password: string, name: string, phone: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password })
+  // Pass name/phone as user metadata — a DB trigger auto-creates the profiles row
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: name, phone } },
+  })
   if (error) throw error
   if (!data.user) throw new Error('Registration failed')
-  const { error: pe } = await supabase.from('profiles').insert({
-    id: data.user.id, email, full_name: name, phone,
-  })
-  if (pe) throw pe
   return data.user
 }
 
