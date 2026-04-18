@@ -27,11 +27,11 @@ export default function Signup() {
     if (!validate()) return
     setLoading(true)
     try {
-      const { data } = await apiRegister(form.email, form.pw)
-      setAuth(data.token, data.user)
+      const user = await apiRegister(form.email, form.pw, form.name, form.phone)
+      setAuth({ id: user.id, email: form.email, name: form.name, phone: form.phone })
       nav('/onboarding/residency')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const msg = (err as { message?: string })?.message
       setErrors(ex => ({ ...ex, email: msg || 'Registration failed. Please try again.' }))
     } finally {
       setLoading(false)

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { apiLogin } from '../../lib/api'
+import { apiLogin, apiGetProfile } from '../../lib/api'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
@@ -18,11 +18,26 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const { data } = await apiLogin(email, pw)
-      setAuth(data.token, data.user)
+      const data = await apiLogin(email, pw)
+      const { profile, kyc, canadaBank, indiaAccount } = await apiGetProfile()
+      setAuth({
+        id: data.user!.id,
+        email: data.user!.email!,
+        name: profile?.full_name ?? undefined,
+        phone: profile?.phone ?? undefined,
+        residency: profile?.residency_status ?? null,
+        canadaBankVerified: kyc?.canada_verified ?? false,
+        indiaNROVerified: kyc?.india_verified ?? false,
+        canadaBank: canadaBank
+          ? { institution: canadaBank.institution, holderName: canadaBank.holder_name, accountType: canadaBank.account_type }
+          : undefined,
+        indiaBank: indiaAccount
+          ? { bankName: indiaAccount.bank_name, branch: indiaAccount.branch }
+          : undefined,
+      })
       nav('/app/dashboard')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const msg = (err as { message?: string })?.message
       setError(msg || 'Invalid email or password.')
     } finally {
       setLoading(false)

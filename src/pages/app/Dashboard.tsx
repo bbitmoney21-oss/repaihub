@@ -1,23 +1,18 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../../store/useStore'
-import { mapApiTransfer } from '../../store/useStore'
-import { apiGetTransfers, apiGetProfile } from '../../lib/api'
+import { useStore, mapDbTransfer } from '../../store/useStore'
+import { apiGetTransfers } from '../../lib/api'
 import { formatCAD, formatDateShort, statusLabel, statusColor, residencyLabels } from '../../lib/utils'
 import { ArrowRight, TrendingUp, Plus } from 'lucide-react'
 
 export default function Dashboard() {
-  const { user, transfers, fxRate, setTransfers, setAuth, token } = useStore()
+  const { user, transfers, fxRate, setTransfers, isAuthenticated } = useStore()
   const nav = useNavigate()
 
   useEffect(() => {
-    if (!token) return
-    apiGetTransfers().then(r => setTransfers(r.data.transfers.map(mapApiTransfer))).catch(() => {})
-    apiGetProfile().then(r => {
-      const u = r.data.user
-      setAuth(token, { id: u.id, email: u.email, residency: u.residency, status: u.status })
-    }).catch(() => {})
-  }, [token])
+    if (!isAuthenticated) return
+    apiGetTransfers().then(ts => setTransfers(ts.map(mapDbTransfer))).catch(() => {})
+  }, [isAuthenticated])
   const recent = transfers.slice(0, 3)
   const limitPct = user ? (user.annualLimitUsed / user.annualLimitTotal) * 100 : 0
   const limitRemaining = user ? user.annualLimitTotal - user.annualLimitUsed : 0

@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useStore } from './store/useStore'
+import { supabase } from './lib/supabase'
 import AppLayout from './components/layout/AppLayout'
 
 // Public pages
@@ -39,9 +41,24 @@ function RequireKYC({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function AuthSync() {
+  const { logout } = useStore()
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) logout()
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) logout()
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthSync />
       <Routes>
         {/* Public */}
         <Route path="/"        element={<Landing />} />

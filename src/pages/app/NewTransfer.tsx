@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore, mapApiTransfer } from '../../store/useStore'
+import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiCreateTransfer } from '../../lib/api'
 import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
 import { Check, AlertCircle, Zap, Clock, ArrowLeft } from 'lucide-react'
@@ -70,14 +70,17 @@ export default function NewTransfer() {
       'Other': 'other',
     }
     try {
-      const { data } = await apiCreateTransfer({
+      const transfer = await apiCreateTransfer({
+        amountInr: amt,
         amountCad: amtCAD,
         exchangeRate: fxRate,
+        feeCad: fee,
         purposeCode: purposeMap[purpose] ?? 'other',
         sourceOfFunds: purpose || 'other',
         speed: express ? 'express' : 'standard',
+        reference: ref,
       })
-      addTransfer(mapApiTransfer(data.transfer))
+      addTransfer(mapDbTransfer(transfer))
       addNotification({ message: `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA is reviewing Form 15CB.`, type: 'info', timestamp: now })
     } catch {
       // Fall back to local-only transfer so the UI still advances

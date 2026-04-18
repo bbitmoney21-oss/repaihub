@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ApiTransfer } from '../lib/api'
+import { supabase } from '../lib/supabase'
 
 export type ResidencyStatus = 'citizen' | 'pr' | 'oci' | 'work_permit' | ''
 export type TransferStatus =
@@ -44,36 +44,62 @@ interface Notification {
   timestamp: string
 }
 
-// Map API transfer status (lowercase) → frontend TransferStatus (uppercase)
-const API_STATUS_MAP: Record<string, TransferStatus> = {
-  initiated:       'INITIATED',
-  kyc_verified:    'KYC_VERIFIED',
-  '15ca_filed':    '15CA_FILED',
-  '15cb_certified':'15CB_CERTIFIED',
-  bank_processing: 'BANK_PROCESSING',
-  swift_sent:      'SWIFT_SENT',
-  completed:       'COMPLETED',
-  failed:          'FAILED',
+const STATUS_MAP: Record<string, TransferStatus> = {
+  initiated:        'INITIATED',
+  kyc_verified:     'KYC_VERIFIED',
+  '15ca_filed':     '15CA_FILED',
+  '15cb_certified': '15CB_CERTIFIED',
+  bank_processing:  'BANK_PROCESSING',
+  swift_sent:       'SWIFT_SENT',
+  completed:        'COMPLETED',
+  failed:           'FAILED',
 }
 
-export function mapApiTransfer(t: ApiTransfer): Transfer {
-  const status: TransferStatus = API_STATUS_MAP[t.status.toLowerCase()] ?? 'INITIATED'
+export interface DbTransfer {
+  id: string
+  user_id: string
+  amount_inr: number
+  amount_cad: number
+  exchange_rate: number
+  fee_cad: number
+  speed: string
+  status: string
+  source_of_funds: string | null
+  purpose_code: string | null
+  reference: string | null
+  created_at: string
+  completed_at: string | null
+}
+
+export function mapDbTransfer(t: DbTransfer): Transfer {
+  const status: TransferStatus = STATUS_MAP[t.status?.toLowerCase() ?? 'initiated'] ?? 'INITIATED'
   return {
     id: t.id,
-    date: t.createdAt,
-    amountINR: parseFloat(t.amountInr),
-    amountCAD: parseFloat(t.amountCad),
-    rate: parseFloat(t.exchangeRate),
-    fee: parseFloat(t.feeCad),
+    date: t.created_at,
+    amountINR: Number(t.amount_inr),
+    amountCAD: Number(t.amount_cad),
+    rate: Number(t.exchange_rate),
+    fee: Number(t.fee_cad),
     status,
     express: t.speed === 'express',
-    reference: `RH-${t.id.slice(0, 6).toUpperCase()}`,
-    events: [{ status: 'INITIATED', timestamp: t.createdAt, note: 'Transfer initiated' }],
+    reference: t.reference ?? `RH-${t.id.slice(0, 6).toUpperCase()}`,
+    events: [{ status: 'INITIATED', timestamp: t.created_at, note: 'Transfer initiated' }],
   }
 }
 
+export interface SetAuthParams {
+  id: string
+  email: string
+  name?: string
+  phone?: string
+  residency?: string | null
+  canadaBankVerified?: boolean
+  indiaNROVerified?: boolean
+  canadaBank?: User['canadaBank']
+  indiaBank?: User['indiaBank']
+}
+
 interface AppState {
-  token: string | null
   user: User | null
   isAuthenticated: boolean
   transfers: Transfer[]
@@ -81,8 +107,7 @@ interface AppState {
   fxRate: number
   fxLastUpdated: string
 
-  // Actions
-  setAuth: (token: string, apiUser: { id: string; email: string; residency?: string | null; status?: string }) => void
+  setAuth: (u: SetAuthParams) => void
   logout: () => void
   setResidency: (status: ResidencyStatus) => void
   completeCanadaKYC: (bank: User['canadaBank']) => void
@@ -98,7 +123,6 @@ interface AppState {
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      token: null,
       user: null,
       isAuthenticated: false,
       transfers: [],
@@ -106,29 +130,28 @@ export const useStore = create<AppState>()(
       fxLastUpdated: new Date().toISOString(),
       notifications: [],
 
-      setAuth: (token, apiUser) => set({
-        token,
+      setAuth: (u) => set(s => ({
         isAuthenticated: true,
         user: {
-          id: apiUser.id,
-          name: apiUser.email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-          email: apiUser.email,
-          phone: '',
-          residencyStatus: (apiUser.residency as ResidencyStatus) || '',
-          canadaBankVerified: false,
-          indiaNROVerified: false,
-          annualLimitUsed: 0,
-          annualLimitTotal: 83000,
+          id: u.id,
+          name: u.name || u.email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          email: u.email,
+          phone: u.phone || s.user?.phone || '',
+          residencyStatus: (u.residency as ResidencyStatus) || s.user?.residencyStatus || '',
+          canadaBankVerified: u.canadaBankVerified ?? s.user?.canadaBankVerified ?? false,
+          indiaNROVerified: u.indiaNROVerified ?? s.user?.indiaNROVerified ?? false,
+          canadaBank: u.canadaBank ?? s.user?.canadaBank,
+          indiaBank: u.indiaBank ?? s.user?.indiaBank,
+          kycCompletedAt: s.user?.kycCompletedAt,
+          annualLimitUsed: s.user?.annualLimitUsed ?? 0,
+          annualLimitTotal: s.user?.annualLimitTotal ?? 83000,
         },
-      }),
+      })),
 
-      logout: () => set({
-        token: null,
-        isAuthenticated: false,
-        user: null,
-        transfers: [],
-        notifications: [],
-      }),
+      logout: () => {
+        supabase.auth.signOut()
+        set({ isAuthenticated: false, user: null, transfers: [], notifications: [] })
+      },
 
       setResidency: (status) => set(s => ({
         user: s.user ? { ...s.user, residencyStatus: status } : s.user,
@@ -148,9 +171,7 @@ export const useStore = create<AppState>()(
       })),
 
       setTransfers: (ts) => set({ transfers: ts }),
-
       addTransfer: (t) => set(s => ({ transfers: [t, ...s.transfers] })),
-
       updateTransfer: (id, updates) => set(s => ({
         transfers: s.transfers.map(t => t.id === id ? { ...t, ...updates } : t),
       })),
@@ -160,13 +181,13 @@ export const useStore = create<AppState>()(
       })),
 
       addNotification: (n) => set(s => ({
-        notifications: [
-          { ...n, id: 'n_' + Date.now(), read: false },
-          ...s.notifications,
-        ],
+        notifications: [{ ...n, id: 'n_' + Date.now(), read: false }, ...s.notifications],
       })),
 
       setFxRate: (rate) => set({ fxRate: rate, fxLastUpdated: new Date().toISOString() }),
+
+      // silence unused-var warning for get
+      _get: get,
     }),
     { name: 'repaihub-store' }
   )

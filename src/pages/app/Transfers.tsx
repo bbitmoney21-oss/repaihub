@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../../store/useStore'
-import { mapApiTransfer } from '../../store/useStore'
+import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiGetTransfers } from '../../lib/api'
 import { formatINR, formatCAD, formatDate, statusLabel, statusColor } from '../../lib/utils'
 import { Plus, ChevronRight, Search } from 'lucide-react'
 
 export default function Transfers() {
-  const { transfers, setTransfers, token } = useStore()
+  const { transfers, setTransfers, isAuthenticated } = useStore()
   const nav = useNavigate()
 
   useEffect(() => {
-    if (!token) return
-    apiGetTransfers().then(r => setTransfers(r.data.transfers.map(mapApiTransfer))).catch(() => {})
-  }, [token])
+    if (!isAuthenticated) return
+    apiGetTransfers().then(ts => setTransfers(ts.map(mapDbTransfer))).catch(() => {})
+  }, [isAuthenticated])
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [search, setSearch] = useState('')
 

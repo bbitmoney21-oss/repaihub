@@ -38,7 +38,7 @@ export default function IndiaNRO() {
       setProgressLabel(label as string)
     }
     try {
-      await apiSubmitIndiaKYC(pan)
+      await apiSubmitIndiaKYC(bank, branch)
     } catch { /* non-fatal: continue with local state */ }
     setProgress(100)
     setProgressLabel('KYC complete')

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { apiSubmitCanadaKYC } from '../../lib/api'
+
 import { Shield, Lock, Check, Loader } from 'lucide-react'
 
 const BANKS = ['TD Canada Trust', 'RBC Royal Bank', 'Scotiabank', 'BMO Bank of Montreal', 'CIBC', 'National Bank', 'HSBC Canada', 'Tangerine', 'EQ Bank', 'Other']
@@ -34,7 +35,7 @@ export default function CanadaBank() {
     }
     const bankToken = `flinks_${bank.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`
     try {
-      await apiSubmitCanadaKYC(bankToken, bank)
+      await apiSubmitCanadaKYC(bank, holder)
     } catch { /* non-fatal: continue with local state */ }
     setProgress(100)
     setProgressLabel('Verification complete')
