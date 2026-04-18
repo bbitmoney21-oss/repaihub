@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useStore } from './store/useStore'
-import { supabase } from './lib/supabase'
+import { supabase, supabaseConfigured } from './lib/supabase'
 import AppLayout from './components/layout/AppLayout'
 
 // Public pages
@@ -42,8 +42,9 @@ function RequireKYC({ children }: { children: React.ReactNode }) {
 }
 
 function AuthSync() {
-  const { logout } = useStore()
+  const { isAuthenticated, logout } = useStore()
   useEffect(() => {
+    if (!isAuthenticated || !supabaseConfigured) return
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) logout()
     })
@@ -51,7 +52,7 @@ function AuthSync() {
       if (!session) logout()
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [isAuthenticated])
   return null
 }
 

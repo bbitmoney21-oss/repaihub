@@ -86,11 +86,18 @@ export default function Landing() {
                 onMouseLeave={e => (e.currentTarget.style.background = '#C9963A')}>
                 Dashboard
               </Link>
-            : <Link to="/login" style={{ background: '#C9963A', color: '#0B1C2C', padding: '0.5rem 1.25rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#E8B86D')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#C9963A')}>
-                Sign In
-              </Link>
+            : <>
+                <Link to="/login" style={{ color: '#8BA0B4', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#FAF6F0')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#8BA0B4')}>
+                  Sign In
+                </Link>
+                <Link to="/signup" style={{ background: '#C9963A', color: '#0B1C2C', padding: '0.5rem 1.25rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#E8B86D')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#C9963A')}>
+                  Create Account
+                </Link>
+              </>
           }
         </div>
       </nav>
