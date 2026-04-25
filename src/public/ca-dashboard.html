@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REPAIHUB — CA Portal</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F5F7FA;color:#1A1A1A;font-size:14px}
+
+/* ── Login ── */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a4f3c 0%,#0F6E56 60%,#1a8a6e 100%)}
+.login-card{background:#fff;border-radius:12px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25)}
+.login-logo{text-align:center;margin-bottom:8px;font-size:26px;font-weight:800;color:#0F6E56;letter-spacing:0.08em}
+.login-sub{text-align:center;color:#6B7280;font-size:13px;margin-bottom:32px}
+.login-card h2{font-size:20px;font-weight:700;margin-bottom:24px;color:#111}
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6B7280;margin-bottom:6px}
+.form-group input{width:100%;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:6px;font-size:14px;outline:none;transition:border 0.2s}
+.form-group input:focus{border-color:#0F6E56}
+.btn-login{width:100%;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:0.05em;transition:background 0.2s}
+.btn-login:hover{background:#0a5543}
+.login-error{color:#DC2626;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
+
+/* ── App Layout ── */
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:240px;min-height:100vh;background:#0F6E56;color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.main-area{margin-left:240px;flex:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── Sidebar ── */
+.sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.15)}
+.sidebar-logo .brand{font-size:20px;font-weight:800;letter-spacing:0.08em}
+.sidebar-logo .portal-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;margin-top:2px}
+.sidebar-nav{flex:1;padding:16px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,0.8);transition:all 0.15s;position:relative}
+.nav-item:hover,.nav-item.active{background:rgba(255,255,255,0.15);color:#fff}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#fff;border-radius:0 2px 2px 0}
+.nav-badge{background:#EF4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:auto}
+.sidebar-user{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.15)}
+.sidebar-user .ca-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.sidebar-user .ca-icai{font-size:11px;opacity:0.65;margin-bottom:12px}
+.btn-logout{width:100%;padding:8px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:6px;font-size:12px;cursor:pointer;transition:all 0.15s}
+.btn-logout:hover{background:rgba(255,255,255,0.22)}
+
+/* ── Main Content ── */
+.page-header{padding:24px 32px 0;margin-bottom:24px}
+.page-header h1{font-size:22px;font-weight:700;color:#111}
+.page-header p{color:#6B7280;font-size:13px;margin-top:4px}
+.content-area{padding:0 32px 32px}
+
+/* ── Stat Cards ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.stat-card .label{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6B7280;margin-bottom:8px}
+.stat-card .value{font-size:28px;font-weight:800;color:#111}
+.stat-card .value.amber{color:#D97706}
+.stat-card .value.green{color:#16A34A}
+.stat-card .value.red{color:#DC2626}
+.stat-card .sub{font-size:11px;color:#9CA3AF;margin-top:4px}
+
+/* ── Table ── */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between}
+.card-header h2{font-size:15px;font-weight:700}
+.filter-row{display:flex;align-items:center;gap:10px}
+.filter-row select{padding:6px 10px;border:1.5px solid #E5E7EB;border-radius:6px;font-size:13px;outline:none}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#6B7280;background:#F9FAFB;border-bottom:1px solid #F3F4F6}
+td{padding:12px 16px;border-bottom:1px solid #F9FAFB;font-size:13px;color:#374151;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#FAFAFA}
+.empty-row td{text-align:center;color:#9CA3AF;padding:40px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.04em}
+.badge-gray{background:#F3F4F6;color:#6B7280}
+.badge-blue{background:#EFF6FF;color:#2563EB}
+.badge-amber{background:#FEF3C7;color:#D97706}
+.badge-teal{background:#F0FDFA;color:#0D9488}
+.badge-green{background:#F0FDF4;color:#16A34A}
+.badge-purple{background:#F5F3FF;color:#7C3AED}
+.badge-red{background:#FEF2F2;color:#DC2626}
+.badge-express{background:#FEF3C7;color:#B45309}
+.badge-standard{background:#F3F4F6;color:#6B7280}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── Buttons ── */
+.btn{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;letter-spacing:0.03em}
+.btn-primary{background:#0F6E56;color:#fff}
+.btn-primary:hover{background:#0a5543}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+.btn-danger{background:#DC2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:#fff;color:#0F6E56;border:1.5px solid #0F6E56}
+.btn-outline:hover{background:#F0FDF4}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-copy{padding:3px 8px;font-size:10px;background:#F3F4F6;color:#374151;border:1px solid #E5E7EB;border-radius:4px;cursor:pointer;transition:all 0.15s}
+.btn-copy:hover{background:#E5E7EB}
+.btn-copy.copied{background:#D1FAE5;color:#059669;border-color:#A7F3D0}
+
+/* ── Detail Panel ── */
+.detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200}
+.detail-panel{display:none;position:fixed;top:0;right:0;bottom:0;width:680px;background:#fff;z-index:201;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.15)}
+.panel-header{padding:20px 24px;background:#0F6E56;color:#fff;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1}
+.panel-header h2{font-size:16px;font-weight:700}
+.btn-close{background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.panel-body{padding:24px}
+.form-section{margin-bottom:28px}
+.form-section h3{font-size:13px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#0F6E56;padding-bottom:8px;border-bottom:2px solid #DCFCE7;margin-bottom:16px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.detail-item .key{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;margin-bottom:3px}
+.detail-item .val{font-size:13px;color:#111;font-weight:500;word-break:break-word}
+.detail-item.full{grid-column:1/-1}
+
+/* ── WISEMAN Grid ── */
+.wiseman-grid{display:grid;gap:8px}
+.wiseman-row{display:grid;grid-template-columns:200px 1fr auto;align-items:center;gap:12px;padding:8px 12px;background:#F9FAFB;border-radius:6px;border:1px solid #F3F4F6}
+.wiseman-key{font-size:11px;font-weight:600;color:#6B7280;font-family:monospace}
+.wiseman-val{font-size:13px;color:#111;word-break:break-all}
+.wiseman-actions-row{margin-top:12px;display:flex;gap:10px}
+
+/* ── Source Breakdown ── */
+.breakdown-table{width:100%;font-size:12px;border-collapse:collapse;margin-top:8px}
+.breakdown-table th{background:#F9FAFB;padding:6px 10px;text-align:left;color:#6B7280;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.06em}
+.breakdown-table td{padding:6px 10px;border-bottom:1px solid #F3F4F6}
+
+/* ── Checklist ── */
+.checklist{display:flex;flex-direction:column;gap:8px}
+.checklist-item{display:flex;align-items:center;gap:10px;font-size:13px;color:#374151}
+.check-box{width:18px;height:18px;border:2px solid #E5E7EB;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s}
+.check-box.checked{background:#0F6E56;border-color:#0F6E56;color:#fff}
+
+/* ── CA Action ── */
+.action-box{background:#F9FAFB;border-radius:8px;padding:20px;border:1px solid #E5E7EB}
+.action-box .field-label{font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#6B7280;margin-bottom:6px;margin-top:14px;display:block}
+.action-box .field-label:first-child{margin-top:0}
+.action-box input,.action-box textarea{width:100%;padding:9px 12px;border:1.5px solid #E5E7EB;border-radius:6px;font-size:13px;font-family:inherit;outline:none;transition:border 0.2s;resize:vertical}
+.action-box input:focus,.action-box textarea:focus{border-color:#0F6E56}
+.action-row{display:flex;gap:10px;margin-top:16px}
+.confirm-check{display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:12px;color:#374151;cursor:pointer}
+.confirm-check input{margin-top:2px;accent-color:#0F6E56}
+.completed-badge{display:flex;align-items:center;gap:12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:16px;color:#16A34A;font-weight:600}
+.completed-badge .icon{font-size:24px}
+.warn-banner{background:#FEF3C7;border:1px solid #FDE68A;border-radius:6px;padding:10px 14px;font-size:12px;color:#92400E;margin-bottom:12px}
+.err-banner{background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:10px 14px;font-size:12px;color:#991B1B;margin-bottom:12px;display:none}
+
+/* ── Loading ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:#9CA3AF;font-size:13px}
+.spinner{width:18px;height:18px;border:2px solid #E5E7EB;border-top-color:#0F6E56;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ── Login Screen ────────────────────────────────────────────────────────── -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">REPAIHUB</div>
+    <div class="login-sub">CA Compliance Portal</div>
+    <h2>Sign In</h2>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input id="login-email" type="email" placeholder="ca@repaihub.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login" id="login-btn">Sign In</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Main App ────────────────────────────────────────────────────────────── -->
+<div id="app" style="display:none" class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="brand">REPAIHUB</div>
+      <div class="portal-label">CA Compliance Portal</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" id="nav-dashboard" onclick="showView('dashboard')">
+        <span>⊞</span> Dashboard
+      </div>
+      <div class="nav-item" id="nav-pending" onclick="showView('pending')">
+        <span>⧖</span> Pending
+        <span class="nav-badge" id="pending-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" id="nav-all" onclick="showView('all')">
+        <span>☰</span> All Transfers
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="ca-name" id="sidebar-ca-name">CA Partner</div>
+      <div class="ca-icai" id="sidebar-ca-icai">ICAI #—</div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-area">
+
+    <!-- Dashboard View -->
+    <div id="view-dashboard">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>15CA/15CB compliance overview — auto-refreshes every 30 seconds</p>
+      </div>
+      <div class="content-area">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Pending Approvals</div>
+            <div class="value amber" id="stat-pending">—</div>
+            <div class="sub">Awaiting CA review</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Approved Today</div>
+            <div class="value green" id="stat-approved">—</div>
+            <div class="sub">15CB certified</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Express Pending</div>
+            <div class="value red" id="stat-express">—</div>
+            <div class="sub">4-hour SLA</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Monthly Volume</div>
+            <div class="value" id="stat-volume" style="font-size:18px">—</div>
+            <div class="sub">INR this month</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Pending Transfers</h2>
+            <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
+          </div>
+          <div id="pending-table-wrap">
+            <div class="loading"><div class="spinner"></div>Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending View -->
+    <div id="view-pending" style="display:none">
+      <div class="page-header">
+        <h1>Pending Transfers</h1>
+        <p>Express-first queue — requires 15CB certification</p>
+      </div>
+      <div class="content-area">
+        <div class="card">
+          <div class="card-header">
+            <h2>Awaiting Review</h2>
+            <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
+          </div>
+          <div id="pending-view-table-wrap">
+            <div class="loading"><div class="spinner"></div>Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Transfers View -->
+    <div id="view-all" style="display:none">
+      <div class="page-header">
+        <h1>All Transfers</h1>
+        <p>Complete transfer history with status filter</p>
+      </div>
+      <div class="content-area">
+        <div class="card">
+          <div class="card-header">
+            <h2>Transfer History</h2>
+            <div class="filter-row">
+              <select id="status-filter" onchange="applyFilter()">
+                <option value="">All Statuses</option>
+                <option value="INITIATED">Initiated</option>
+                <option value="KYC_VERIFIED">KYC Verified</option>
+                <option value="15CB_REQUESTED">15CB Requested</option>
+                <option value="15CB_RECEIVED">15CB Received</option>
+                <option value="15CA_FILED">15CA Filed</option>
+                <option value="BANK_PROCESSING">Bank Processing</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="FAILED">Failed</option>
+              </select>
+              <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
+            </div>
+          </div>
+          <div id="all-table-wrap">
+            <div class="loading"><div class="spinner"></div>Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+</div><!-- /app -->
+
+<!-- ── Detail Panel ───────────────────────────────────────────────────────── -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-header">
+    <h2 id="panel-title">Transfer Detail</h2>
+    <button class="btn-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <div class="loading"><div class="spinner"></div>Loading form data…</div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('repaihub_ca_token');
+let caUser = null;
+let currentView = 'dashboard';
+let currentTransferId = null;
+let currentFormData = null;
+let allTransfersCache = [];
+let pendingCache = [];
+let statsCache = {};
+let autoRefreshTimer = null;
+
+// ── Status config ──────────────────────────────────────────────────────────
+const STATUS_CLASS = {
+  'INITIATED': 'badge-gray',
+  'KYC_VERIFIED': 'badge-blue',
+  '15CB_REQUESTED': 'badge-amber',
+  '15CB_RECEIVED': 'badge-teal',
+  '15CA_FILED': 'badge-green',
+  'BANK_PROCESSING': 'badge-purple',
+  'COMPLETED': 'badge-green',
+  'FAILED': 'badge-red',
+};
+const PULSE_STATUSES = ['15CB_REQUESTED'];
+
+// ── Utility ────────────────────────────────────────────────────────────────
+const formatINR = n => new Intl.NumberFormat('en-IN').format(Math.round(Number(n)));
+const formatCAD = n => Number(n).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const h = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function statusBadge(status) {
+  const cls = STATUS_CLASS[status] || 'badge-gray';
+  const pulse = PULSE_STATUSES.includes(status) ? '<span class="pulse-dot"></span>' : '';
+  return `<span class="badge ${cls}">${pulse}${h(status)}</span>`;
+}
+
+function priorityBadge(p) {
+  return p === 'express'
+    ? '<span class="badge badge-express">EXPRESS</span>'
+    : '<span class="badge badge-standard">Standard</span>';
+}
+
+// ── API helper ─────────────────────────────────────────────────────────────
+async function apiFetch(method, endpoint, body = null) {
+  try {
+    const opts = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`/ca${endpoint}`, opts);
+    if (res.status === 401) { logout(); return null; }
+    return await res.json();
+  } catch (err) {
+    console.error('API error:', err);
+    return null;
+  }
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/ca/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    token = data.token;
+    caUser = data.user;
+    localStorage.setItem('repaihub_ca_token', token);
+    showApp();
+  } catch (err) {
+    errEl.textContent = err.message || 'Login failed. Check credentials.';
+  } finally {
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
+  }
+}
+
+function logout() {
+  token = null;
+  caUser = null;
+  localStorage.removeItem('repaihub_ca_token');
+  clearInterval(autoRefreshTimer);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error').textContent = '';
+}
+
+// ── View management ────────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  if (caUser) {
+    document.getElementById('sidebar-ca-name').textContent = caUser.name;
+    document.getElementById('sidebar-ca-icai').textContent = `ICAI #${caUser.icaiMembership}`;
+  }
+  showView('dashboard');
+  refreshData();
+  autoRefreshTimer = setInterval(refreshData, 30000);
+}
+
+function showView(view) {
+  currentView = view;
+  ['dashboard','pending','all'].forEach(v => {
+    document.getElementById(`view-${v}`).style.display = v === view ? '' : 'none';
+    document.getElementById(`nav-${v}`).classList.toggle('active', v === view);
+  });
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  if (currentView === 'dashboard') {
+    renderStats();
+    renderPendingTable('pending-table-wrap', pendingCache);
+  } else if (currentView === 'pending') {
+    renderPendingTable('pending-view-table-wrap', pendingCache);
+  } else if (currentView === 'all') {
+    renderAllTable();
+  }
+}
+
+// ── Data loading ───────────────────────────────────────────────────────────
+async function refreshData() {
+  const [statsData, pendingData, allData] = await Promise.all([
+    apiFetch('GET', '/stats'),
+    apiFetch('GET', '/transfers/pending'),
+    apiFetch('GET', '/transfers'),
+  ]);
+  if (statsData) { statsCache = statsData; }
+  if (pendingData) { pendingCache = pendingData.transfers || []; }
+  if (allData) { allTransfersCache = allData.transfers || []; }
+  updatePendingBadge();
+  renderCurrentView();
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function renderStats() {
+  const s = statsCache;
+  document.getElementById('stat-pending').textContent = s.pendingCount ?? '—';
+  document.getElementById('stat-approved').textContent = s.approvedToday ?? '—';
+  document.getElementById('stat-express').textContent = s.expressCount ?? '—';
+  const vol = s.monthlyVolumeINR;
+  document.getElementById('stat-volume').textContent = vol != null
+    ? `₹${formatINR(vol)}` : '—';
+}
+
+function updatePendingBadge() {
+  const badge = document.getElementById('pending-badge');
+  const count = pendingCache.length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+// ── Tables ─────────────────────────────────────────────────────────────────
+function buildTransferTable(transfers) {
+  if (!transfers.length) {
+    return `<table><tr class="empty-row"><td colspan="8">No transfers found</td></tr></table>`;
+  }
+  const rows = transfers.map(t => `
+    <tr>
+      <td><strong>${h(t.customerName)}</strong><br><span style="color:#9CA3AF;font-size:11px">${h(t.customerEmail)}</span></td>
+      <td style="font-family:monospace">****${h(t.panLast4)}</td>
+      <td>₹${formatINR(t.amountINR)}</td>
+      <td>CA$${formatCAD(t.amountCAD)}</td>
+      <td>${h((t.sourceOfFunds||'').replace(/_/g,' '))}</td>
+      <td>${priorityBadge(t.priority)}</td>
+      <td>${statusBadge(t.status)}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="openDetail('${h(t.id)}')">Review →</button></td>
+    </tr>
+  `).join('');
+  return `
+    <table>
+      <thead><tr>
+        <th>Customer</th><th>PAN</th><th>Amount INR</th><th>Amount CAD</th>
+        <th>Source</th><th>Priority</th><th>Status</th><th>Action</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderPendingTable(wrapperId, transfers) {
+  document.getElementById(wrapperId).innerHTML = buildTransferTable(transfers);
+}
+
+function renderAllTable() {
+  const filter = document.getElementById('status-filter')?.value || '';
+  const filtered = filter ? allTransfersCache.filter(t => t.status === filter) : allTransfersCache;
+  document.getElementById('all-table-wrap').innerHTML = buildTransferTable(filtered);
+}
+
+function applyFilter() { renderAllTable(); }
+
+// ── Detail Panel ───────────────────────────────────────────────────────────
+async function openDetail(id) {
+  currentTransferId = id;
+  document.getElementById('detail-overlay').style.display = 'block';
+  document.getElementById('detail-panel').style.display = 'block';
+  document.getElementById('panel-body').innerHTML =
+    '<div class="loading"><div class="spinner"></div>Loading form data…</div>';
+
+  const data = await apiFetch('GET', `/transfers/${id}/form`);
+  if (!data || !data.form) {
+    document.getElementById('panel-body').innerHTML = '<div class="loading">Failed to load. Try again.</div>';
+    return;
+  }
+  currentFormData = data.form;
+  renderDetailPanel(data.form, id);
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').style.display = 'none';
+  document.getElementById('detail-panel').style.display = 'none';
+  currentTransferId = null;
+  currentFormData = null;
+}
+
+function renderDetailPanel(form, transferId) {
+  const f = form;
+  const r = f.remitterDetails;
+  const b = f.bankDetails;
+  const rd = f.remittanceDetails;
+  const td = f.taxDetails;
+  const wf = f.wisemanFields;
+  const cb = f.fifteenCBChecklist;
+  const meta = f.formMeta;
+
+  // Find transfer from cache for status and action
+  const transfer = [...allTransfersCache, ...pendingCache].find(t => t.id === transferId);
+  const status = transfer?.status || '';
+
+  document.getElementById('panel-title').textContent =
+    `${r.fullName} — ₹${formatINR(rd.amountINR)}`;
+
+  const slaColor = meta.slaHoursRemaining < 2 ? '#DC2626' : meta.slaHoursRemaining < 6 ? '#D97706' : '#16A34A';
+
+  document.getElementById('panel-body').innerHTML = `
+
+    <!-- Meta bar -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      ${statusBadge(status)}
+      ${priorityBadge(transfer?.priority||'standard')}
+      <span style="font-size:11px;color:#6B7280">ID: ${h(transferId.slice(0,8))}…</span>
+      <span style="font-size:11px;color:${slaColor};font-weight:600">SLA: ${meta.slaHoursRemaining.toFixed(1)}h remaining</span>
+      <span style="font-size:11px;color:#6B7280">15CA Part <strong>${meta.fifteenCAPart}</strong>${meta.fifteenCBRequired ? ' · 15CB Required' : ''}</span>
+    </div>
+
+    <!-- Section 1: Remitter -->
+    <div class="form-section">
+      <h3>1 — Remitter Details</h3>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="key">Full Name</div><div class="val">${h(r.fullName)}</div></div>
+        <div class="detail-item"><div class="key">Email</div><div class="val">${h(r.email)}</div></div>
+        <div class="detail-item"><div class="key">PAN</div><div class="val" style="font-family:monospace">${h(r.panDisplay)}</div></div>
+        <div class="detail-item"><div class="key">Residency</div><div class="val">${h(r.residencyStatus)}</div></div>
+        <div class="detail-item full"><div class="key">PAN Hash (SHA-256)</div><div class="val" style="font-family:monospace;font-size:10px;word-break:break-all;color:#6B7280">${h(r.panHash)}</div></div>
+      </div>
+    </div>
+
+    <!-- Section 2: Bank Details -->
+    <div class="form-section">
+      <h3>2 — Bank Details</h3>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="key">NRO Bank</div><div class="val">${h(b.nroBank)}</div></div>
+        <div class="detail-item"><div class="key">NRO Branch City</div><div class="val">${h(b.nroBranch)}</div></div>
+        <div class="detail-item"><div class="key">Authorised Dealer (AD)</div><div class="val">${h(b.adBank)}</div></div>
+        <div class="detail-item"><div class="key">Canadian Bank</div><div class="val">${h(b.canadianBank)}</div></div>
+      </div>
+    </div>
+
+    <!-- Section 3: Remittance Details -->
+    <div class="form-section">
+      <h3>3 — Remittance Details</h3>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="key">Amount INR</div><div class="val" style="font-size:17px;font-weight:700">₹${formatINR(rd.amountINR)}</div></div>
+        <div class="detail-item"><div class="key">Amount CAD</div><div class="val" style="font-size:17px;font-weight:700">CA$${formatCAD(rd.amountCAD)}</div></div>
+        <div class="detail-item"><div class="key">Exchange Rate</div><div class="val">${rd.exchangeRate}</div></div>
+        <div class="detail-item"><div class="key">RBI Purpose Code</div><div class="val" style="font-family:monospace">${h(rd.purposeCode)}</div></div>
+        <div class="detail-item full"><div class="key">Purpose Description</div><div class="val">${h(rd.purposeDescription)}</div></div>
+        <div class="detail-item"><div class="key">Primary Source</div><div class="val">${h(rd.sourceOfFunds)}</div></div>
+        <div class="detail-item"><div class="key">FY Cumulative</div><div class="val">₹${formatINR(rd.financialYearCumulative)}</div></div>
+        <div class="detail-item"><div class="key">15CA Part</div><div class="val"><strong>Part ${meta.fifteenCAPart}</strong> — ${rd.financialYearCumulative <= 500000 ? 'Cumulative ≤ ₹5 lakh' : 'Cumulative > ₹5 lakh, 15CB required'}</div></div>
+        <div class="detail-item"><div class="key">First Remittance This FY</div><div class="val">${rd.isFirstRemittanceThisYear ? 'Yes' : 'No'}</div></div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;margin-bottom:6px">Source Breakdown</div>
+        <table class="breakdown-table">
+          <thead><tr><th>Source</th><th>Amount INR</th><th>TDS</th><th>Rate</th></tr></thead>
+          <tbody>
+            ${rd.sourceBreakdown.map(s => `
+              <tr>
+                <td>${h(s.type)}</td>
+                <td>₹${formatINR(s.amountINR)}</td>
+                <td>${s.tdsDeducted ? '✓ Yes' : '✗ No'}</td>
+                <td>${h(s.tdsRate)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 4: Tax & TDS -->
+    <div class="form-section">
+      <h3>4 — Tax &amp; TDS Details</h3>
+      ${!td.tdsVerificationRequired ? '' : '<div class="warn-banner">⚠ TDS verification against Form 26AS is mandatory before certifying 15CB.</div>'}
+      <div class="detail-grid">
+        <div class="detail-item"><div class="key">TDS Deducted</div><div class="val">${td.tdsDeducted ? '✓ Yes' : '✗ No'}</div></div>
+        <div class="detail-item"><div class="key">TDS Amount</div><div class="val" style="font-weight:700">₹${formatINR(td.tdsAmountINR)}</div></div>
+        <div class="detail-item"><div class="key">TDS Certificate Ref</div><div class="val" style="font-family:monospace">${h(td.tdsReference)}</div></div>
+        <div class="detail-item"><div class="key">Section</div><div class="val">Section 195</div></div>
+        <div class="detail-item"><div class="key">Applicable DTAA</div><div class="val">${h(td.applicableDTAA)}</div></div>
+        <div class="detail-item"><div class="key">DTAA Article</div><div class="val">${h(td.dtaaArticle)}</div></div>
+        <div class="detail-item"><div class="key">Withholding Rate</div><div class="val">${h(td.withholdingTaxRate)}</div></div>
+        <div class="detail-item"><div class="key">Taxable under ITA</div><div class="val">${td.taxableUnderITA ? 'Yes' : 'No'}</div></div>
+      </div>
+    </div>
+
+    <!-- Section 5: WISEMAN Fields -->
+    <div class="form-section">
+      <h3>5 — WISEMAN Data Entry Fields</h3>
+      <div class="wiseman-grid" id="wiseman-grid">
+        ${Object.entries(wf).map(([k, v]) => `
+          <div class="wiseman-row">
+            <div class="wiseman-key">${h(k)}</div>
+            <div class="wiseman-val" id="wf-${h(k)}">${h(String(v))}</div>
+            <button class="btn-copy" id="btn-${h(k)}" onclick="copyWiseman('${h(k)}')">Copy</button>
+          </div>`).join('')}
+      </div>
+      <div class="wiseman-actions-row">
+        <button class="btn btn-outline btn-sm" onclick="exportWiseman()">⬇ Export .txt for WISEMAN</button>
+        <button class="btn btn-sm" style="background:#F3F4F6;color:#374151" onclick="copyAllWiseman()">Copy All Fields</button>
+      </div>
+    </div>
+
+    <!-- Section 6: 15CB Checklist -->
+    <div class="form-section">
+      <h3>6 — Pre-Certification Checklist</h3>
+      <div class="checklist" id="checklist">
+        ${Object.keys(cb).map(k => `
+          <div class="checklist-item" onclick="toggleCheck(this)">
+            <div class="check-box" id="chk-${h(k)}">✓</div>
+            <span>${h(k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()))}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Section 7: CA Action -->
+    <div class="form-section">
+      <h3>7 — CA Action</h3>
+      <div id="action-area">${renderActionArea(status, transfer)}</div>
+    </div>
+  `;
+
+  // Reset checklist boxes to unchecked state
+  document.querySelectorAll('.check-box').forEach(el => el.classList.remove('checked'));
+}
+
+function toggleCheck(row) {
+  row.querySelector('.check-box').classList.toggle('checked');
+}
+
+function renderActionArea(status, transfer) {
+  if (status === '15CA_FILED' || status === 'COMPLETED' || status === 'BANK_PROCESSING') {
+    return `
+      <div class="completed-badge">
+        <span class="icon">✅</span>
+        <div>
+          <div>Compliance complete</div>
+          ${transfer?.fifteenCBNumber ? `<div style="font-size:12px;font-weight:400;margin-top:4px">15CB: ${h(transfer.fifteenCBNumber)}</div>` : ''}
+          ${transfer?.fifteenCANumber ? `<div style="font-size:12px;font-weight:400">15CA: ${h(transfer.fifteenCANumber)}</div>` : ''}
+        </div>
+      </div>`;
+  }
+
+  if (status === '15CB_RECEIVED') {
+    return `
+      <div class="action-box">
+        <div style="font-size:13px;color:#374151;margin-bottom:14px">15CB has been certified. File 15CA on the Income Tax portal and enter the acknowledgement number below.</div>
+        <div id="file-error" class="err-banner"></div>
+        <label class="field-label">15CA Acknowledgement Number</label>
+        <input id="ca-number" type="text" placeholder="e.g. CA2026-04-190K-1234">
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="handle15CAFiled()">Mark 15CA Filed →</button>
+        </div>
+      </div>`;
+  }
+
+  if (status === '15CB_REQUESTED' || status === 'KYC_VERIFIED') {
+    return `
+      <div class="action-box">
+        <div id="approve-error" class="err-banner"></div>
+        <label class="field-label">15CB Certificate Number</label>
+        <input id="cb-number" type="text" placeholder="e.g. CB2026-04-190K-5678">
+        <label class="field-label">CA Remarks (minimum 20 characters)</label>
+        <textarea id="ca-remarks" rows="3" placeholder="Verified source of funds against Form 26AS. TDS confirmed. DTAA relief assessed under Article 23..."></textarea>
+        <label class="confirm-check">
+          <input type="checkbox" id="confirm-check">
+          I confirm I have verified the above details on WISEMAN and Form 26AS, and I take professional responsibility for this 15CB certification.
+        </label>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="handleApprove()">Certify 15CB ✓</button>
+          <button class="btn btn-danger" onclick="showRejectForm()">Reject ✗</button>
+        </div>
+        <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
+          <label class="field-label">Reason for Rejection</label>
+          <textarea id="reject-reason" rows="2" placeholder="Explain why this transfer is being rejected…"></textarea>
+          <div class="action-row">
+            <button class="btn btn-danger" onclick="handleReject()">Confirm Rejection</button>
+            <button class="btn btn-sm" style="background:#F3F4F6;color:#374151" onclick="hideRejectForm()">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  return `<div style="color:#9CA3AF;font-size:13px">No action available for status: ${h(status)}</div>`;
+}
+
+function showRejectForm() { document.getElementById('reject-form').style.display = ''; }
+function hideRejectForm() { document.getElementById('reject-form').style.display = 'none'; }
+
+// ── CA Actions ─────────────────────────────────────────────────────────────
+async function handleApprove() {
+  const cbNumber = document.getElementById('cb-number')?.value?.trim();
+  const remarks = document.getElementById('ca-remarks')?.value?.trim();
+  const confirmed = document.getElementById('confirm-check')?.checked;
+  const errEl = document.getElementById('approve-error');
+  errEl.style.display = 'none';
+
+  if (!cbNumber) { showErr(errEl, '15CB certificate number is required.'); return; }
+  if (!remarks || remarks.length < 20) { showErr(errEl, 'CA remarks must be at least 20 characters.'); return; }
+  if (!confirmed) { showErr(errEl, 'You must confirm verification before certifying.'); return; }
+
+  const res = await apiFetch('POST', `/transfers/${currentTransferId}/approve`, { cbNumber, remarks });
+  if (res && res.transfer) {
+    await refreshData();
+    const updated = [...allTransfersCache, ...pendingCache].find(t => t.id === currentTransferId);
+    document.getElementById('action-area').innerHTML = renderActionArea(res.transfer.status, res.transfer);
+    updateStatusBadgeInPanel(res.transfer.status);
+  } else {
+    showErr(errEl, res?.error || 'Approval failed. Try again.');
+  }
+}
+
+async function handleReject() {
+  const reason = document.getElementById('reject-reason')?.value?.trim();
+  const errEl = document.getElementById('approve-error');
+  errEl.style.display = 'none';
+  if (!reason) { showErr(errEl, 'Rejection reason is required.'); return; }
+
+  const res = await apiFetch('POST', `/transfers/${currentTransferId}/reject`, { reason });
+  if (res && res.transfer) {
+    await refreshData();
+    document.getElementById('action-area').innerHTML = renderActionArea(res.transfer.status, res.transfer);
+    updateStatusBadgeInPanel(res.transfer.status);
+  } else {
+    showErr(errEl, res?.error || 'Rejection failed. Try again.');
+  }
+}
+
+async function handle15CAFiled() {
+  const caNumber = document.getElementById('ca-number')?.value?.trim();
+  const errEl = document.getElementById('file-error');
+  errEl.style.display = 'none';
+  if (!caNumber) { showErr(errEl, '15CA acknowledgement number is required.'); return; }
+
+  const res = await apiFetch('POST', `/transfers/${currentTransferId}/15ca-filed`, { caNumber });
+  if (res && res.transfer) {
+    await refreshData();
+    document.getElementById('action-area').innerHTML = renderActionArea(res.transfer.status, res.transfer);
+    updateStatusBadgeInPanel(res.transfer.status);
+  } else {
+    showErr(errEl, res?.error || 'Filing failed. Try again.');
+  }
+}
+
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+function updateStatusBadgeInPanel(status) {
+  const metaBar = document.querySelector('#panel-body > div');
+  if (!metaBar) return;
+  const old = metaBar.querySelector('.badge:first-child');
+  if (old) old.outerHTML = statusBadge(status);
+}
+
+// ── WISEMAN copy/export ────────────────────────────────────────────────────
+function copyWiseman(key) {
+  const val = document.getElementById('wf-' + key)?.textContent || '';
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.getElementById('btn-' + key);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyAllWiseman() {
+  if (!currentFormData) return;
+  const text = Object.entries(currentFormData.wisemanFields)
+    .map(([k, v]) => `${k}: ${v}`).join('\n');
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+function exportWiseman() {
+  if (!currentFormData) return;
+  const text = Object.entries(currentFormData.wisemanFields)
+    .map(([k, v]) => `${k}: ${v}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wiseman-${currentTransferId?.slice(0,8) || 'export'}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(function init() {
+  if (token) {
+    // Try to restore session — if token is invalid, API calls will auto-logout
+    showApp();
+  }
+})();
+</script>
+</body>
+</html>

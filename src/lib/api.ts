@@ -1,15 +1,49 @@
-import { supabase } from './supabase'
+import { supabase, supabaseConfigured } from './supabase'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export async function apiRegister(email: string, password: string, name: string, phone: string) {
+  if (!supabaseConfigured) {
+    throw new Error('Service is not configured. Please contact support.')
+  }
+
   // Pass name/phone as user metadata — a DB trigger auto-creates the profiles row
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: name, phone } },
   })
-  if (error) throw error
+
+  if (error) {
+    // Supabase returns this message for duplicate emails
+    if (
+      error.message?.toLowerCase().includes('already registered') ||
+      error.message?.toLowerCase().includes('already exists') ||
+      error.message?.toLowerCase().includes('user already')
+    ) {
+      throw new Error('User already registered')
+    }
+    throw error
+  }
+
   if (!data.user) throw new Error('Registration failed')
+
+  // Explicit profile upsert as a defence-in-depth fallback in case the DB
+  // trigger (handle_new_user) hasn't been applied to this Supabase project yet.
+  // Non-fatal: log and continue if it fails — the trigger handles it server-side.
+  const { error: profileError } = await supabase.from('profiles').upsert(
+    {
+      id: data.user.id,
+      email: data.user.email,
+      full_name: name,
+      phone: phone || null,
+    },
+    { onConflict: 'id' },
+  )
+
+  if (profileError) {
+    console.error('Profile upsert failed (DB trigger should handle this):', profileError.message)
+  }
+
   return data.user
 }
 

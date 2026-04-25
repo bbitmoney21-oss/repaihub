@@ -36,8 +36,21 @@ export default function Signup() {
       setAuth({ id: user.id, email: form.email, name: form.name, phone: form.phone })
       nav('/onboarding/residency')
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message
-      setErrors(ex => ({ ...ex, email: msg || 'Registration failed. Please try again.' }))
+      const msg = (err as { message?: string })?.message ?? ''
+      let displayMsg: string
+      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already exists')) {
+        displayMsg = 'An account with this email already exists. Please sign in instead.'
+      } else if (
+        msg === 'Failed to fetch' ||
+        msg.toLowerCase().includes('networkerror') ||
+        msg.toLowerCase().includes('not configured') ||
+        msg.toLowerCase().includes('failed to fetch')
+      ) {
+        displayMsg = 'Cannot connect to server. Please check your connection and try again.'
+      } else {
+        displayMsg = msg || 'Registration failed. Please try again.'
+      }
+      setErrors(ex => ({ ...ex, email: displayMsg }))
     } finally {
       setLoading(false)
     }

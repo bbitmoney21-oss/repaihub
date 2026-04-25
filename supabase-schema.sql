@@ -24,7 +24,10 @@ drop policy if exists "profiles_insert" on public.profiles;
 drop policy if exists "profiles_update" on public.profiles;
 
 create policy "profiles_select" on public.profiles for select using (auth.uid() = id);
--- No insert policy needed — the trigger (security definer) creates the row
+-- Insert policy allows the client-side upsert fallback in apiRegister() to work
+-- when email confirmation is disabled and the session is available immediately.
+-- The trigger (security definer) also creates the row, so both paths are safe.
+create policy "profiles_insert" on public.profiles for insert with check (auth.uid() = id);
 create policy "profiles_update" on public.profiles for update using (auth.uid() = id);
 
 -- ── Trigger: auto-create profile on signup ────────────────────────────────────
