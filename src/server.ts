@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import caPortalRoutes from './routes/caPortal';
 
@@ -20,6 +21,7 @@ app.use(cors({
     ];
     if (!origin) return callback(null, true);
     if (origin.endsWith('.netlify.app')) return callback(null, true);
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
     if (allowed.includes(origin)) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
@@ -30,7 +32,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static files from src/public (CA dashboard HTML)
+// Serve CA portal HTML
 app.use(express.static(path.resolve('src/public')));
 
 // ── Health check ─────────────────────────────────────────────────────────────
@@ -46,9 +48,23 @@ app.get('/ca', (_req, res) => {
   res.redirect('/ca-dashboard.html');
 });
 
+// ── Serve React frontend (production build) ───────────────────────────────────
+const distPath = path.resolve('dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+
+  // SPA fallback — any route not matched above serves index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`REPAIHUB API → http://localhost:${PORT}/health`);
   console.log(`CA Portal    → http://localhost:${PORT}/ca-dashboard.html`);
+  if (fs.existsSync(distPath)) {
+    console.log(`React App    → http://localhost:${PORT}/`);
+  }
 });
 
 export default app;

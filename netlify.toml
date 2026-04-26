@@ -13,6 +13,20 @@
 [build.context.dev]
   command = "npm run build"
 
+# CA portal lives on Render — redirect from Netlify so the URL still works
+[[redirects]]
+  from = "/ca-dashboard.html"
+  to = "https://repaihub.onrender.com/ca-dashboard.html"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/ca/*"
+  to = "https://repaihub.onrender.com/ca/:splat"
+  status = 302
+  force = true
+
+# SPA fallback — must be last
 [[redirects]]
   from = "/*"
   to = "/index.html"
