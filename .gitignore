@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-server/
 *.zip
 .env
 .env.local
+.claude/
