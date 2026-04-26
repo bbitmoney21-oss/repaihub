@@ -18,14 +18,14 @@ const ts = () => new Date().toISOString();
 // ── Human-readable labels ─────────────────────────────────────────────────────
 
 const SOURCE_LABELS: Record<SourceOfFunds, string> = {
-  rental_income: 'Rental Income',
-  dividend_income: 'Dividend Income',
-  property_sale: 'Property Sale Proceeds',
-  pension: 'Pension',
-  salary_arrears: 'Salary Arrears',
+  rental_income:      'Rental Income',
+  dividend_income:    'Dividend Income',
+  property_sale:      'Property Sale Proceeds',
+  pension:            'Pension',
+  salary_arrears:     'Salary Arrears',
   matured_investment: 'Matured Investment',
   gift_from_relative: 'Gift from Relative',
-  other: 'Other',
+  other:              'Other',
 };
 
 const PURPOSE_DESCRIPTIONS: Record<RBIPurposeCode, string> = {
@@ -71,9 +71,9 @@ router.post('/auth/login', async (req, res: Response) => {
 });
 
 // ── GET /ca/transfers ─────────────────────────────────────────────────────────
-router.get('/transfers', caAuthMiddleware, (req: CARequest, res: Response) => {
+router.get('/transfers', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { status } = req.query as { status?: string };
-  let transfers = getAllTransfers();
+  let transfers = await getAllTransfers();
   if (status) {
     transfers = transfers.filter(t => t.status === status);
   }
@@ -82,14 +82,14 @@ router.get('/transfers', caAuthMiddleware, (req: CARequest, res: Response) => {
 
 // ── GET /ca/transfers/pending ─────────────────────────────────────────────────
 // Must be declared before /transfers/:id to avoid "pending" being treated as an id
-router.get('/transfers/pending', caAuthMiddleware, (_req: CARequest, res: Response) => {
-  const pending = getPendingTransfers();
+router.get('/transfers/pending', caAuthMiddleware, async (_req: CARequest, res: Response) => {
+  const pending = await getPendingTransfers();
   res.json({ transfers: pending, count: pending.length, timestamp: ts() });
 });
 
 // ── GET /ca/transfers/:id ─────────────────────────────────────────────────────
-router.get('/transfers/:id', caAuthMiddleware, (req: CARequest, res: Response) => {
-  const transfer = getTransferById(req.params.id);
+router.get('/transfers/:id', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const transfer = await getTransferById(req.params.id as string);
   if (!transfer) {
     res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
     return;
@@ -98,8 +98,8 @@ router.get('/transfers/:id', caAuthMiddleware, (req: CARequest, res: Response) =
 });
 
 // ── GET /ca/transfers/:id/form ────────────────────────────────────────────────
-router.get('/transfers/:id/form', caAuthMiddleware, (req: CARequest, res: Response) => {
-  const transfer = getTransferById(req.params.id);
+router.get('/transfers/:id/form', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const transfer = await getTransferById(req.params.id as string);
   if (!transfer) {
     res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
     return;
@@ -126,7 +126,7 @@ router.get('/transfers/:id/form', caAuthMiddleware, (req: CARequest, res: Respon
     remitterDetails: {
       fullName: transfer.customerName,
       email: transfer.customerEmail,
-      panDisplay: `PAN ending ****${transfer.panLast4}`,
+      panDisplay: transfer.panLast4 === 'N/A' ? 'PAN not provided' : `PAN ending ****${transfer.panLast4}`,
       panHash: transfer.panHash,
       residencyStatus: 'Non-Resident Indian — Canada',
       countryOfResidence: 'Canada',
@@ -145,7 +145,7 @@ router.get('/transfers/:id/form', caAuthMiddleware, (req: CARequest, res: Respon
       amountCAD: transfer.amountCAD,
       exchangeRate: transfer.exchangeRate,
       purposeCode: transfer.purposeCode,
-      purposeDescription: PURPOSE_DESCRIPTIONS[transfer.purposeCode],
+      purposeDescription: PURPOSE_DESCRIPTIONS[transfer.purposeCode] ?? transfer.purposeCode,
       sourceOfFunds: SOURCE_LABELS[transfer.sourceOfFunds] || transfer.sourceOfFunds,
       sourceBreakdown: transfer.sourceBreakdown.map(s => ({
         type: SOURCE_LABELS[s.type] || s.type,
@@ -178,7 +178,7 @@ router.get('/transfers/:id/form', caAuthMiddleware, (req: CARequest, res: Respon
     },
 
     wisemanFields: {
-      assessee_pan: `PAN ending ****${transfer.panLast4}`,
+      assessee_pan: transfer.panLast4 === 'N/A' ? 'PAN not provided' : `PAN ending ****${transfer.panLast4}`,
       assessee_name: transfer.customerName,
       nature_of_remittance: SOURCE_LABELS[transfer.sourceOfFunds] || transfer.sourceOfFunds,
       amount_in_inr: formatINR(transfer.amountINR),
@@ -202,7 +202,7 @@ router.get('/transfers/:id/form', caAuthMiddleware, (req: CARequest, res: Respon
 });
 
 // ── POST /ca/transfers/:id/approve ────────────────────────────────────────────
-router.post('/transfers/:id/approve', caAuthMiddleware, (req: CARequest, res: Response) => {
+router.post('/transfers/:id/approve', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { cbNumber, remarks } = req.body as { cbNumber?: string; remarks?: string };
   if (!cbNumber || !remarks || remarks.length < 20) {
     res.status(400).json({
@@ -211,7 +211,7 @@ router.post('/transfers/:id/approve', caAuthMiddleware, (req: CARequest, res: Re
     });
     return;
   }
-  const updated = updateTransferStatus(req.params.id, '15CB_RECEIVED', {
+  const updated = await updateTransferStatus(req.params.id as string, '15CB_RECEIVED', {
     fifteenCBNumber: cbNumber,
     caRemarks: remarks,
     caApprovedAt: ts(),
@@ -225,13 +225,13 @@ router.post('/transfers/:id/approve', caAuthMiddleware, (req: CARequest, res: Re
 });
 
 // ── POST /ca/transfers/:id/reject ─────────────────────────────────────────────
-router.post('/transfers/:id/reject', caAuthMiddleware, (req: CARequest, res: Response) => {
+router.post('/transfers/:id/reject', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { reason } = req.body as { reason?: string };
   if (!reason || reason.trim().length === 0) {
     res.status(400).json({ error: 'reason is required', timestamp: ts() });
     return;
   }
-  const updated = updateTransferStatus(req.params.id, 'FAILED', {
+  const updated = await updateTransferStatus(req.params.id as string, 'FAILED', {
     caRemarks: `REJECTED: ${reason}`,
     caApprovedAt: ts(),
     caApprovedBy: req.caUser?.name || 'CA',
@@ -244,13 +244,13 @@ router.post('/transfers/:id/reject', caAuthMiddleware, (req: CARequest, res: Res
 });
 
 // ── POST /ca/transfers/:id/15ca-filed ─────────────────────────────────────────
-router.post('/transfers/:id/15ca-filed', caAuthMiddleware, (req: CARequest, res: Response) => {
+router.post('/transfers/:id/15ca-filed', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { caNumber } = req.body as { caNumber?: string };
   if (!caNumber || caNumber.trim().length === 0) {
     res.status(400).json({ error: 'caNumber is required', timestamp: ts() });
     return;
   }
-  const updated = updateTransferStatus(req.params.id, '15CA_FILED', {
+  const updated = await updateTransferStatus(req.params.id as string, '15CA_FILED', {
     fifteenCANumber: caNumber,
   });
   if (!updated) {
@@ -261,9 +261,9 @@ router.post('/transfers/:id/15ca-filed', caAuthMiddleware, (req: CARequest, res:
 });
 
 // ── GET /ca/stats ─────────────────────────────────────────────────────────────
-router.get('/stats', caAuthMiddleware, (_req: CARequest, res: Response) => {
-  const all = getAllTransfers();
-  const pending = getPendingTransfers();
+router.get('/stats', caAuthMiddleware, async (_req: CARequest, res: Response) => {
+  const all = await getAllTransfers();
+  const pending = await getPendingTransfers();
   const today = new Date().toDateString();
   const now = new Date();
 

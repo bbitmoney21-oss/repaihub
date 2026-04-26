@@ -47,6 +47,8 @@ interface Notification {
 const STATUS_MAP: Record<string, TransferStatus> = {
   initiated:        'INITIATED',
   kyc_verified:     'KYC_VERIFIED',
+  '15cb_requested': 'KYC_VERIFIED',   // CA portal pending → show as KYC verified in user view
+  '15cb_received':  '15CB_CERTIFIED', // CA certified → show as certified in user view
   '15ca_filed':     '15CA_FILED',
   '15cb_certified': '15CB_CERTIFIED',
   bank_processing:  'BANK_PROCESSING',

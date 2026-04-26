@@ -34,25 +34,27 @@ export const formatDateShort = (iso: string): string => {
 }
 
 export const statusLabel: Record<string, string> = {
-  INITIATED:       'Initiated',
-  KYC_VERIFIED:    'KYC Verified',
-  '15CA_FILED':    'Form 15CA Filed',
-  '15CB_CERTIFIED':'Form 15CB Certified',
-  BANK_PROCESSING: 'Bank Processing',
-  SWIFT_SENT:      'SWIFT Sent',
-  COMPLETED:       'Completed',
-  FAILED:          'Failed',
+  INITIATED:        'Initiated',
+  KYC_VERIFIED:     'KYC Verified',
+  '15CB_REQUESTED': 'CA Review Pending',
+  '15CB_CERTIFIED': 'Form 15CB Certified',
+  '15CA_FILED':     'Form 15CA Filed',
+  BANK_PROCESSING:  'Bank Processing',
+  SWIFT_SENT:       'SWIFT Sent',
+  COMPLETED:        'Completed',
+  FAILED:           'Failed',
 }
 
 export const statusColor: Record<string, string> = {
-  INITIATED:       '#8BA0B4',
-  KYC_VERIFIED:    '#F39C12',
-  '15CA_FILED':    '#3498DB',
-  '15CB_CERTIFIED':'#9B59B6',
-  BANK_PROCESSING: '#F39C12',
-  SWIFT_SENT:      '#3498DB',
-  COMPLETED:       '#27AE60',
-  FAILED:          '#E74C3C',
+  INITIATED:        '#8BA0B4',
+  KYC_VERIFIED:     '#F39C12',
+  '15CB_REQUESTED': '#F39C12',
+  '15CB_CERTIFIED': '#9B59B6',
+  '15CA_FILED':     '#3498DB',
+  BANK_PROCESSING:  '#F39C12',
+  SWIFT_SENT:       '#3498DB',
+  COMPLETED:        '#27AE60',
+  FAILED:           '#E74C3C',
 }
 
 export const residencyLabels: Record<string, string> = {
