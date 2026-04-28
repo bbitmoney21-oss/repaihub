@@ -33,7 +33,7 @@ export default function Signup() {
     setLoading(true)
     try {
       const user = await apiRegister(form.email, form.pw, form.name, form.phone)
-      setAuth({ id: user.id, email: form.email, name: form.name, phone: form.phone })
+      setAuth({ id: user.id, email: user.email, name: user.name, phone: user.phone ?? form.phone })
       nav('/onboarding/residency')
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? ''

@@ -22,7 +22,7 @@ export default function ResidencySelect() {
     if (!selected) return
     setLoading(true)
     try {
-      await apiUpdateProfile({ residency_status: selected })
+      await apiUpdateProfile({ residency: selected })
     } catch { /* non-fatal: store locally regardless */ }
     setResidency(selected)
     nav('/onboarding/canada-bank')

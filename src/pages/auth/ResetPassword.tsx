@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { apiUpdatePassword } from '../../lib/api'
+import { useState } from 'react'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { apiCompletePasswordReset } from '../../lib/api'
 import { Eye, EyeOff, Check } from 'lucide-react'
 
 export default function ResetPassword() {
   const nav = useNavigate()
-  const [ready, setReady]     = useState(false)  // true once Supabase recovery session is active
+  const [params] = useSearchParams()
+  const token = params.get('token') ?? ''
+  const email = params.get('email') ?? ''
+
   const [pw, setPw]           = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPw, setShowPw]   = useState(false)
@@ -14,15 +16,7 @@ export default function ResetPassword() {
   const [done, setDone]       = useState(false)
   const [error, setError]     = useState('')
 
-  useEffect(() => {
-    // Supabase parses the recovery token from the URL hash and fires PASSWORD_RECOVERY
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
-        setReady(true)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+  const validLink = !!token && !!email
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +25,7 @@ export default function ResetPassword() {
     if (pw !== confirm) { setError('Passwords do not match.'); return }
     setLoading(true)
     try {
-      await apiUpdatePassword(pw)
+      await apiCompletePasswordReset(token, email, pw)
       setDone(true)
       setTimeout(() => nav('/login'), 3000)
     } catch (err: unknown) {
@@ -69,14 +63,14 @@ export default function ResetPassword() {
                 Sign In Now
               </Link>
             </div>
-          ) : !ready ? (
+          ) : !validLink ? (
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <div style={{ width: 28, height: 28, border: '2px solid rgba(201,150,58,0.3)', borderTopColor: '#C9963A', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 1rem' }} />
-              <p style={{ fontSize: '0.85rem', color: '#8BA0B4' }}>Verifying reset link…</p>
-              <p style={{ fontSize: '0.78rem', color: '#8BA0B4', marginTop: '1.5rem' }}>
-                Link expired or already used?{' '}
-                <Link to="/forgot-password" style={{ color: '#E8B86D', textDecoration: 'none' }}>Request a new one →</Link>
+              <p style={{ fontSize: '0.85rem', color: '#E74C3C', marginBottom: '1.5rem' }}>
+                Invalid or missing reset link. Please request a new one.
               </p>
+              <Link to="/forgot-password" style={{ color: '#E8B86D', textDecoration: 'none', fontSize: '0.85rem' }}>
+                Request a new reset link →
+              </Link>
             </div>
           ) : (
             <>
@@ -117,6 +111,11 @@ export default function ResetPassword() {
                   {loading ? 'Updating...' : 'Set New Password'}
                 </button>
               </form>
+
+              <p style={{ fontSize: '0.78rem', color: '#8BA0B4', textAlign: 'center', marginTop: '1.5rem' }}>
+                Link expired?{' '}
+                <Link to="/forgot-password" style={{ color: '#E8B86D', textDecoration: 'none' }}>Request a new one →</Link>
+              </p>
             </>
           )}
         </div>
