@@ -160,3 +160,134 @@ export async function apiCreateTransfer(params: {
   const data = await res.json();
   return data.transfer as Record<string, unknown>;
 }
+
+// ── Compliance ────────────────────────────────────────────────────────────────
+export async function apiGetComplianceRequests() {
+  const res = await apiFetch('/compliance');
+  if (!res.ok) throw new Error(await parseError(res));
+  const data = await res.json();
+  return data.requests as ComplianceRequest[];
+}
+
+export async function apiGetComplianceRequest(id: string) {
+  const res = await apiFetch(`/compliance/${id}`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return await res.json() as { request: ComplianceRequest; documents: WalletDocument[] };
+}
+
+export async function apiComplianceUploadUrl(complianceRequestId: string, params: {
+  fileName: string; mimeType: string; docType: string; year?: number;
+}) {
+  const res = await apiFetch(`/compliance/${complianceRequestId}/upload-url`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return await res.json() as {
+    tokenId: string; storagePath: string; signedUrl: string;
+    complianceRequestId: string; transferId: string;
+  };
+}
+
+export async function apiComplianceConfirmUpload(complianceRequestId: string, params: {
+  tokenId: string; storagePath: string; fileName: string;
+  mimeType: string; fileSizeBytes: number; docType: string; docLabel?: string; year?: number;
+}) {
+  const res = await apiFetch(`/compliance/${complianceRequestId}/confirm-upload`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return await res.json() as { document: WalletDocument };
+}
+
+// ── Wallet ────────────────────────────────────────────────────────────────────
+export async function apiGetWalletDocuments(filters?: {
+  year?: number; docType?: string; complianceRequestId?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.year) params.set('year', String(filters.year));
+  if (filters?.docType) params.set('docType', filters.docType);
+  if (filters?.complianceRequestId) params.set('complianceRequestId', filters.complianceRequestId);
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await apiFetch(`/wallet${qs}`);
+  if (!res.ok) throw new Error(await parseError(res));
+  const data = await res.json();
+  return data.documents as WalletDocument[];
+}
+
+export async function apiGetWalletDocumentUrl(tokenId: string) {
+  const res = await apiFetch(`/wallet/${tokenId}/url`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()) as { url: string; fileName: string; expiresIn: number };
+}
+
+export async function apiGetWalletYears() {
+  const res = await apiFetch('/wallet/years');
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()).years as number[];
+}
+
+export async function apiWalletUploadUrl(params: {
+  fileName: string; mimeType: string; docType: string; year?: number;
+  complianceRequestId?: string;
+}) {
+  const res = await apiFetch('/wallet/upload-url', { method: 'POST', body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(await parseError(res));
+  return await res.json() as {
+    tokenId: string; storagePath: string; signedUrl: string;
+    complianceRequestId: string | null;
+  };
+}
+
+export async function apiWalletConfirm(params: {
+  tokenId: string; storagePath: string; fileName: string;
+  mimeType: string; fileSizeBytes: number; docType: string;
+  docLabel?: string; year?: number; complianceRequestId?: string; transferId?: string;
+}) {
+  const res = await apiFetch('/wallet/confirm', { method: 'POST', body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()).document as WalletDocument;
+}
+
+// ── Shared types ──────────────────────────────────────────────────────────────
+export interface ComplianceRequest {
+  id: string;
+  transfer_id: string;
+  user_id: string;
+  status: 'pending' | 'under_review' | 'approved' | 'rejected';
+  fifteen_ca_part: string | null;
+  fifteen_cb_required: boolean;
+  fifteen_cb_number: string | null;
+  fifteen_ca_number: string | null;
+  ca_remarks: string | null;
+  ca_reviewed_by: string | null;
+  ca_reviewed_at: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  wallet_documents?: { count: number }[];
+  transfers?: {
+    amount_inr: number; amount_cad: number; exchange_rate: number;
+    purpose_code: string; source_of_funds: string; speed: string;
+    reference: string; status: string;
+  };
+}
+
+export interface WalletDocument {
+  id: string;
+  token_id: string;
+  user_id: string;
+  compliance_request_id: string | null;
+  transfer_id: string | null;
+  doc_type: string;
+  doc_label: string;
+  storage_path: string;
+  bucket_name: string;
+  file_name: string;
+  file_size_bytes: number | null;
+  mime_type: string | null;
+  year: number;
+  uploaded_by: 'user' | 'ca';
+  created_at: string;
+}

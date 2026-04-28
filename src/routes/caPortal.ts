@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import {
   getAllTransfers,
   getTransferById,
@@ -10,6 +11,9 @@ import {
 } from '../data/store';
 import { caAuthMiddleware, CARequest } from '../middleware/caAuth';
 import { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
+import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
+
+const BUCKET = 'wallet-docs';
 
 const router = Router();
 
@@ -258,6 +262,310 @@ router.post('/transfers/:id/15ca-filed', caAuthMiddleware, async (req: CARequest
     return;
   }
   res.json({ transfer: updated, message: '15CA marked as filed', timestamp: ts() });
+});
+
+// ── GET /ca/compliance ────────────────────────────────────────────────────────
+// List all compliance requests (CA sees all). Filterable by status.
+router.get('/compliance', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.json({ requests: [], count: 0, timestamp: ts() });
+    return;
+  }
+
+  const { status } = req.query as { status?: string };
+
+  let query = supabaseAdmin
+    .from('compliance_requests')
+    .select(`
+      *,
+      transfers (
+        amount_inr, amount_cad, exchange_rate, purpose_code,
+        source_of_funds, speed, reference, status
+      ),
+      wallet_documents (count)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  if (error) {
+    res.status(500).json({ error: error.message, timestamp: ts() });
+    return;
+  }
+
+  res.json({ requests: data ?? [], count: (data ?? []).length, timestamp: ts() });
+});
+
+// ── GET /ca/compliance/:id ────────────────────────────────────────────────────
+router.get('/compliance/:id', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data: request, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .select(`
+      *,
+      transfers (*),
+      wallet_documents (*)
+    `)
+    .eq('id', req.params.id)
+    .single();
+
+  if (error || !request) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+
+  res.json({ request, timestamp: ts() });
+});
+
+// ── POST /ca/compliance/:id/approve ──────────────────────────────────────────
+router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const { cbNumber, remarks, fifteen_ca_part } = req.body as {
+    cbNumber?: string; remarks?: string; fifteen_ca_part?: string;
+  };
+
+  if (!cbNumber || !remarks || remarks.length < 10) {
+    res.status(400).json({ error: 'cbNumber and remarks (min 10 chars) are required', timestamp: ts() });
+    return;
+  }
+
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .update({
+      status:           'approved',
+      fifteen_cb_number: cbNumber,
+      ca_remarks:       remarks,
+      ca_reviewed_by:   req.caUser?.name || 'CA',
+      ca_reviewed_at:   ts(),
+      ...(fifteen_ca_part ? { fifteen_ca_part } : {}),
+    })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+
+  res.json({ request: data, message: '15CB certified — compliance request approved', timestamp: ts() });
+});
+
+// ── POST /ca/compliance/:id/reject ────────────────────────────────────────────
+router.post('/compliance/:id/reject', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const { reason } = req.body as { reason?: string };
+  if (!reason || reason.trim().length === 0) {
+    res.status(400).json({ error: 'reason is required', timestamp: ts() });
+    return;
+  }
+
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .update({
+      status:           'rejected',
+      rejection_reason: reason,
+      ca_reviewed_by:   req.caUser?.name || 'CA',
+      ca_reviewed_at:   ts(),
+    })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+
+  res.json({ request: data, message: 'Compliance request rejected', timestamp: ts() });
+});
+
+// ── POST /ca/compliance/:id/upload-pdf-url ────────────────────────────────────
+// CA requests a signed upload URL to upload 15CB/15CA PDF into the user's wallet.
+router.post('/compliance/:id/upload-pdf-url', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const { fileName, mimeType, docType } = req.body as {
+    fileName?: string; mimeType?: string; docType?: string;
+  };
+
+  if (!fileName || !docType) {
+    res.status(400).json({ error: 'fileName and docType are required', timestamp: ts() });
+    return;
+  }
+  if (!['15ca_pdf', '15cb_pdf'].includes(docType)) {
+    res.status(400).json({ error: 'docType must be 15ca_pdf or 15cb_pdf', timestamp: ts() });
+    return;
+  }
+
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'Storage not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data: request, error: reqErr } = await supabaseAdmin
+    .from('compliance_requests')
+    .select('id, user_id, transfer_id')
+    .eq('id', req.params.id)
+    .single();
+
+  if (reqErr || !request) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+
+  const tokenId = crypto.randomBytes(32).toString('hex');
+  const year = new Date().getFullYear();
+  const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
+  const storagePath = `${request.user_id}/${year}/${tokenId}_${safeFileName}`;
+
+  const { data: urlData, error: urlErr } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .createSignedUploadUrl(storagePath);
+
+  if (urlErr) {
+    res.status(500).json({ error: 'Failed to create upload URL: ' + urlErr.message, timestamp: ts() });
+    return;
+  }
+
+  res.json({
+    tokenId,
+    storagePath,
+    signedUrl: urlData.signedUrl,
+    userId: request.user_id,
+    transferId: request.transfer_id,
+    timestamp: ts(),
+  });
+});
+
+// ── POST /ca/compliance/:id/confirm-pdf ──────────────────────────────────────
+// CA confirms upload of 15CB/15CA PDF — saves to user's wallet as 'ca' upload.
+router.post('/compliance/:id/confirm-pdf', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const {
+    tokenId, storagePath, fileName, mimeType, fileSizeBytes, docType, docLabel,
+  } = req.body as {
+    tokenId?: string; storagePath?: string; fileName?: string;
+    mimeType?: string; fileSizeBytes?: number; docType?: string; docLabel?: string;
+  };
+
+  if (!tokenId || !storagePath || !fileName || !docType) {
+    res.status(400).json({ error: 'tokenId, storagePath, fileName, docType are required', timestamp: ts() });
+    return;
+  }
+
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data: request, error: reqErr } = await supabaseAdmin
+    .from('compliance_requests')
+    .select('id, user_id, transfer_id')
+    .eq('id', req.params.id)
+    .single();
+
+  if (reqErr || !request) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin.from('wallet_documents').insert({
+    token_id:              tokenId,
+    user_id:               request.user_id,
+    compliance_request_id: req.params.id,
+    transfer_id:           request.transfer_id,
+    doc_type:              docType,
+    doc_label:             docLabel ?? fileName,
+    storage_path:          storagePath,
+    bucket_name:           BUCKET,
+    file_name:             fileName,
+    file_size_bytes:       fileSizeBytes ?? null,
+    mime_type:             mimeType ?? null,
+    year:                  new Date().getFullYear(),
+    uploaded_by:           'ca',
+  }).select().single();
+
+  if (error) {
+    res.status(500).json({ error: error.message, timestamp: ts() });
+    return;
+  }
+
+  res.status(201).json({ document: data, message: 'PDF uploaded to user wallet', timestamp: ts() });
+});
+
+// ── POST /ca/compliance/:id/file-15ca ─────────────────────────────────────────
+router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const { caNumber } = req.body as { caNumber?: string };
+  if (!caNumber || caNumber.trim().length === 0) {
+    res.status(400).json({ error: 'caNumber is required', timestamp: ts() });
+    return;
+  }
+
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .update({ fifteen_ca_number: caNumber.trim() })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+
+  res.json({ request: data, message: '15CA number recorded', timestamp: ts() });
+});
+
+// ── GET /ca/compliance/:id/wallet-doc/:tokenId/url ────────────────────────────
+// CA can generate a signed download URL for any document in a compliance request.
+router.get('/compliance/:id/wallet-doc/:tokenId/url', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'Storage not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data: doc, error } = await supabaseAdmin
+    .from('wallet_documents')
+    .select('storage_path, bucket_name, file_name, compliance_request_id')
+    .eq('token_id', req.params.tokenId)
+    .maybeSingle();
+
+  if (error || !doc) {
+    res.status(404).json({ error: 'Document not found', timestamp: ts() });
+    return;
+  }
+
+  if (doc.compliance_request_id !== req.params.id) {
+    res.status(403).json({ error: 'Document does not belong to this compliance request', timestamp: ts() });
+    return;
+  }
+
+  const { data: urlData, error: urlErr } = await supabaseAdmin.storage
+    .from(doc.bucket_name)
+    .createSignedUrl(doc.storage_path, 3600);
+
+  if (urlErr || !urlData?.signedUrl) {
+    res.status(500).json({ error: 'Failed to generate download URL', timestamp: ts() });
+    return;
+  }
+
+  res.json({ url: urlData.signedUrl, fileName: doc.file_name, expiresIn: 3600, timestamp: ts() });
 });
 
 // ── GET /ca/stats ─────────────────────────────────────────────────────────────

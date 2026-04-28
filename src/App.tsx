@@ -14,6 +14,8 @@ import Login          from './pages/auth/Login'
 import Signup         from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword  from './pages/auth/ResetPassword'
+import CaLogin       from './pages/ca/CaLogin'
+import CaDashboard   from './pages/ca/CaDashboard'
 
 // Onboarding
 import ResidencySelect  from './pages/onboarding/ResidencySelect'
@@ -65,6 +67,8 @@ export default function App() {
         <Route path="/signup"           element={<Signup />} />
         <Route path="/forgot-password"  element={<ForgotPassword />} />
         <Route path="/reset-password"   element={<ResetPassword />} />
+        <Route path="/ca-login"         element={<CaLogin />} />
+        <Route path="/ca-dashboard"     element={<CaDashboard />} />
 
         {/* Onboarding */}
         <Route path="/onboarding/residency"   element={<RequireAuth><ResidencySelect /></RequireAuth>} />

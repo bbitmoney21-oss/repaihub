@@ -8,6 +8,8 @@ import authRoutes from './routes/auth';
 import ratesRoutes from './routes/rates';
 import transfersRoutes from './routes/transfers';
 import usersRoutes from './routes/users';
+import walletRoutes from './routes/wallet';
+import complianceRoutes from './routes/compliance';
 
 dotenv.config();
 
@@ -49,6 +51,8 @@ app.use('/auth', authRoutes);
 app.use('/rates', ratesRoutes);
 app.use('/transfers', transfersRoutes);
 app.use('/users', usersRoutes);
+app.use('/wallet', walletRoutes);
+app.use('/compliance', complianceRoutes);
 
 // ── CA portal routes ──────────────────────────────────────────────────────────
 app.use('/ca', caPortalRoutes);

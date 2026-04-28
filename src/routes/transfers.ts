@@ -99,6 +99,15 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     note: 'Transfer initiated via API',
   });
 
+  // Auto-create compliance request for every transfer (fire-and-forget)
+  void supabaseAdmin.from('compliance_requests').insert({
+    transfer_id: transfer.id,
+    user_id: req.userId,
+    status: 'pending',
+    fifteen_ca_part: fifteenCAPart,
+    fifteen_cb_required: true,
+  });
+
   // Get profile for notification
   const { data: profile } = await supabaseAdmin
     .from('profiles')
