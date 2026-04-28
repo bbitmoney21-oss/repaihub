@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "dev:server": "tsx watch src/server.ts",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json && node scripts/post-build-server.mjs",
     "start:server": "node dist-server/server.js"
   },
   "dependencies": {
