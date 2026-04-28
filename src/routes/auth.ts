@@ -21,6 +21,30 @@ function sha256(raw: string): string {
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
 
+function emailHtml(name: string, resetUrl: string): string {
+  return `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0B1C2C;color:#FAF6F0;">
+      <h1 style="color:#E8B86D;font-size:1.5rem;margin-bottom:8px;">REPAIHUB</h1>
+      <p style="color:#8BA0B4;font-size:0.85rem;margin-bottom:24px;">NRO Outward Remittance — Canada</p>
+      <h2 style="font-size:1.2rem;margin-bottom:16px;">Hi ${name},</h2>
+      <p style="line-height:1.7;margin-bottom:24px;">
+        We received a request to reset your REPAIHUB password.
+        Click the button below to choose a new one. This link expires in <strong>1 hour</strong>.
+      </p>
+      <a href="${resetUrl}"
+        style="display:inline-block;background:#C9963A;color:#0B1C2C;padding:14px 32px;font-weight:700;font-size:0.9rem;text-decoration:none;letter-spacing:0.05em;">
+        Reset Password
+      </a>
+      <p style="font-size:0.8rem;color:#8BA0B4;margin-top:24px;line-height:1.6;">
+        If you didn't request this, you can safely ignore this email.
+      </p>
+      <p style="font-size:0.75rem;color:#4A5568;margin-top:16px;">
+        REPAIHUB is a FINTRAC registered Money Services Business.
+      </p>
+    </div>
+  `;
+}
+
 // ── POST /auth/register ───────────────────────────────────────────────────────
 router.post('/register', async (req: Request, res: Response) => {
   const { email, password, name, phone } = req.body as {
@@ -126,12 +150,21 @@ router.post('/login', async (req: Request, res: Response) => {
 
   if (profile.password_hash) {
     authenticated = await bcrypt.compare(password, profile.password_hash);
+    if (!authenticated) {
+      // Bcrypt mismatch — could be a post-reset state. Try Supabase auth as fallback.
+      const { error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+      if (!signInErr) {
+        authenticated = true;
+        // Re-sync bcrypt hash with new password
+        const hash = await bcrypt.hash(password, 12);
+        await supabaseAdmin.from('profiles').update({ password_hash: hash }).eq('email', email);
+      }
+    }
   } else {
-    // Legacy users registered before bcrypt migration — verify via Supabase auth
+    // No hash yet (new user or post-reset) — verify via Supabase auth and migrate
     const { error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
     authenticated = !signInErr;
     if (authenticated) {
-      // Migrate: store bcrypt hash going forward
       const hash = await bcrypt.hash(password, 12);
       await supabaseAdmin.from('profiles').update({ password_hash: hash }).eq('email', email);
     }
@@ -203,48 +236,52 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
   if (!profile) return;
 
-  const rawToken = crypto.randomBytes(32).toString('hex');
-  const tokenHash = sha256(rawToken);
-  const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
+  // Clear password_hash so login self-heals after Supabase-side reset
   await supabaseAdmin.from('profiles').update({
-    reset_token_hash: tokenHash,
-    reset_token_expiry: expiry,
+    password_hash: null,
+    reset_token_hash: null,
+    reset_token_expiry: null,
   }).eq('id', profile.id);
 
+  // Generate the Supabase recovery link (admin bypasses redirect allowlist)
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: { redirectTo: `${FRONTEND_URL()}/reset-password` },
+  });
+
+  if (linkError || !linkData?.properties?.action_link) {
+    console.error('[Auth] generateLink failed:', linkError?.message);
+    // Last-resort fallback: Supabase native email
+    await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: `${FRONTEND_URL()}/reset-password`,
+    }).catch((e: unknown) => console.error('[Auth] resetPasswordForEmail failed:', e));
+    return;
+  }
+
+  const actionLink = linkData.properties.action_link;
+
+  // Try Resend first (branded email)
   const resendKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'REPAIHUB <noreply@repaihub.com>';
-  if (!resendKey) return;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'REPAIHUB <onboarding@resend.dev>';
 
-  const resend = new Resend(resendKey);
-  const resetUrl = `${FRONTEND_URL()}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+  if (resendKey) {
+    const resend = new Resend(resendKey);
+    const { error: sendError } = await resend.emails.send({
+      to: email,
+      from: fromEmail,
+      subject: 'Reset your REPAIHUB password',
+      html: emailHtml(profile.full_name ?? 'there', actionLink),
+    });
 
-  await resend.emails.send({
-    to: email,
-    from: fromEmail,
-    subject: 'Reset your REPAIHUB password',
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0B1C2C;color:#FAF6F0;">
-        <h1 style="color:#E8B86D;font-size:1.5rem;margin-bottom:8px;">REPAIHUB</h1>
-        <p style="color:#8BA0B4;font-size:0.85rem;margin-bottom:24px;">NRO Outward Remittance — Canada</p>
-        <h2 style="font-size:1.2rem;margin-bottom:16px;">Hi ${profile.full_name ?? 'there'},</h2>
-        <p style="line-height:1.7;margin-bottom:24px;">
-          We received a request to reset your REPAIHUB password.
-          Click the button below to choose a new one. This link expires in <strong>15 minutes</strong>.
-        </p>
-        <a href="${resetUrl}"
-          style="display:inline-block;background:#C9963A;color:#0B1C2C;padding:14px 32px;font-weight:700;font-size:0.9rem;text-decoration:none;letter-spacing:0.05em;">
-          Reset Password
-        </a>
-        <p style="font-size:0.8rem;color:#8BA0B4;margin-top:24px;line-height:1.6;">
-          If you didn't request this, you can safely ignore this email.
-        </p>
-        <p style="font-size:0.75rem;color:#4A5568;margin-top:16px;">
-          REPAIHUB is a FINTRAC registered Money Services Business.
-        </p>
-      </div>
-    `,
-  }).catch((err: unknown) => console.error('[Resend] Failed to send reset email:', err));
+    if (!sendError) return; // Resend worked — done
+    console.log('[Resend] Send failed, falling back to Supabase SMTP:', sendError.message);
+  }
+
+  // Fallback: Supabase native SMTP (always works, from noreply@mail.supabase.io)
+  await supabaseAdmin.auth.resetPasswordForEmail(email, {
+    redirectTo: `${FRONTEND_URL()}/reset-password`,
+  }).catch((e: unknown) => console.error('[Auth] Supabase SMTP fallback failed:', e));
 });
 
 // ── POST /auth/reset-password ─────────────────────────────────────────────────
