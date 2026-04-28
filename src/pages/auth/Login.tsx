@@ -25,7 +25,7 @@ export default function Login() {
         email: data.user!.email!,
         name: profile?.full_name ?? undefined,
         phone: profile?.phone ?? undefined,
-        residency: profile?.residency_status ?? null,
+        residency: profile?.residency ?? null,
         canadaBankVerified: kyc?.canada_verified ?? false,
         indiaNROVerified: kyc?.india_verified ?? false,
         canadaBank: canadaBank
@@ -75,7 +75,10 @@ export default function Login() {
                 className="input-field" style={{ display: 'block' }} />
             </div>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8BA0B4', display: 'block', marginBottom: '0.5rem' }}>Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8BA0B4' }}>Password</label>
+                <Link to="/forgot-password" style={{ fontSize: '0.75rem', color: '#C9963A', textDecoration: 'none' }}>Forgot password?</Link>
+              </div>
               <div style={{ position: 'relative' }}>
                 <input type={showPw ? 'text' : 'password'} value={pw} onChange={e => setPw(e.target.value)} placeholder="••••••••" required
                   className="input-field" style={{ display: 'block', paddingRight: '3rem' }} />

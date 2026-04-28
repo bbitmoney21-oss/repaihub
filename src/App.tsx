@@ -10,8 +10,10 @@ import Guide      from './pages/Guide'
 import Privacy    from './pages/Privacy'
 import Terms      from './pages/Terms'
 import NotFound   from './pages/NotFound'
-import Login      from './pages/auth/Login'
-import Signup     from './pages/auth/Signup'
+import Login          from './pages/auth/Login'
+import Signup         from './pages/auth/Signup'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword  from './pages/auth/ResetPassword'
 
 // Onboarding
 import ResidencySelect  from './pages/onboarding/ResidencySelect'
@@ -66,8 +68,10 @@ export default function App() {
         <Route path="/guide"   element={<Guide />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms"   element={<Terms />} />
-        <Route path="/login"   element={<Login />} />
-        <Route path="/signup"  element={<Signup />} />
+        <Route path="/login"            element={<Login />} />
+        <Route path="/signup"           element={<Signup />} />
+        <Route path="/forgot-password"  element={<ForgotPassword />} />
+        <Route path="/reset-password"   element={<ResetPassword />} />
 
         {/* Onboarding */}
         <Route path="/onboarding/residency"   element={<RequireAuth><ResidencySelect /></RequireAuth>} />

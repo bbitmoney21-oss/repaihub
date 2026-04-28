@@ -17,8 +17,10 @@
     "src/types/**/*.ts",
     "src/data/**/*.ts",
     "src/middleware/**/*.ts",
-    "src/routes/caPortal.ts",
-    "src/lib/supabaseServer.ts"
+    "src/routes/**/*.ts",
+    "src/services/**/*.ts",
+    "src/lib/supabaseServer.ts",
+    "src/lib/supabaseClient.ts"
   ],
   "exclude": [
     "src/pages",

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REPAIHUB — Customer Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0B1C2C;
+      --navy2: #132233;
+      --navy3: #1A2E42;
+      --gold: #C9963A;
+      --gold-light: #E8B86D;
+      --text: #FAF6F0;
+      --muted: #8BA0B4;
+      --border: rgba(201,150,58,0.2);
+      --green: #27AE60;
+      --red: #E74C3C;
+      --orange: #F39C12;
+      --blue: #3498DB;
+    }
+    body { background: var(--navy); color: var(--text); font-family: 'DM Sans', 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    /* ── Typography ── */
+    .serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+
+    /* ── Login Screen ── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem;
+      background: var(--navy);
+    }
+    .login-box { width: 100%; max-width: 420px; position: relative; z-index: 1; }
+    .login-glow {
+      position: fixed; width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(201,150,58,0.08) 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
+    }
+    .login-logo { text-align: center; margin-bottom: 2.5rem; }
+    .login-logo a { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; }
+    .login-logo p { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; letter-spacing: 0.1em; }
+    .login-card { background: var(--navy2); border: 1px solid var(--border); padding: 2.5rem; }
+    .login-card h1 { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem; }
+    .login-card p.sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 2rem; }
+
+    /* ── Forms ── */
+    .field { display: flex; flex-direction: column; gap: 0.5rem; }
+    .field label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .field input {
+      background: var(--navy3); border: 1px solid rgba(139,160,180,0.25); color: var(--text);
+      padding: 0.75rem 1rem; font-size: 0.9rem; width: 100%; outline: none; transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--gold); }
+    .field input::placeholder { color: rgba(139,160,180,0.5); }
+    .btn-gold {
+      background: var(--gold); color: var(--navy); border: none; padding: 1rem; width: 100%;
+      font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-gold:hover { background: var(--gold-light); }
+    .btn-gold:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-outline {
+      background: transparent; color: var(--gold); border: 1px solid var(--gold); padding: 0.6rem 1.2rem;
+      font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-outline:hover { background: var(--gold); color: var(--navy); }
+    .error-banner {
+      background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); padding: 0.75rem 1rem;
+      font-size: 0.85rem; color: var(--red); margin-bottom: 1.5rem;
+    }
+
+    /* ── App Layout ── */
+    #app-screen { display: none; flex-direction: column; min-height: 100vh; }
+    header {
+      background: var(--navy2); border-bottom: 1px solid var(--border); padding: 0 2rem; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;
+    }
+    .header-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.15em; text-transform: uppercase; }
+    .header-right { display: flex; align-items: center; gap: 1.5rem; }
+    .header-user { font-size: 0.82rem; color: var(--muted); }
+    .btn-logout { background: none; border: 1px solid rgba(139,160,180,0.3); color: var(--muted); padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; letter-spacing: 0.05em; }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    .layout { display: flex; flex: 1; }
+
+    /* ── Sidebar ── */
+    nav {
+      width: 220px; background: var(--navy2); border-right: 1px solid var(--border);
+      padding: 1.5rem 0; position: sticky; top: 64px; height: calc(100vh - 64px);
+      display: flex; flex-direction: column;
+    }
+    .nav-item {
+      display: block; padding: 0.75rem 1.5rem; font-size: 0.82rem; letter-spacing: 0.05em;
+      color: var(--muted); cursor: pointer; transition: all 0.15s; border: none; background: none;
+      text-align: left; width: 100%;
+    }
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--gold); border-left: 2px solid var(--gold); background: rgba(201,150,58,0.06); }
+    .nav-spacer { flex: 1; }
+
+    /* ── Main Content ── */
+    main { flex: 1; padding: 2rem; overflow-y: auto; max-width: 1100px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Page header ── */
+    .page-title { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .page-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 2rem; }
+
+    /* ── Stats grid ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--navy2); border: 1px solid var(--border); padding: 1.25rem 1.5rem; }
+    .stat-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; color: var(--gold-light); }
+    .stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* ── Transfer cards ── */
+    .transfer-list { display: flex; flex-direction: column; gap: 1rem; }
+    .transfer-card {
+      background: var(--navy2); border: 1px solid var(--border); padding: 1.25rem 1.5rem;
+      display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 1rem; align-items: center;
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .transfer-card:hover { border-color: rgba(201,150,58,0.5); }
+    .transfer-ref { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; }
+    .transfer-amount { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; color: var(--text); }
+    .transfer-meta { font-size: 0.78rem; color: var(--muted); }
+    .badge {
+      display: inline-block; padding: 0.2rem 0.6rem; font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase; border-radius: 2px;
+    }
+    .badge-initiated   { background: rgba(52,152,219,0.15); color: #3498DB; }
+    .badge-kyc         { background: rgba(52,152,219,0.15); color: #3498DB; }
+    .badge-15cb_req    { background: rgba(243,156,18,0.15);  color: var(--orange); }
+    .badge-15cb_done   { background: rgba(39,174,96,0.15);   color: var(--green); }
+    .badge-15ca        { background: rgba(39,174,96,0.15);   color: var(--green); }
+    .badge-bank        { background: rgba(39,174,96,0.15);   color: var(--green); }
+    .badge-completed   { background: rgba(39,174,96,0.15);   color: var(--green); }
+    .badge-failed      { background: rgba(231,76,60,0.15);   color: var(--red); }
+
+    /* ── New Transfer form ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-card { background: var(--navy2); border: 1px solid var(--border); padding: 2rem; margin-bottom: 2rem; }
+    .form-section-title { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
+    select {
+      background: var(--navy3); border: 1px solid rgba(139,160,180,0.25); color: var(--text);
+      padding: 0.75rem 1rem; font-size: 0.9rem; width: 100%; outline: none; appearance: none; cursor: pointer;
+    }
+    select:focus { border-color: var(--gold); }
+    .rate-box { background: var(--navy3); border: 1px solid var(--border); padding: 1rem 1.25rem; margin: 1rem 0; }
+    .rate-row { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 0.3rem 0; }
+    .rate-row.total { border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem; font-weight: 600; }
+    .speed-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .speed-option {
+      border: 1px solid rgba(139,160,180,0.25); padding: 1rem; cursor: pointer; transition: all 0.15s;
+      background: var(--navy3);
+    }
+    .speed-option:hover { border-color: var(--gold); }
+    .speed-option.selected { border-color: var(--gold); background: rgba(201,150,58,0.06); }
+    .speed-option .speed-label { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .speed-option .speed-sub { font-size: 0.72rem; color: var(--muted); }
+
+    /* ── Detail panel ── */
+    .detail-panel { background: var(--navy2); border: 1px solid var(--border); padding: 2rem; }
+    .detail-section { margin-bottom: 2rem; }
+    .detail-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .detail-value { font-size: 0.9rem; margin-top: 0.25rem; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .detail-grid { grid-template-columns: 1fr; } }
+
+    /* ── Progress bar ── */
+    .progress-track { position: relative; padding: 1.5rem 0; margin: 1.5rem 0; }
+    .progress-steps { display: flex; justify-content: space-between; position: relative; }
+    .progress-steps::before {
+      content: ''; position: absolute; top: 12px; left: 12px; right: 12px;
+      height: 2px; background: rgba(139,160,180,0.2); z-index: 0;
+    }
+    .progress-step { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; z-index: 1; flex: 1; }
+    .progress-dot {
+      width: 24px; height: 24px; border-radius: 50%; background: rgba(139,160,180,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
+    }
+    .progress-dot.done { background: var(--green); }
+    .progress-dot.active { background: var(--gold); }
+    .progress-step-label { font-size: 0.62rem; color: var(--muted); text-align: center; }
+    .progress-step.done .progress-step-label { color: var(--green); }
+    .progress-step.active .progress-step-label { color: var(--gold); }
+
+    /* ── Loading spinner ── */
+    .spinner { width: 28px; height: 28px; border: 2px solid rgba(201,150,58,0.3); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-center { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 3rem; color: var(--muted); font-size: 0.85rem; }
+
+    /* ── Misc ── */
+    .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+    .back-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.82rem; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 1.5rem; padding: 0; }
+    .back-btn:hover { color: var(--text); }
+    .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+    .empty-state .big { font-family: 'Cormorant Garamond', serif; font-size: 2.5rem; opacity: 0.2; }
+    .success-box { background: rgba(39,174,96,0.08); border: 1px solid rgba(39,174,96,0.3); padding: 1.5rem; text-align: center; }
+    .success-circle { width: 56px; height: 56px; background: rgba(39,174,96,0.12); border: 2px solid rgba(39,174,96,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 1.5rem; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ────────────────── LOGIN ────────────────── -->
+<div id="login-screen">
+  <div class="login-glow"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <a href="/">Repaihub</a>
+      <p>NRO Outward Remittance — Canada</p>
+    </div>
+    <div class="login-card">
+      <h1>Customer Portal</h1>
+      <p class="sub">Sign in to track your transfers</p>
+      <div id="login-error" class="error-banner" style="display:none"></div>
+      <form id="login-form" style="display:flex;flex-direction:column;gap:1rem">
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="login-email" placeholder="your@email.com" required />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-pw" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn-gold" id="login-btn">Sign In</button>
+      </form>
+      <p style="font-size:0.82rem;color:var(--muted);text-align:center;margin-top:1.5rem">
+        <a href="/forgot-password" style="color:var(--gold-light);text-decoration:none">Forgot password?</a>
+      </p>
+    </div>
+    <p style="font-size:0.7rem;color:var(--muted);text-align:center;margin-top:1.5rem;line-height:1.6">
+      REPAIHUB is a FINTRAC registered MSB. Your data is protected under PIPEDA.
+    </p>
+  </div>
+</div>
+
+<!-- ────────────────── APP ────────────────── -->
+<div id="app-screen">
+  <header>
+    <span class="header-logo">Repaihub</span>
+    <div class="header-right">
+      <span class="header-user" id="header-email"></span>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </header>
+  <div class="layout">
+    <nav>
+      <button class="nav-item active" onclick="showView('dashboard')">Dashboard</button>
+      <button class="nav-item" onclick="showView('transfers')">My Transfers</button>
+      <button class="nav-item" onclick="showView('new-transfer')">New Transfer</button>
+      <div class="nav-spacer"></div>
+      <button class="nav-item" onclick="showView('profile')">Profile</button>
+    </nav>
+
+    <main>
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="page-title serif">Dashboard</div>
+        <div class="page-sub">Overview of your remittances</div>
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card"><div class="stat-label">Total Transfers</div><div class="stat-value" id="stat-total">—</div></div>
+          <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value" id="stat-active">—</div></div>
+          <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value" id="stat-completed">—</div></div>
+          <div class="stat-card"><div class="stat-label">Total Remitted (CAD)</div><div class="stat-value" id="stat-volume">—</div></div>
+        </div>
+        <div class="page-title serif" style="font-size:1.2rem;margin-bottom:1rem">Recent Transfers</div>
+        <div id="recent-transfers"><div class="loading-center"><div class="spinner"></div><span>Loading…</span></div></div>
+      </div>
+
+      <!-- TRANSFERS LIST -->
+      <div class="view" id="view-transfers">
+        <div class="page-title serif">My Transfers</div>
+        <div class="page-sub">All your transfer history</div>
+        <div id="all-transfers"><div class="loading-center"><div class="spinner"></div><span>Loading…</span></div></div>
+      </div>
+
+      <!-- TRANSFER DETAIL -->
+      <div class="view" id="view-detail">
+        <button class="back-btn" onclick="showView('transfers')">← Back to Transfers</button>
+        <div id="detail-content"><div class="loading-center"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- NEW TRANSFER -->
+      <div class="view" id="view-new-transfer">
+        <div class="page-title serif">New Transfer</div>
+        <div class="page-sub">Initiate an NRO outward remittance to Canada</div>
+        <div id="new-transfer-form">
+          <div class="form-card">
+            <div class="form-section-title">Transfer Amount</div>
+            <div class="form-grid">
+              <div class="field">
+                <label>Amount in INR (₹)</label>
+                <input type="number" id="nt-inr" placeholder="e.g. 1000000" min="1000" step="1000" oninput="calcRate()" />
+              </div>
+              <div class="field">
+                <label>You Receive (CAD)</label>
+                <input type="number" id="nt-cad" placeholder="Calculated automatically" readonly style="opacity:0.7" />
+              </div>
+            </div>
+            <div class="rate-box" id="rate-box" style="display:none">
+              <div class="rate-row"><span style="color:var(--muted)">Exchange Rate</span><span id="rate-display">—</span></div>
+              <div class="rate-row"><span style="color:var(--muted)">Transfer Fee</span><span id="fee-display">—</span></div>
+              <div class="rate-row"><span style="color:var(--muted)">15CA Part</span><span id="part-display">—</span></div>
+              <div class="rate-row total"><span>Total Deducted from NRO</span><span id="total-display">—</span></div>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <div class="form-section-title">Compliance Details</div>
+            <div class="form-grid">
+              <div class="field">
+                <label>Purpose Code (RBI)</label>
+                <select id="nt-purpose">
+                  <option value="P1301">P1301 — Repatriation of NRO Funds</option>
+                  <option value="P1302">P1302 — Repatriation of NRE Funds</option>
+                  <option value="P1101">P1101 — Family Maintenance</option>
+                  <option value="P0001">P0001 — Indian Investment Abroad</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Source of Funds</label>
+                <select id="nt-source">
+                  <option value="rental_income">Rental Income</option>
+                  <option value="dividend_income">Dividend Income</option>
+                  <option value="property_sale">Property Sale Proceeds</option>
+                  <option value="matured_investment">Matured Investment</option>
+                  <option value="pension">Pension</option>
+                  <option value="salary_arrears">Salary Arrears</option>
+                  <option value="gift_from_relative">Gift from Relative</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <div class="form-section-title">Transfer Speed</div>
+            <div class="speed-options">
+              <div class="speed-option selected" id="speed-standard" onclick="selectSpeed('standard')">
+                <div class="speed-label">Standard</div>
+                <div class="speed-sub">1–2 business days · Lower fee</div>
+              </div>
+              <div class="speed-option" id="speed-express" onclick="selectSpeed('express')">
+                <div class="speed-label">Express</div>
+                <div class="speed-sub">Same day · Priority CA review</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="new-transfer-error" class="error-banner" style="display:none"></div>
+          <div id="new-transfer-success" class="success-box" style="display:none">
+            <div class="success-circle">✓</div>
+            <div class="serif" style="font-size:1.4rem;margin-bottom:0.5rem">Transfer Initiated</div>
+            <p style="font-size:0.85rem;color:var(--muted)" id="success-ref"></p>
+            <button class="btn-gold" style="margin-top:1rem;max-width:200px" onclick="showView('transfers')">View Transfers</button>
+          </div>
+          <div id="new-transfer-submit">
+            <button class="btn-gold" id="nt-submit" onclick="submitTransfer()">Initiate Transfer</button>
+            <p style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem">
+              By initiating, you confirm that all information provided is accurate and complies with FEMA regulations.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="view" id="view-profile">
+        <div class="page-title serif">Profile</div>
+        <div class="page-sub">Your account details</div>
+        <div class="detail-panel" id="profile-content">
+          <div class="loading-center"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const API = '';  // Same-origin API
+
+let authToken = localStorage.getItem('customer_token') || '';
+let currentUser = null;
+let allTransfers = [];
+let selectedSpeed = 'standard';
+let currentRate = 0.01610;
+const FEE_STANDARD = 25;
+const FEE_EXPRESS = 45;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function apiCall(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: 'Bearer ' + authToken } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Signing In…';
+  try {
+    const email = document.getElementById('login-email').value;
+    const pw = document.getElementById('login-pw').value;
+    const data = await apiCall('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password: pw }),
+    });
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('customer_token', authToken);
+    enterApp();
+  } catch (ex) {
+    err.textContent = ex.message || 'Invalid email or password.';
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+});
+
+function logout() {
+  authToken = '';
+  currentUser = null;
+  localStorage.removeItem('customer_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+// ── App Entry ─────────────────────────────────────────────────────────────────
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  document.getElementById('header-email').textContent = currentUser?.email || '';
+  loadDashboard();
+  fetchRate();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  const navBtns = document.querySelectorAll('.nav-item');
+  navBtns.forEach(btn => {
+    if (btn.textContent.toLowerCase().includes(name.replace('-', ' ').replace('new transfer', 'new'))) {
+      btn.classList.add('active');
+    }
+  });
+  if (name === 'transfers') loadTransfers();
+  if (name === 'profile') loadProfile();
+  if (name === 'new-transfer') {
+    document.getElementById('new-transfer-error').style.display = 'none';
+    document.getElementById('new-transfer-success').style.display = 'none';
+    document.getElementById('new-transfer-submit').style.display = 'block';
+  }
+}
+
+// ── Status helpers ────────────────────────────────────────────────────────────
+const STATUS_LABELS = {
+  initiated: 'Initiated',
+  kyc_verified: 'KYC Verified',
+  '15cb_requested': 'CA Review',
+  '15cb_received': '15CB Certified',
+  '15ca_filed': '15CA Filed',
+  bank_processing: 'Bank Processing',
+  completed: 'Completed',
+  failed: 'Failed',
+};
+const STATUS_BADGE = {
+  initiated: 'badge-initiated',
+  kyc_verified: 'badge-kyc',
+  '15cb_requested': 'badge-15cb_req',
+  '15cb_received': 'badge-15cb_done',
+  '15ca_filed': 'badge-15ca',
+  bank_processing: 'badge-bank',
+  completed: 'badge-completed',
+  failed: 'badge-failed',
+};
+const PROGRESS_STEPS = ['initiated','kyc_verified','15cb_requested','15cb_received','15ca_filed','bank_processing','completed'];
+
+function badge(status) {
+  const cls = STATUS_BADGE[status] || 'badge-initiated';
+  const lbl = STATUS_LABELS[status] || status;
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+function fmtINR(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
+function fmtCAD(n) { return 'CA$' + Number(n).toFixed(2); }
+function fmtDate(s) { return new Date(s).toLocaleDateString('en-CA', { year:'numeric', month:'short', day:'numeric' }); }
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const data = await apiCall('/transfers/history');
+    allTransfers = data.transfers || [];
+    const completed = allTransfers.filter(t => t.status === 'completed');
+    const active = allTransfers.filter(t => !['completed','failed'].includes(t.status));
+    const volume = completed.reduce((s, t) => s + Number(t.amount_cad), 0);
+    document.getElementById('stat-total').textContent = allTransfers.length;
+    document.getElementById('stat-active').textContent = active.length;
+    document.getElementById('stat-completed').textContent = completed.length;
+    document.getElementById('stat-volume').textContent = fmtCAD(volume);
+    renderTransferList('recent-transfers', allTransfers.slice(0, 5));
+  } catch (ex) {
+    document.getElementById('recent-transfers').innerHTML = `<div class="error-banner">${ex.message}</div>`;
+  }
+}
+
+// ── Transfer List ─────────────────────────────────────────────────────────────
+async function loadTransfers() {
+  document.getElementById('all-transfers').innerHTML = '<div class="loading-center"><div class="spinner"></div><span>Loading…</span></div>';
+  try {
+    const data = await apiCall('/transfers/history');
+    allTransfers = data.transfers || [];
+    renderTransferList('all-transfers', allTransfers);
+  } catch (ex) {
+    document.getElementById('all-transfers').innerHTML = `<div class="error-banner">${ex.message}</div>`;
+  }
+}
+
+function renderTransferList(containerId, transfers) {
+  const el = document.getElementById(containerId);
+  if (!transfers.length) {
+    el.innerHTML = '<div class="empty-state"><div class="big">₹</div><p>No transfers yet.</p><br><button class="btn-outline" onclick="showView(\'new-transfer\')">Initiate Transfer →</button></div>';
+    return;
+  }
+  el.innerHTML = '<div class="transfer-list">' + transfers.map(t => `
+    <div class="transfer-card" onclick="showDetail('${t.id}')">
+      <div>
+        <div class="transfer-ref">${t.reference || t.id.slice(0,12)}</div>
+        <div class="transfer-amount">${fmtINR(t.amount_inr)} → ${fmtCAD(t.amount_cad)}</div>
+        <div class="transfer-meta">${fmtDate(t.created_at)} · ${t.speed || 'standard'}</div>
+      </div>
+      <div style="text-align:right">${badge(t.status)}</div>
+    </div>
+  `).join('') + '</div>';
+}
+
+// ── Transfer Detail ───────────────────────────────────────────────────────────
+async function showDetail(id) {
+  showView('detail');
+  document.getElementById('detail-content').innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const data = await apiCall('/transfers/' + id);
+    const t = data.transfer;
+    const stepIdx = PROGRESS_STEPS.indexOf(t.status);
+    const progressHtml = '<div class="progress-track"><div class="progress-steps">' +
+      PROGRESS_STEPS.map((s, i) => {
+        const cls = i < stepIdx ? 'done' : i === stepIdx ? 'active' : '';
+        return `<div class="progress-step ${cls}">
+          <div class="progress-dot ${cls}">${i < stepIdx ? '✓' : i + 1}</div>
+          <div class="progress-step-label">${STATUS_LABELS[s] || s}</div>
+        </div>`;
+      }).join('') + '</div></div>';
+
+    document.getElementById('detail-content').innerHTML = `
+      <div class="page-title serif" style="font-size:1.4rem">${fmtINR(t.amount_inr)} → ${fmtCAD(t.amount_cad)}</div>
+      <div style="margin:0.5rem 0 1.5rem;display:flex;gap:0.75rem;align-items:center">
+        ${badge(t.status)}
+        <span style="font-size:0.78rem;color:var(--muted)">${fmtDate(t.created_at)}</span>
+      </div>
+      ${progressHtml}
+      <div class="divider"></div>
+      <div class="detail-grid">
+        <div><div class="detail-label">Reference</div><div class="detail-value">${t.reference || '—'}</div></div>
+        <div><div class="detail-label">Speed</div><div class="detail-value" style="text-transform:capitalize">${t.speed || '—'}</div></div>
+        <div><div class="detail-label">Amount INR</div><div class="detail-value">${fmtINR(t.amount_inr)}</div></div>
+        <div><div class="detail-label">Amount CAD</div><div class="detail-value">${fmtCAD(t.amount_cad)}</div></div>
+        <div><div class="detail-label">Exchange Rate</div><div class="detail-value">1 INR = ${Number(t.exchange_rate).toFixed(6)} CAD</div></div>
+        <div><div class="detail-label">Fee</div><div class="detail-value">${fmtCAD(t.fee_cad)}</div></div>
+        <div><div class="detail-label">Purpose Code</div><div class="detail-value">${t.purpose_code || '—'}</div></div>
+        <div><div class="detail-label">Source of Funds</div><div class="detail-value" style="text-transform:capitalize">${(t.source_of_funds || '—').replace(/_/g,' ')}</div></div>
+        ${t.fifteen_cb_number ? `<div><div class="detail-label">15CB Number</div><div class="detail-value">${t.fifteen_cb_number}</div></div>` : ''}
+        ${t.fifteen_ca_number ? `<div><div class="detail-label">15CA Number</div><div class="detail-value">${t.fifteen_ca_number}</div></div>` : ''}
+      </div>
+    `;
+  } catch (ex) {
+    document.getElementById('detail-content').innerHTML = `<div class="error-banner">${ex.message}</div>`;
+  }
+}
+
+// ── Rates ─────────────────────────────────────────────────────────────────────
+async function fetchRate() {
+  try {
+    const data = await apiCall('/rates/inr-cad');
+    currentRate = data.customerRate || data.rate;
+  } catch {
+    currentRate = 0.01595; // fallback
+  }
+}
+
+function calcRate() {
+  const inr = parseFloat(document.getElementById('nt-inr').value) || 0;
+  if (!inr) { document.getElementById('rate-box').style.display = 'none'; return; }
+  const fee = selectedSpeed === 'express' ? FEE_EXPRESS : FEE_STANDARD;
+  const cad = (inr * currentRate) - fee;
+  document.getElementById('nt-cad').value = cad > 0 ? cad.toFixed(2) : '0.00';
+  document.getElementById('rate-display').textContent = `1 INR = ${currentRate.toFixed(6)} CAD`;
+  document.getElementById('fee-display').textContent = `CA$${fee}`;
+  document.getElementById('part-display').textContent = inr <= 500000 ? 'Part A (≤₹5L)' : 'Part C (>₹5L — 15CB required)';
+  document.getElementById('total-display').textContent = fmtINR(inr) + ` (≈ ${fmtCAD(cad)})`;
+  document.getElementById('rate-box').style.display = 'block';
+}
+
+function selectSpeed(s) {
+  selectedSpeed = s;
+  document.getElementById('speed-standard').classList.toggle('selected', s === 'standard');
+  document.getElementById('speed-express').classList.toggle('selected', s === 'express');
+  calcRate();
+}
+
+// ── New Transfer submit ───────────────────────────────────────────────────────
+async function submitTransfer() {
+  const inr = parseFloat(document.getElementById('nt-inr').value);
+  const cad = parseFloat(document.getElementById('nt-cad').value);
+  const err = document.getElementById('new-transfer-error');
+  const btn = document.getElementById('nt-submit');
+  err.style.display = 'none';
+
+  if (!inr || inr < 1000) { err.textContent = 'Minimum transfer is ₹1,000.'; err.style.display = 'block'; return; }
+  if (!cad || cad <= 0)   { err.textContent = 'Invalid CAD amount.'; err.style.display = 'block'; return; }
+
+  const fee = selectedSpeed === 'express' ? FEE_EXPRESS : FEE_STANDARD;
+  btn.disabled = true; btn.textContent = 'Initiating…';
+
+  try {
+    const data = await apiCall('/transfers/initiate', {
+      method: 'POST',
+      body: JSON.stringify({
+        amountInr: inr,
+        amountCad: cad,
+        exchangeRate: currentRate,
+        feeCad: fee,
+        purposeCode: document.getElementById('nt-purpose').value,
+        sourceOfFunds: document.getElementById('nt-source').value,
+        speed: selectedSpeed,
+      }),
+    });
+    document.getElementById('new-transfer-submit').style.display = 'none';
+    document.getElementById('success-ref').textContent = 'Reference: ' + (data.reference || data.transfer?.reference || data.transfer?.id?.slice(0,12));
+    document.getElementById('new-transfer-success').style.display = 'block';
+  } catch (ex) {
+    err.textContent = ex.message || 'Transfer failed. Please try again.';
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Initiate Transfer';
+  }
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const data = await apiCall('/users/profile');
+    const p = data.profile || {};
+    const kyc = data.kyc || {};
+    const cb = data.canadaBank || {};
+    const ib = data.indiaAccount || {};
+    document.getElementById('profile-content').innerHTML = `
+      <div class="detail-grid">
+        <div><div class="detail-label">Full Name</div><div class="detail-value">${p.full_name || '—'}</div></div>
+        <div><div class="detail-label">Email</div><div class="detail-value">${p.email || '—'}</div></div>
+        <div><div class="detail-label">Phone</div><div class="detail-value">${p.phone || '—'}</div></div>
+        <div><div class="detail-label">Residency</div><div class="detail-value" style="text-transform:capitalize">${p.residency || '—'}</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="form-section-title">KYC Status</div>
+      <div class="detail-grid">
+        <div><div class="detail-label">Canada Bank</div><div class="detail-value">${kyc.canada_verified ? '✓ Verified' : 'Pending'}</div></div>
+        <div><div class="detail-label">India NRO</div><div class="detail-value">${kyc.india_verified ? '✓ Verified' : 'Pending'}</div></div>
+        ${cb.institution ? `<div><div class="detail-label">Canadian Bank</div><div class="detail-value">${cb.institution}</div></div>` : ''}
+        ${ib.bank_name ? `<div><div class="detail-label">NRO Bank</div><div class="detail-value">${ib.bank_name}${ib.branch ? ` — ${ib.branch}` : ''}</div></div>` : ''}
+      </div>
+    `;
+  } catch (ex) {
+    document.getElementById('profile-content').innerHTML = `<div class="error-banner">${ex.message}</div>`;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+if (authToken) {
+  // Try to auto-login with stored token by fetching profile
+  apiCall('/users/profile').then(data => {
+    currentUser = { email: data.profile?.email };
+    enterApp();
+  }).catch(() => {
+    authToken = '';
+    localStorage.removeItem('customer_token');
+  });
+}
+</script>
+</body>
+</html>

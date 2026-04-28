@@ -55,6 +55,18 @@ export async function apiLogin(email: string, password: string) {
 
 export const apiLogout = () => supabase.auth.signOut()
 
+export async function apiResetPassword(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  if (error) throw error
+}
+
+export async function apiUpdatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
 // ── Profile (returns profile + kyc + bank accounts) ───────────────────────────
 export async function apiGetProfile() {
   const { data: { user: authUser } } = await supabase.auth.getUser()
