@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 import { supabase } from '../lib/supabaseClient';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
@@ -212,14 +212,14 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     reset_token_expiry: expiry,
   }).eq('id', profile.id);
 
-  const sgKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@repaihub.com';
-  if (!sgKey) return;
+  const resendKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'REPAIHUB <noreply@repaihub.com>';
+  if (!resendKey) return;
 
-  sgMail.setApiKey(sgKey);
+  const resend = new Resend(resendKey);
   const resetUrl = `${FRONTEND_URL()}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
-  await sgMail.send({
+  await resend.emails.send({
     to: email,
     from: fromEmail,
     subject: 'Reset your REPAIHUB password',
@@ -244,7 +244,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         </p>
       </div>
     `,
-  }).catch((err: unknown) => console.error('[SendGrid] Failed to send reset email:', err));
+  }).catch((err: unknown) => console.error('[Resend] Failed to send reset email:', err));
 });
 
 // ── POST /auth/reset-password ─────────────────────────────────────────────────
