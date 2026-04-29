@@ -10,6 +10,7 @@ import transfersRoutes from './routes/transfers';
 import usersRoutes from './routes/users';
 import walletRoutes from './routes/wallet';
 import complianceRoutes from './routes/compliance';
+import devToolsRoutes from './routes/devTools';
 
 dotenv.config();
 
@@ -56,6 +57,12 @@ app.use('/compliance', complianceRoutes);
 
 // ── CA portal routes ──────────────────────────────────────────────────────────
 app.use('/ca', caPortalRoutes);
+
+// ── Dev tools (development only) ──────────────────────────────────────────────
+if (process.env.NODE_ENV === 'development') {
+  app.use('/dev', devToolsRoutes);
+  console.log('Dev tools mounted at /dev/status');
+}
 
 // Redirect bare /ca to the dashboard HTML
 app.get('/ca', (_req, res) => {

@@ -279,8 +279,9 @@ router.get('/compliance', caAuthMiddleware, async (req: CARequest, res: Response
     .select(`
       *,
       transfers (
-        amount_inr, amount_cad, exchange_rate, purpose_code,
-        source_of_funds, speed, reference, status
+        id, amount_inr, amount_cad, exchange_rate, purpose_code,
+        source_of_funds, speed, reference, status,
+        commission_cad, flat_fee_cad, total_fees_cad, net_amount_cad
       ),
       wallet_documents (count)
     `)
@@ -308,7 +309,7 @@ router.get('/compliance/:id', caAuthMiddleware, async (req: CARequest, res: Resp
     .from('compliance_requests')
     .select(`
       *,
-      transfers (*),
+      transfers (*, profiles!transfers_user_id_fkey(full_name, email)),
       wallet_documents (*)
     `)
     .eq('id', req.params.id)

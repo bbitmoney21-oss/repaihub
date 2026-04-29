@@ -7,6 +7,22 @@ import type { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
 const router = Router();
 const ts = () => new Date().toISOString();
 
+// ── Fee constants ─────────────────────────────────────────────────────────────
+const FLAT_FEE_CAD     = 25;
+const COMMISSION_RATE  = 0.018;   // 1.8% total
+const REPAIHUB_RATE    = 0.013;   // 1.3% Repaihub share
+const PARTNER_RATE     = 0.005;   // 0.5% partner share
+
+function calcFees(amountInr: number, exchangeRate: number) {
+  const grossCAD         = Math.round((amountInr / exchangeRate) * 100) / 100;
+  const commissionCAD    = Math.round(grossCAD * COMMISSION_RATE * 100) / 100;
+  const repaihubCommission = Math.round(grossCAD * REPAIHUB_RATE * 100) / 100;
+  const partnerCommission  = Math.round(grossCAD * PARTNER_RATE  * 100) / 100;
+  const totalFeesCAD     = Math.round((commissionCAD + FLAT_FEE_CAD) * 100) / 100;
+  const netAmountCAD     = Math.round((grossCAD - totalFeesCAD) * 100) / 100;
+  return { grossCAD, commissionCAD, repaihubCommission, partnerCommission, totalFeesCAD, netAmountCAD };
+}
+
 function calcFifteenCAPart(amountINR: number): 'A' | 'C' {
   return amountINR <= 500000 ? 'A' : 'C';
 }
@@ -20,16 +36,18 @@ function genReference(): string {
 // ── POST /transfers/initiate ──────────────────────────────────────────────────
 router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response) => {
   const {
-    amountInr, amountCad, exchangeRate, feeCad,
+    amountInr, exchangeRate,
     purposeCode, sourceOfFunds, speed,
   } = req.body as {
-    amountInr?: number; amountCad?: number; exchangeRate?: number; feeCad?: number;
+    amountInr?: number; exchangeRate?: number;
     purposeCode?: RBIPurposeCode; sourceOfFunds?: SourceOfFunds; speed?: 'standard' | 'express';
+    // amountCad and feeCad accepted from client but ignored — computed server-side
+    amountCad?: number; feeCad?: number;
   };
 
-  if (!amountInr || !amountCad || !exchangeRate || !feeCad || !purposeCode || !sourceOfFunds || !speed) {
+  if (!amountInr || !exchangeRate || !purposeCode || !sourceOfFunds || !speed) {
     res.status(400).json({
-      error: 'amountInr, amountCad, exchangeRate, feeCad, purposeCode, sourceOfFunds, speed are all required',
+      error: 'amountInr, exchangeRate, purposeCode, sourceOfFunds, speed are required',
       timestamp: ts(),
     });
     return;
@@ -40,19 +58,40 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     return;
   }
 
+  if (exchangeRate <= 0) {
+    res.status(400).json({ error: 'exchangeRate must be positive', timestamp: ts() });
+    return;
+  }
+
+  const fees = calcFees(amountInr, exchangeRate);
   const fifteenCAPart = calcFifteenCAPart(amountInr);
   const reference = genReference();
 
+  const feeBreakdown = {
+    grossCAD:       fees.grossCAD,
+    commissionCAD:  fees.commissionCAD,
+    flatFeeCAD:     FLAT_FEE_CAD,
+    totalFeesCAD:   fees.totalFeesCAD,
+    netAmountCAD:   fees.netAmountCAD,
+    commissionRate: '1.8%',
+    flatFee:        'CAD 25',
+  };
+
   if (!supabaseAdminConfigured) {
-    // Demo mode — return a mock transfer without persisting
     res.status(201).json({
       transfer: {
         id: `demo-${Date.now()}`,
         user_id: req.userId,
         amount_inr: amountInr,
-        amount_cad: amountCad,
+        amount_cad: fees.grossCAD,
         exchange_rate: exchangeRate,
-        fee_cad: feeCad,
+        fee_cad: fees.totalFeesCAD,
+        commission_cad: fees.commissionCAD,
+        repaihub_commission: fees.repaihubCommission,
+        partner_commission: fees.partnerCommission,
+        flat_fee_cad: FLAT_FEE_CAD,
+        total_fees_cad: fees.totalFeesCAD,
+        net_amount_cad: fees.netAmountCAD,
         purpose_code: purposeCode,
         source_of_funds: sourceOfFunds,
         speed,
@@ -61,6 +100,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
         fifteen_ca_part: fifteenCAPart,
         created_at: ts(),
       },
+      feeBreakdown,
       fifteenCAPart,
       reference,
       timestamp: ts(),
@@ -71,17 +111,23 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   const { data: transfer, error } = await supabaseAdmin
     .from('transfers')
     .insert({
-      user_id: req.userId,
-      amount_inr: amountInr,
-      amount_cad: amountCad,
-      exchange_rate: exchangeRate,
-      fee_cad: feeCad,
-      purpose_code: purposeCode,
-      source_of_funds: sourceOfFunds,
+      user_id:             req.userId,
+      amount_inr:          amountInr,
+      amount_cad:          fees.grossCAD,
+      exchange_rate:       exchangeRate,
+      fee_cad:             fees.totalFeesCAD,
+      commission_cad:      fees.commissionCAD,
+      repaihub_commission: fees.repaihubCommission,
+      partner_commission:  fees.partnerCommission,
+      flat_fee_cad:        FLAT_FEE_CAD,
+      total_fees_cad:      fees.totalFeesCAD,
+      net_amount_cad:      fees.netAmountCAD,
+      purpose_code:        purposeCode,
+      source_of_funds:     sourceOfFunds,
       speed,
       reference,
-      status: 'initiated',
-      priority: speed,
+      status:              'initiated',
+      priority:            speed,
     })
     .select()
     .single();
@@ -92,23 +138,23 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // Log the initiation event
-  await supabaseAdmin.from('transfer_events').insert({
+  void supabaseAdmin.from('transfer_events').insert({
     transfer_id: transfer.id,
     user_id: req.userId,
     status: 'initiated',
     note: 'Transfer initiated via API',
   });
 
-  // Auto-create compliance request for every transfer (fire-and-forget)
+  // Auto-create compliance request (fire-and-forget)
   void supabaseAdmin.from('compliance_requests').insert({
-    transfer_id: transfer.id,
-    user_id: req.userId,
-    status: 'pending',
-    fifteen_ca_part: fifteenCAPart,
+    transfer_id:        transfer.id,
+    user_id:            req.userId,
+    status:             'pending',
+    fifteen_ca_part:    fifteenCAPart,
     fifteen_cb_required: true,
   });
 
-  // Get profile for notification
+  // Notify (fire-and-forget)
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('full_name, email')
@@ -118,16 +164,24 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   if (profile) {
     notifyTransferInitiated({
       customerEmail: profile.email ?? req.userEmail ?? '',
-      customerName: profile.full_name ?? 'Customer',
-      transferId: transfer.id,
-      amountINR: amountInr,
-      amountCAD: amountCad,
-      status: 'initiated',
+      customerName:  profile.full_name ?? 'Customer',
+      transferId:    transfer.id,
+      amountINR:     amountInr,
+      amountCAD:     fees.grossCAD,
+      status:        'initiated',
     }).catch(() => {});
+  }
+
+  // Auto-progress in development (background, never blocks response)
+  if (process.env.NODE_ENV === 'development') {
+    import('../services/testMode').then(({ autoProgressTestTransfer }) => {
+      autoProgressTestTransfer(transfer.id).catch(console.error);
+    });
   }
 
   res.status(201).json({
     transfer,
+    feeBreakdown,
     fifteenCAPart,
     reference,
     timestamp: ts(),
@@ -135,7 +189,6 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
 });
 
 // ── GET /transfers/history ────────────────────────────────────────────────────
-// Must be before /transfers/:id
 router.get('/history', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!supabaseAdminConfigured) {
     res.json({ transfers: [], count: 0, timestamp: ts() });
@@ -167,7 +220,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     .from('transfers')
     .select('*')
     .eq('id', req.params.id)
-    .eq('user_id', req.userId!)  // Ensure user can only see their own transfers
+    .eq('user_id', req.userId!)
     .single();
 
   if (error || !data) {

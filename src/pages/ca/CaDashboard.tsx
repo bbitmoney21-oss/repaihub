@@ -350,8 +350,18 @@ function RequestRow({ request, onRefresh }: { request: ComplianceRequest; onRefr
               )}
             </div>
             {t ? (
-              <div style={{ fontSize: '0.88rem', color: '#FAF6F0', marginBottom: '0.3rem', fontWeight: 500 }}>
-                {fmt(t.amount_inr)} → CAD {t.amount_cad?.toFixed(2)} · {t.source_of_funds?.replace(/_/g, ' ')}
+              <div>
+                <div style={{ fontSize: '0.88rem', color: '#FAF6F0', marginBottom: '0.2rem', fontWeight: 500 }}>
+                  {fmt(t.amount_inr)} · Gross: CAD {t.amount_cad?.toFixed(2)} · {t.source_of_funds?.replace(/_/g, ' ')}
+                </div>
+                {t.total_fees_cad != null && (
+                  <div style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>
+                    Commission 1.8%: CAD {t.commission_cad?.toFixed(2)} + Flat: CAD {t.flat_fee_cad?.toFixed(2)}
+                    {' = '}Total fees: CAD {t.total_fees_cad?.toFixed(2)}
+                    {' · '}
+                    <span style={{ color: '#27AE60', fontWeight: 600 }}>Net to customer: CAD {t.net_amount_cad?.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             ) : null}
             <div style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>

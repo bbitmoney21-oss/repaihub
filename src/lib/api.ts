@@ -268,9 +268,12 @@ export interface ComplianceRequest {
   updated_at: string;
   wallet_documents?: { count: number }[];
   transfers?: {
+    id: string;
     amount_inr: number; amount_cad: number; exchange_rate: number;
     purpose_code: string; source_of_funds: string; speed: string;
     reference: string; status: string;
+    commission_cad: number | null; flat_fee_cad: number | null;
+    total_fees_cad: number | null; net_amount_cad: number | null;
   };
 }
 
