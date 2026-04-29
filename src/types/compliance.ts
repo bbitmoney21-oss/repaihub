@@ -6,7 +6,12 @@ export type TransferStatus =
   | '15CA_FILED'
   | 'BANK_PROCESSING'
   | 'COMPLETED'
-  | 'FAILED';
+  | 'FAILED'
+  // New 3-tier decision statuses (stored as-is in DB — no uppercase mapping)
+  | 'pending_ca_approval'
+  | 'processing_with_compliance'
+  | 'processing'
+  | 'failed';
 
 export type FifteenCApart = 'A' | 'B' | 'C' | 'D';
 
@@ -66,6 +71,10 @@ export interface Transfer {
   priority: 'standard' | 'express';
   createdAt: string;
   updatedAt: string;
+  // Risk engine fields — present for Supabase-sourced transfers
+  risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+  risk_score?: number | null;
+  risk_breakdown?: Record<string, number> | null;
 }
 
 export interface CAUser {

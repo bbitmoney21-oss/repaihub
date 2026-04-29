@@ -11,6 +11,7 @@ import usersRoutes from './routes/users';
 import walletRoutes from './routes/wallet';
 import complianceRoutes from './routes/compliance';
 import devToolsRoutes from './routes/devTools';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -57,6 +58,9 @@ app.use('/compliance', complianceRoutes);
 
 // ── CA portal routes ──────────────────────────────────────────────────────────
 app.use('/ca', caPortalRoutes);
+
+// ── Admin routes (CA JWT protected) ──────────────────────────────────────────
+app.use('/admin', adminRoutes);
 
 // ── Dev tools (development only) ──────────────────────────────────────────────
 if (process.env.NODE_ENV === 'development') {

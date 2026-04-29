@@ -141,4 +141,49 @@ router.post('/kyc/india', authMiddleware, async (req: AuthRequest, res: Response
   res.json({ message: 'India KYC submitted', timestamp: ts() });
 });
 
+// ── GET /users/referral ───────────────────────────────────────────────────────
+router.get('/referral', authMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.json({ referralCode: null, totalReferrals: 0, totalEarnedCAD: 0, referrals: [], timestamp: ts() });
+    return;
+  }
+
+  const userId = req.userId!;
+  const [codeRes, referralsRes] = await Promise.all([
+    supabaseAdmin.from('referral_codes').select('*').eq('user_id', userId).maybeSingle(),
+    supabaseAdmin.from('referrals').select('*').eq('referrer_user_id', userId)
+      .order('created_at', { ascending: false }),
+  ]);
+
+  res.json({
+    referralCode:    codeRes.data?.code         ?? null,
+    totalReferrals:  codeRes.data?.total_referrals  ?? 0,
+    totalEarnedCAD:  codeRes.data?.total_earned_cad ?? 0,
+    referrals:       referralsRes.data ?? [],
+    timestamp:       ts(),
+  });
+});
+
+// ── GET /users/credits ────────────────────────────────────────────────────────
+router.get('/credits', authMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.json({ balanceCAD: 0, totalEarned: 0, totalSpent: 0, timestamp: ts() });
+    return;
+  }
+
+  const { data } = await supabaseAdmin
+    .from('user_credits')
+    .select('*')
+    .eq('user_id', req.userId!)
+    .maybeSingle();
+
+  res.json({
+    balanceCAD:  data?.balance_cad  ?? 0,
+    totalEarned: data?.total_earned ?? 0,
+    totalSpent:  data?.total_spent  ?? 0,
+    updatedAt:   data?.updated_at   ?? null,
+    timestamp:   ts(),
+  });
+});
+
 export default router;

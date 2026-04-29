@@ -7,25 +7,33 @@ import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 // ── Status mapping ────────────────────────────────────────────────────────────
 
 const DB_TO_CA: Record<string, TransferStatus> = {
-  initiated:        'INITIATED',
-  kyc_verified:     'KYC_VERIFIED',
-  '15cb_requested': '15CB_REQUESTED',
-  '15cb_received':  '15CB_RECEIVED',
-  '15ca_filed':     '15CA_FILED',
-  bank_processing:  'BANK_PROCESSING',
-  completed:        'COMPLETED',
-  failed:           'FAILED',
+  initiated:                  'INITIATED',
+  kyc_verified:               'KYC_VERIFIED',
+  '15cb_requested':           '15CB_REQUESTED',
+  '15cb_received':            '15CB_RECEIVED',
+  '15ca_filed':               '15CA_FILED',
+  bank_processing:            'BANK_PROCESSING',
+  completed:                  'COMPLETED',
+  failed:                     'failed',
+  // 3-tier decision engine statuses — pass through as-is
+  pending_ca_approval:        'pending_ca_approval',
+  processing_with_compliance: 'processing_with_compliance',
+  processing:                 'processing',
 };
 
 const CA_TO_DB: Record<TransferStatus, string> = {
-  INITIATED:        'initiated',
-  KYC_VERIFIED:     'kyc_verified',
-  '15CB_REQUESTED': '15cb_requested',
-  '15CB_RECEIVED':  '15cb_received',
-  '15CA_FILED':     '15ca_filed',
-  BANK_PROCESSING:  'bank_processing',
-  COMPLETED:        'completed',
-  FAILED:           'failed',
+  INITIATED:                  'initiated',
+  KYC_VERIFIED:               'kyc_verified',
+  '15CB_REQUESTED':           '15cb_requested',
+  '15CB_RECEIVED':            '15cb_received',
+  '15CA_FILED':               '15ca_filed',
+  BANK_PROCESSING:            'bank_processing',
+  COMPLETED:                  'completed',
+  FAILED:                     'failed',
+  failed:                     'failed',
+  pending_ca_approval:        'pending_ca_approval',
+  processing_with_compliance: 'processing_with_compliance',
+  processing:                 'processing',
 };
 
 function mapStatus(dbStatus: string): TransferStatus {
@@ -87,6 +95,9 @@ function mapRow(
     priority: (row.priority as 'standard' | 'express') || (row.speed as 'standard' | 'express') || 'standard',
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
+    risk_level: (row.risk_level as 'LOW' | 'MEDIUM' | 'HIGH') ?? null,
+    risk_score: row.risk_score != null ? Number(row.risk_score) : null,
+    risk_breakdown: (row.risk_breakdown as Record<string, number>) ?? null,
   };
 }
 

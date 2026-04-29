@@ -6,6 +6,7 @@ import { Resend } from 'resend';
 import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 import { supabase } from '../lib/supabaseClient';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { createReferralCode, recordReferralSignup } from '../services/referralService';
 
 const router = Router();
 
@@ -47,8 +48,8 @@ function emailHtml(name: string, resetUrl: string): string {
 
 // ── POST /auth/register ───────────────────────────────────────────────────────
 router.post('/register', async (req: Request, res: Response) => {
-  const { email, password, name, phone } = req.body as {
-    email?: string; password?: string; name?: string; phone?: string;
+  const { email, password, name, phone, referredByCode } = req.body as {
+    email?: string; password?: string; name?: string; phone?: string; referredByCode?: string;
   };
 
   if (!email || !password || !name) {
@@ -88,19 +89,32 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const userId = authData.user.id;
 
   await supabaseAdmin.from('profiles').upsert({
-    id: authData.user.id,
+    id: userId,
     email,
     full_name: name,
     phone: phone ?? null,
     password_hash: passwordHash,
+    referred_by_code: referredByCode?.toUpperCase() ?? null,
   }, { onConflict: 'id' });
 
-  const token = issueToken(authData.user.id, email);
+  // Generate referral code + record referral relationship (never blocks registration)
+  let myReferralCode: string | null = null;
+  try {
+    myReferralCode = await createReferralCode(userId, name);
+    if (referredByCode) {
+      await recordReferralSignup(userId, referredByCode);
+    }
+  } catch (err) {
+    console.error('[Auth] Referral setup failed (non-critical):', err);
+  }
+
+  const token = issueToken(userId, email);
   res.status(201).json({
     token,
-    user: { id: authData.user.id, email, name, phone: phone ?? null },
+    user: { id: userId, email, name, phone: phone ?? null, myReferralCode },
     timestamp: ts(),
   });
 });

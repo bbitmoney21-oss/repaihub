@@ -149,6 +149,13 @@ tr:hover td{background:#FAFAFA}
 .loading{display:flex;align-items:center;justify-content:center;padding:40px;color:#9CA3AF;font-size:13px}
 .spinner{width:18px;height:18px;border:2px solid #E5E7EB;border-top-color:#0F6E56;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:10px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Risk badges ── */
+.risk-low{background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0}
+.risk-medium{background:#FEF3C7;color:#D97706;border:1px solid #FDE68A}
+.risk-high{background:#FEF2F2;color:#DC2626;border:1px solid #FECACA}
+.risk-score-bar{height:6px;border-radius:3px;background:#F3F4F6;overflow:hidden;margin-top:6px}
+.risk-score-fill{height:100%;border-radius:3px;transition:width 0.3s}
 </style>
 </head>
 <body>
@@ -279,14 +286,22 @@ tr:hover td{background:#FAFAFA}
             <div class="filter-row">
               <select id="status-filter" onchange="applyFilter()">
                 <option value="">All Statuses</option>
-                <option value="INITIATED">Initiated</option>
-                <option value="KYC_VERIFIED">KYC Verified</option>
-                <option value="15CB_REQUESTED">15CB Requested</option>
-                <option value="15CB_RECEIVED">15CB Received</option>
-                <option value="15CA_FILED">15CA Filed</option>
-                <option value="BANK_PROCESSING">Bank Processing</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="FAILED">Failed</option>
+                <optgroup label="3-Tier Decision Engine">
+                  <option value="pending_ca_approval">Pending CA Approval (HIGH)</option>
+                  <option value="processing_with_compliance">Processing + Compliance (MEDIUM)</option>
+                  <option value="processing">Processing — Auto (LOW)</option>
+                </optgroup>
+                <optgroup label="Legacy Workflow">
+                  <option value="INITIATED">Initiated</option>
+                  <option value="KYC_VERIFIED">KYC Verified</option>
+                  <option value="15CB_REQUESTED">15CB Requested</option>
+                  <option value="15CB_RECEIVED">15CB Received</option>
+                  <option value="15CA_FILED">15CA Filed</option>
+                  <option value="BANK_PROCESSING">Bank Processing</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="failed">Failed (lowercase)</option>
+                </optgroup>
               </select>
               <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
             </div>
@@ -327,16 +342,29 @@ let autoRefreshTimer = null;
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CLASS = {
-  'INITIATED': 'badge-gray',
-  'KYC_VERIFIED': 'badge-blue',
-  '15CB_REQUESTED': 'badge-amber',
-  '15CB_RECEIVED': 'badge-teal',
-  '15CA_FILED': 'badge-green',
-  'BANK_PROCESSING': 'badge-purple',
-  'COMPLETED': 'badge-green',
-  'FAILED': 'badge-red',
+  'INITIATED':                  'badge-gray',
+  'KYC_VERIFIED':               'badge-blue',
+  '15CB_REQUESTED':             'badge-amber',
+  '15CB_RECEIVED':              'badge-teal',
+  '15CA_FILED':                 'badge-green',
+  'BANK_PROCESSING':            'badge-purple',
+  'COMPLETED':                  'badge-green',
+  'FAILED':                     'badge-red',
+  'failed':                     'badge-red',
+  'pending_ca_approval':        'badge-red',
+  'processing_with_compliance': 'badge-blue',
+  'processing':                 'badge-teal',
 };
-const PULSE_STATUSES = ['15CB_REQUESTED'];
+
+const STATUS_LABEL = {
+  'pending_ca_approval':        'Pending CA Approval',
+  'processing_with_compliance': 'Processing + Compliance',
+  'processing':                 'Processing',
+};
+
+const PULSE_STATUSES = ['15CB_REQUESTED', 'pending_ca_approval'];
+
+const RISK_CLASS = { 'LOW': 'risk-low', 'MEDIUM': 'risk-medium', 'HIGH': 'risk-high' };
 
 // ── Utility ────────────────────────────────────────────────────────────────
 const formatINR = n => new Intl.NumberFormat('en-IN').format(Math.round(Number(n)));
@@ -346,13 +374,28 @@ const h = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 function statusBadge(status) {
   const cls = STATUS_CLASS[status] || 'badge-gray';
   const pulse = PULSE_STATUSES.includes(status) ? '<span class="pulse-dot"></span>' : '';
-  return `<span class="badge ${cls}">${pulse}${h(status)}</span>`;
+  const label = STATUS_LABEL[status] || status;
+  return `<span class="badge ${cls}">${pulse}${h(label)}</span>`;
 }
 
 function priorityBadge(p) {
   return p === 'express'
     ? '<span class="badge badge-express">EXPRESS</span>'
     : '<span class="badge badge-standard">Standard</span>';
+}
+
+function riskBadge(level, score) {
+  if (!level) return '<span style="color:#9CA3AF;font-size:11px">—</span>';
+  const cls = RISK_CLASS[level] || 'badge-gray';
+  const scoreText = score != null ? ` · ${score}` : '';
+  return `<span class="badge ${cls}">${h(level)}${scoreText}</span>`;
+}
+
+function riskScoreBar(score) {
+  if (score == null) return '';
+  const pct = Math.min(100, Math.max(0, score));
+  const color = score <= 30 ? '#16A34A' : score <= 70 ? '#D97706' : '#DC2626';
+  return `<div class="risk-score-bar"><div class="risk-score-fill" style="width:${pct}%;background:${color}"></div></div>`;
 }
 
 // ── API helper ─────────────────────────────────────────────────────────────
@@ -483,7 +526,7 @@ function updatePendingBadge() {
 // ── Tables ─────────────────────────────────────────────────────────────────
 function buildTransferTable(transfers) {
   if (!transfers.length) {
-    return `<table><tr class="empty-row"><td colspan="8">No transfers found</td></tr></table>`;
+    return `<table><tr class="empty-row"><td colspan="9">No transfers found</td></tr></table>`;
   }
   const rows = transfers.map(t => `
     <tr>
@@ -494,6 +537,7 @@ function buildTransferTable(transfers) {
       <td>${h((t.sourceOfFunds||'').replace(/_/g,' '))}</td>
       <td>${priorityBadge(t.priority)}</td>
       <td>${statusBadge(t.status)}</td>
+      <td>${riskBadge(t.risk_level, t.risk_score)}</td>
       <td><button class="btn btn-primary btn-sm" onclick="openDetail('${h(t.id)}')">Review →</button></td>
     </tr>
   `).join('');
@@ -501,7 +545,7 @@ function buildTransferTable(transfers) {
     <table>
       <thead><tr>
         <th>Customer</th><th>PAN</th><th>Amount INR</th><th>Amount CAD</th>
-        <th>Source</th><th>Priority</th><th>Status</th><th>Action</th>
+        <th>Source</th><th>Priority</th><th>Status</th><th>Risk</th><th>Action</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -568,10 +612,40 @@ function renderDetailPanel(form, transferId) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       ${statusBadge(status)}
       ${priorityBadge(transfer?.priority||'standard')}
+      ${transfer?.risk_level ? riskBadge(transfer.risk_level, transfer.risk_score) : ''}
       <span style="font-size:11px;color:#6B7280">ID: ${h(transferId.slice(0,8))}…</span>
       <span style="font-size:11px;color:${slaColor};font-weight:600">SLA: ${meta.slaHoursRemaining.toFixed(1)}h remaining</span>
       <span style="font-size:11px;color:#6B7280">15CA Part <strong>${meta.fifteenCAPart}</strong>${meta.fifteenCBRequired ? ' · 15CB Required' : ''}</span>
     </div>
+
+    <!-- Section 0: Risk Assessment -->
+    ${transfer?.risk_level ? `
+    <div class="form-section">
+      <h3>0 — Risk Assessment</h3>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+        ${riskBadge(transfer.risk_level, transfer.risk_score)}
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:11px;color:#9CA3AF;margin-bottom:4px">Score: <strong style="color:#111">${transfer.risk_score ?? '—'} / 100</strong></div>
+          ${riskScoreBar(transfer.risk_score)}
+        </div>
+        <div style="font-size:12px;color:#6B7280;background:#F9FAFB;border-radius:6px;padding:8px 12px;border:1px solid #F3F4F6">
+          ${transfer.risk_level === 'HIGH'
+            ? '🔴 <strong style="color:#DC2626">Blocked</strong> — CA must approve before processing'
+            : transfer.risk_level === 'MEDIUM'
+            ? '🟡 <strong style="color:#D97706">Parallel</strong> — transfer processing, CA reviews async'
+            : '🟢 <strong style="color:#16A34A">Auto-approved</strong> — low risk, no CA gate'}
+        </div>
+      </div>
+      ${transfer.risk_breakdown && Object.keys(transfer.risk_breakdown).length > 0 ? `
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;margin-bottom:8px">Score Breakdown (contributing factors)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${Object.entries(transfer.risk_breakdown).filter(([,v]) => Number(v) !== 0).map(([k, v]) => `
+            <div style="background:#F9FAFB;border-radius:6px;padding:7px 12px;border:1px solid #F3F4F6;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#6B7280">${h(k.replace(/_/g,' '))}</span>
+              <span style="font-size:13px;font-weight:700;color:${Number(v) > 0 ? '#DC2626' : '#16A34A'}">${Number(v) > 0 ? '+' : ''}${v}</span>
+            </div>`).join('')}
+        </div>` : '<div style="color:#9CA3AF;font-size:12px">Breakdown not available</div>'}
+    </div>` : ''}
 
     <!-- Section 1: Remitter -->
     <div class="form-section">
@@ -736,6 +810,78 @@ function renderActionArea(status, transfer) {
             <button class="btn btn-danger" onclick="handleReject()">Confirm Rejection</button>
             <button class="btn btn-sm" style="background:#F3F4F6;color:#374151" onclick="hideRejectForm()">Cancel</button>
           </div>
+        </div>
+      </div>`;
+  }
+
+  // ── 3-tier decision engine statuses ───────────────────────────────────────
+
+  if (status === 'pending_ca_approval') {
+    return `
+      <div class="action-box">
+        <div class="warn-banner" style="display:block">⚠ HIGH RISK — This transfer is <strong>blocked</strong>. The customer cannot proceed until you certify 15CB and approve. Review the risk assessment in Section 0 before certifying.</div>
+        <div id="approve-error" class="err-banner"></div>
+        <label class="field-label">15CB Certificate Number</label>
+        <input id="cb-number" type="text" placeholder="e.g. CB2026-04-190K-5678">
+        <label class="field-label">CA Remarks (minimum 20 characters)</label>
+        <textarea id="ca-remarks" rows="3" placeholder="Reviewed high-risk indicators. Source of funds verified against Form 26AS. DTAA relief assessed…"></textarea>
+        <label class="confirm-check">
+          <input type="checkbox" id="confirm-check">
+          I have reviewed the risk assessment, verified source of funds on WISEMAN/Form 26AS, and take professional responsibility for approving this high-risk transfer.
+        </label>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="handleApprove()">Approve &amp; Certify 15CB ✓</button>
+          <button class="btn btn-danger" onclick="showRejectForm()">Reject Transfer ✗</button>
+        </div>
+        <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
+          <label class="field-label">Reason for Rejection</label>
+          <textarea id="reject-reason" rows="2" placeholder="Explain why this high-risk transfer is being rejected…"></textarea>
+          <div class="action-row">
+            <button class="btn btn-danger" onclick="handleReject()">Confirm Rejection</button>
+            <button class="btn btn-sm" style="background:#F3F4F6;color:#374151" onclick="hideRejectForm()">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (status === 'processing_with_compliance') {
+    return `
+      <div class="action-box">
+        <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:10px 14px;font-size:12px;color:#1D4ED8;margin-bottom:14px">
+          ℹ MEDIUM RISK — Transfer is already processing. Your 15CB certification is required for compliance records but does not block the customer.
+        </div>
+        <div id="approve-error" class="err-banner"></div>
+        <label class="field-label">15CB Certificate Number</label>
+        <input id="cb-number" type="text" placeholder="e.g. CB2026-04-190K-5678">
+        <label class="field-label">CA Remarks (minimum 20 characters)</label>
+        <textarea id="ca-remarks" rows="3" placeholder="Reviewed source of funds. TDS verified against Form 26AS. DTAA relief assessed under Article 23…"></textarea>
+        <label class="confirm-check">
+          <input type="checkbox" id="confirm-check">
+          I confirm verification and take professional responsibility for this 15CB certification.
+        </label>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="handleApprove()">Certify 15CB ✓</button>
+          <button class="btn btn-danger" onclick="showRejectForm()">Flag Compliance Issue ✗</button>
+        </div>
+        <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
+          <label class="field-label">Compliance Concern</label>
+          <textarea id="reject-reason" rows="2" placeholder="Describe the compliance concern flagged…"></textarea>
+          <div class="action-row">
+            <button class="btn btn-danger" onclick="handleReject()">Confirm Flag</button>
+            <button class="btn btn-sm" style="background:#F3F4F6;color:#374151" onclick="hideRejectForm()">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (status === 'processing' || status === 'failed') {
+    const isProcessing = status === 'processing';
+    return `
+      <div class="completed-badge" style="${isProcessing ? 'background:#EFF6FF;border-color:#BFDBFE;color:#1D4ED8' : 'background:#FEF2F2;border-color:#FECACA;color:#DC2626'}">
+        <span class="icon">${isProcessing ? 'ℹ' : '✕'}</span>
+        <div>
+          <div>${isProcessing ? 'Low-risk transfer — processing automatically' : 'Transfer failed or rejected'}</div>
+          <div style="font-size:12px;font-weight:400;margin-top:4px">${isProcessing ? 'Risk score below threshold. No CA certification required.' : 'Check audit logs for details.'}</div>
         </div>
       </div>`;
   }
