@@ -7,9 +7,11 @@ import caPortalRoutes from './routes/caPortal';
 import authRoutes from './routes/auth';
 import ratesRoutes from './routes/rates';
 import transfersRoutes from './routes/transfers';
+import inwardTransfersRoutes from './routes/inwardTransfers';
 import usersRoutes from './routes/users';
 import walletRoutes from './routes/wallet';
 import complianceRoutes from './routes/compliance';
+import webhooksRoutes from './routes/webhooks';
 import devToolsRoutes from './routes/devTools';
 import adminRoutes from './routes/admin';
 
@@ -52,9 +54,13 @@ app.get('/health', (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/rates', ratesRoutes);
 app.use('/transfers', transfersRoutes);
+app.use('/inward', inwardTransfersRoutes);
 app.use('/users', usersRoutes);
 app.use('/wallet', walletRoutes);
 app.use('/compliance', complianceRoutes);
+
+// ── Webhook receivers ─────────────────────────────────────────────────────────
+app.use('/webhooks', webhooksRoutes);
 
 // ── CA portal routes ──────────────────────────────────────────────────────────
 app.use('/ca', caPortalRoutes);
@@ -63,10 +69,8 @@ app.use('/ca', caPortalRoutes);
 app.use('/admin', adminRoutes);
 
 // ── Dev tools (development only) ──────────────────────────────────────────────
-if (process.env.NODE_ENV === 'development') {
-  app.use('/dev', devToolsRoutes);
-  console.log('Dev tools mounted at /dev/status');
-}
+// Dev tools always mounted but every endpoint checks NODE_ENV internally
+app.use('/dev', devToolsRoutes);
 
 // Redirect bare /ca to the dashboard HTML
 app.get('/ca', (_req, res) => {

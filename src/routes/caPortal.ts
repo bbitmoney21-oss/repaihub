@@ -12,6 +12,8 @@ import {
 import { caAuthMiddleware, CARequest } from '../middleware/caAuth';
 import { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
 import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
+import { orchestrateAfterCAApproval } from '../orchestrator/outwardOrchestrator';
+import { buildWisemanFields } from '../compliance/fifteenCBService';
 
 const BUCKET = 'wallet-docs';
 
@@ -88,7 +90,52 @@ router.get('/transfers', caAuthMiddleware, async (req: CARequest, res: Response)
 // Must be declared before /transfers/:id to avoid "pending" being treated as an id
 router.get('/transfers/pending', caAuthMiddleware, async (_req: CARequest, res: Response) => {
   const pending = await getPendingTransfers();
-  res.json({ transfers: pending, count: pending.length, timestamp: ts() });
+
+  const enriched = pending.map(t => {
+    const tRaw = t as unknown as Record<string, unknown>;
+    const customerModel = tRaw['customer_model'] as string ?? 'p2p';
+    const accountType   = tRaw['account_type'] as string ?? 'NRO';
+    const nroBankName   = tRaw['nro_bank_name'] as string ?? t.nroBankName ?? 'Unknown';
+    const nroBranchCity = tRaw['nro_branch_city'] as string ?? t.nroBranchCity ?? 'Unknown';
+    const tdsRate       = t.tdsDeducted ? 0.30 : 0;
+
+    const customerModelLabel =
+      customerModel === 'citizen_nre' ? 'Citizen — NRE Account (EXEMPT)' :
+      customerModel === 'citizen_nro' ? 'Citizen — NRO Account' :
+      'P2P — NRO Account';
+
+    const accountTypeLabel = `${accountType} (${nroBankName}, ${nroBranchCity})`;
+
+    const fifteenCAPartLabel = t.fifteenCAPart === 'EXEMPT'
+      ? 'EXEMPT — NRE account, no 15CA/15CB required'
+      : `Part ${t.fifteenCAPart} — CA certification required`;
+
+    const wiseman_fields = buildWisemanFields(
+      t.panLast4 ?? 'N/A',
+      t.customerName,
+      t.sourceOfFunds,
+      t.amountINR,
+      t.amountCAD,
+      t.purposeCode,
+      tdsRate * 100,
+    );
+
+    return {
+      ...t,
+      customerModelLabel,
+      accountTypeLabel,
+      fifteenCAPartLabel,
+      wiseman_fields,
+      fableNote: 'Banking rails operated by Fable Fintech. FINTRAC filed by Fable for ≥ CAD 10K.',
+    };
+  });
+
+  res.json({
+    transfers: enriched,
+    count: enriched.length,
+    fableAttribution: 'Transfer execution via Fable Fintech (AD Cat-I bank + SWIFT). REPAIHUB handles compliance.',
+    timestamp: ts(),
+  });
 });
 
 // ── GET /ca/transfers/:id ─────────────────────────────────────────────────────
@@ -225,7 +272,20 @@ router.post('/transfers/:id/approve', caAuthMiddleware, async (req: CARequest, r
     res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
     return;
   }
-  res.json({ transfer: updated, message: '15CB certified successfully', timestamp: ts() });
+
+  // Trigger Fable execution now that CA has certified 15CB
+  // [ORANGE] Fable will debit the customer's Indian bank via AD bank and SWIFT
+  setImmediate(() => {
+    orchestrateAfterCAApproval(req.params.id as string).catch(err =>
+      console.error('[CA-PORTAL] orchestrateAfterCAApproval failed (non-critical):', err));
+  });
+
+  res.json({
+    transfer: updated,
+    message: '15CB certified successfully. Fable will now execute transfer via AD bank.',
+    note: 'SWIFT execution handled by Fable Fintech. REPAIHUB will receive webhook on completion.',
+    timestamp: ts(),
+  });
 });
 
 // ── POST /ca/transfers/:id/reject ─────────────────────────────────────────────

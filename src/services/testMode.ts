@@ -76,3 +76,35 @@ export async function autoProgressTestTransfer(transferId: string): Promise<void
   });
   log(`${transferId} → COMPLETED ✓`);
 }
+
+// ── Auto-progression for inward transfers (dev only) ─────────────────────────
+export async function autoProgressInwardTransfer(transferId: string): Promise<void> {
+  if (process.env.NODE_ENV !== 'development') return;
+
+  log(`Auto-progressing inward transfer ${transferId}`);
+
+  const updateInward = async (fields: Record<string, unknown>) => {
+    await supabaseAdmin.from('inward_transfers').update(fields).eq('id', transferId);
+  };
+
+  // 5s → collection initiated
+  await delay(5000);
+  await updateInward({ status: 'collection_initiated', collection_status: 'pending' });
+  log(`${transferId} [inward] → collection_initiated`);
+
+  // 10s → FX converted
+  await delay(10000);
+  await updateInward({ status: 'fx_converted', collection_status: 'settled' });
+  log(`${transferId} [inward] → fx_converted`);
+
+  // 8s → payout initiated
+  await delay(8000);
+  const payoutRef = `PAY-TEST-${Date.now().toString().slice(-6)}`;
+  await updateInward({ status: 'payout_initiated', payout_reference: payoutRef, payout_status: 'sent' });
+  log(`${transferId} [inward] → payout_initiated (${payoutRef})`);
+
+  // 10s → completed
+  await delay(10000);
+  await updateInward({ status: 'completed', completed_at: new Date().toISOString(), payout_status: 'completed' });
+  log(`${transferId} [inward] → COMPLETED ✓`);
+}

@@ -1,206 +1,312 @@
 import { supabaseAdmin } from '../lib/supabaseServer';
-import type { SourceOfFunds, RBIPurposeCode } from '../types/compliance';
 
-// ── Cache (5-min TTL, matches fee_config cache pattern) ──────────────────────
+// ── Config cache (5-min TTL) ─────────────────────────────────────────────────
 
-let riskRulesCache: Record<string, number> | null = null;
-let riskRulesCachedAt = 0;
+let riskConfigCache: Record<string, string> | null = null;
+let riskConfigCachedAt = 0;
+const CACHE_TTL = 5 * 60 * 1000;
 
-let docReqCache: Array<{ source_of_funds: string; document_name: string; is_required: boolean }> | null = null;
-let docReqCachedAt = 0;
-
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-async function getRiskRules(): Promise<Record<string, number>> {
-  const now = Date.now();
-  if (riskRulesCache && (now - riskRulesCachedAt) < CACHE_TTL_MS) return riskRulesCache;
-
-  const { data, error } = await supabaseAdmin
-    .from('risk_rules')
-    .select('factor, weight')
-    .eq('is_active', true);
-
-  if (error) throw new Error('Failed to load risk rules: ' + error.message);
-
-  const rules: Record<string, number> = {};
-  (data ?? []).forEach((r: { factor: string; weight: number }) => { rules[r.factor] = r.weight; });
-
-  riskRulesCache    = rules;
-  riskRulesCachedAt = now;
-  return rules;
+async function getRiskConfig(): Promise<Record<string, string>> {
+  if (riskConfigCache && Date.now() - riskConfigCachedAt < CACHE_TTL) {
+    return riskConfigCache;
+  }
+  const { data } = await supabaseAdmin.from('risk_config').select('key, value');
+  riskConfigCache = Object.fromEntries(
+    (data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]),
+  );
+  riskConfigCachedAt = Date.now();
+  return riskConfigCache;
 }
 
-async function getDocRequirements(): Promise<Array<{ source_of_funds: string; document_name: string; is_required: boolean }>> {
-  const now = Date.now();
-  if (docReqCache && (now - docReqCachedAt) < CACHE_TTL_MS) return docReqCache;
-
-  const { data, error } = await supabaseAdmin
-    .from('document_requirements')
-    .select('source_of_funds, document_name, is_required')
-    .eq('is_active', true);
-
-  if (error) throw new Error('Failed to load document requirements: ' + error.message);
-
-  docReqCache    = (data ?? []) as Array<{ source_of_funds: string; document_name: string; is_required: boolean }>;
-  docReqCachedAt = now;
-  return docReqCache;
-}
-
+// Exported for admin cache-clear endpoint
 export function clearRiskCache(): void {
-  riskRulesCache    = null;
-  riskRulesCachedAt = 0;
-  docReqCache       = null;
-  docReqCachedAt    = 0;
+  riskConfigCache = null;
+  riskConfigCachedAt = 0;
 }
 
-// ── Public interface ──────────────────────────────────────────────────────────
-
-export interface RiskInput {
-  userId: string;
-  amountINR: number;
-  sourceOfFunds: SourceOfFunds;
-  purposeCode: RBIPurposeCode;
-  tdsDeducted: boolean;
-  tdsAmountINR: number;
-  documents: string[];          // doc_type keys already in wallet (e.g. ['rent_agreement','form_16a'])
-  transferCount: number;        // total historical transfers for this user
-  monthlyTransferCount: number; // transfers in current calendar month
-  avgTransferAmountINR: number; // historical average (0 if no history)
-  isKYCVerified: boolean;       // both Canada + India KYC complete
-}
+// ── Public types ─────────────────────────────────────────────────────────────
 
 export interface RiskResult {
-  score: number;
   level: 'LOW' | 'MEDIUM' | 'HIGH';
-  breakdown: Record<string, number>;   // factor → weight applied
-  missingDocuments: string[];          // required but not provided
+  reason: string;
+  caRequired: boolean;
+  caBlocking: boolean;        // true = transfer BLOCKED until CA approves
+  rulesApplied: string[];
+  // Backward-compat fields used by existing code
+  score: number;
+  breakdown: Record<string, number>;
+  missingDocuments: string[];
 }
 
-// ── Main scoring function ─────────────────────────────────────────────────────
-// Thresholds: 0–30 = LOW, 31–70 = MEDIUM, 71+ = HIGH
-
-export async function calculateRiskScore(input: RiskInput): Promise<RiskResult> {
-  const [rules, docRequirements] = await Promise.all([
-    getRiskRules(),
-    getDocRequirements(),
-  ]);
-
-  const breakdown: Record<string, number> = {};
-  let raw = 0;
-
-  function apply(factor: string): void {
-    const w = rules[factor] ?? 0;
-    if (w === 0) return;
-    breakdown[factor] = w;
-    raw += w;
+// ── OUTWARD RISK ASSESSMENT (NRO → Canada) ───────────────────────────────────
+export async function assessOutwardRisk(
+  amountINR: number,
+  userId: string,
+  sourceOfFunds: string | null,
+  tdsDeducted: boolean,
+): Promise<RiskResult> {
+  let cfg: Record<string, string>;
+  try {
+    cfg = await getRiskConfig();
+  } catch {
+    // Fallback defaults if risk_config table not yet created
+    cfg = {};
   }
 
-  // ── 1. Amount factor (exactly one) ────────────────────────────────────────
-  if (input.amountINR < 500_000) {
-    apply('amount_low');
-  } else if (input.amountINR <= 2_500_000) {
-    apply('amount_medium');
-  } else {
-    apply('amount_high');
+  const rules: string[] = [];
+
+  // BLOCKING: Missing source of funds
+  if (cfg['block_missing_source_of_funds'] !== 'false' && !sourceOfFunds) {
+    return {
+      level: 'HIGH',
+      reason: 'Source of funds not declared — required for all transfers',
+      caRequired: true,
+      caBlocking: true,
+      rulesApplied: ['block_missing_source_of_funds'],
+      score: 100, breakdown: {}, missingDocuments: [],
+    };
   }
 
-  // ── 2. User history factors (may stack) ───────────────────────────────────
-  if (input.transferCount === 0) {
-    apply('no_history');
-    apply('new_user');
-  } else if (input.transferCount < 3) {
-    apply('new_user');
+  // BLOCKING: Missing TDS declaration on large transfer
+  const tdsBlockThreshold = Number(cfg['block_missing_tds_above_inr'] ?? 500000);
+  if (amountINR > tdsBlockThreshold && !tdsDeducted) {
+    return {
+      level: 'HIGH',
+      reason: `TDS declaration required for transfers above ₹${tdsBlockThreshold.toLocaleString('en-IN')}`,
+      caRequired: true,
+      caBlocking: true,
+      rulesApplied: ['block_missing_tds_above_inr'],
+      score: 100, breakdown: {}, missingDocuments: [],
+    };
   }
 
-  if (input.isKYCVerified) {
-    apply('verified_user');  // negative weight
+  // LOW: Below 15CA Part A auto-approve threshold
+  const autoApproveBelow = Number(cfg['outward_auto_approve_below_inr'] ?? 500000);
+  if (amountINR <= autoApproveBelow) {
+    rules.push('outward_auto_approve_below_inr');
+    return {
+      level: 'LOW',
+      reason: `Transfer below ₹${autoApproveBelow.toLocaleString('en-IN')} — 15CA Part A, no CA required`,
+      caRequired: false,
+      caBlocking: false,
+      rulesApplied: rules,
+      score: 10, breakdown: {}, missingDocuments: [],
+    };
   }
 
-  // ── 3. Behavioral factors ─────────────────────────────────────────────────
-  if (input.monthlyTransferCount > 5) {
-    apply('high_frequency');
+  // Fetch completed transfer count for this user
+  let completedCount = 0;
+  try {
+    const { count } = await supabaseAdmin
+      .from('transfers')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    completedCount = count ?? 0;
+  } catch {
+    completedCount = 0;
   }
 
-  const isSpike =
-    input.transferCount > 0 &&
-    input.avgTransferAmountINR > 0 &&
-    input.amountINR > input.avgTransferAmountINR * 3;
-
-  if (isSpike) {
-    apply('sudden_spike');
-  } else if (input.transferCount >= 5) {
-    apply('consistent_behavior');  // negative weight
+  // HIGH: First transfer ever
+  if (completedCount === 0 && cfg['outward_high_risk_first_transfer'] !== 'false') {
+    rules.push('outward_high_risk_first_transfer');
+    return {
+      level: 'HIGH',
+      reason: 'First transfer — CA review required before processing',
+      caRequired: true,
+      caBlocking: true,
+      rulesApplied: rules,
+      score: 80, breakdown: {}, missingDocuments: [],
+    };
   }
 
-  // ── 4. Source of funds factor (exactly one) ───────────────────────────────
-  const unknownSources: SourceOfFunds[] = ['gift_from_relative', 'other'];
-  if (unknownSources.includes(input.sourceOfFunds)) {
-    apply('unknown_source');
-  } else {
-    apply('known_source');
+  // MEDIUM: Large transfer regardless of history (NON-BLOCKING)
+  const largeThreshold = Number(cfg['outward_large_transfer_inr'] ?? 5000000);
+  if (amountINR > largeThreshold) {
+    rules.push('outward_large_transfer_inr');
+    return {
+      level: 'MEDIUM',
+      reason: `Transfer above ₹${largeThreshold.toLocaleString('en-IN')} — CA reviews in parallel, transfer proceeds`,
+      caRequired: true,
+      caBlocking: false,
+      rulesApplied: rules,
+      score: 50, breakdown: {}, missingDocuments: [],
+    };
   }
 
-  // ── 5. Purpose code factor (exactly one) ─────────────────────────────────
-  const riskyPurposes: RBIPurposeCode[] = ['P0001'];  // investment abroad
-  if (riskyPurposes.includes(input.purposeCode)) {
-    apply('purpose_risky');
-  } else {
-    apply('purpose_safe');
+  // MEDIUM: Has some history but below trusted threshold (NON-BLOCKING)
+  const trustedAfter = Number(cfg['outward_trusted_after_n_transfers'] ?? 3);
+  if (completedCount < trustedAfter) {
+    rules.push('outward_trusted_after_n_transfers');
+    return {
+      level: 'MEDIUM',
+      reason: `${completedCount} completed transfer(s) — CA reviews in parallel, transfer proceeds`,
+      caRequired: true,
+      caBlocking: false,
+      rulesApplied: rules,
+      score: 40, breakdown: {}, missingDocuments: [],
+    };
   }
 
-  // ── 6. Document completeness (exactly one) ────────────────────────────────
-  const requiredDocs = docRequirements
-    .filter(d => d.source_of_funds === input.sourceOfFunds && d.is_required)
-    .map(d => d.document_name);
-
-  const provided     = new Set(input.documents);
-  const missingDocs  = requiredDocs.filter(d => !provided.has(d));
-  const presentCount = requiredDocs.length - missingDocs.length;
-
-  if (requiredDocs.length === 0 || presentCount === requiredDocs.length) {
-    apply('complete_docs');  // negative weight
-  } else if (presentCount === 0) {
-    apply('missing_docs');
-  } else {
-    apply('partial_docs');
-  }
-
-  // ── 7. TDS factor (at most one) ───────────────────────────────────────────
-  const tdsExpectedSources: SourceOfFunds[] = [
-    'rental_income', 'dividend_income', 'salary_arrears', 'property_sale',
-  ];
-
-  if (!input.tdsDeducted) {
-    if (tdsExpectedSources.includes(input.sourceOfFunds)) {
-      apply('tds_missing');
-    }
-    // For pension/gift/matured_investment/other — TDS not expected, no penalty
-  } else if (input.tdsAmountINR > 0) {
-    const rate = input.tdsAmountINR / input.amountINR;
-    if (rate >= 0.01 && rate <= 0.35) {
-      apply('tds_valid');   // negative weight
-    } else {
-      apply('tds_mismatch'); // suspicious rate
-    }
-  }
-
-  // ── Final score (clamped to 0) ────────────────────────────────────────────
-  const score = Math.max(0, raw);
-  const level: RiskResult['level'] = score <= 30 ? 'LOW' : score <= 70 ? 'MEDIUM' : 'HIGH';
-
-  return { score, level, breakdown, missingDocuments: missingDocs };
+  // LOW: Trusted customer with clean history
+  rules.push('trusted_customer');
+  return {
+    level: 'LOW',
+    reason: `Trusted customer with ${completedCount} clean transfers — auto-approved`,
+    caRequired: false,
+    caBlocking: false,
+    rulesApplied: rules,
+    score: 15, breakdown: {}, missingDocuments: [],
+  };
 }
 
-// ── Persist to risk_assessments (fire-and-forget) ────────────────────────────
+// ── INWARD RISK ASSESSMENT (CAD → INR) ──────────────────────────────────────
+export async function assessInwardRisk(
+  amountCAD: number,
+  userId: string,
+): Promise<RiskResult> {
+  let cfg: Record<string, string>;
+  try {
+    cfg = await getRiskConfig();
+  } catch {
+    cfg = {};
+  }
 
+  const rules: string[] = [];
+
+  // HIGH: Above FINTRAC threshold — hold + flag for compliance review
+  const fintracThreshold = Number(cfg['inward_fintrac_threshold_cad'] ?? 10000);
+  if (amountCAD >= fintracThreshold) {
+    rules.push('inward_fintrac_threshold_cad');
+    return {
+      level: 'HIGH',
+      reason: `Transfer at or above CAD ${fintracThreshold.toLocaleString()} — FINTRAC reporting required, manual review`,
+      caRequired: false,
+      caBlocking: true,
+      rulesApplied: rules,
+      score: 90, breakdown: {}, missingDocuments: [],
+    };
+  }
+
+  // Get inward completed count for this customer
+  let completedInward = 0;
+  try {
+    const { count } = await supabaseAdmin
+      .from('inward_transfers')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    completedInward = count ?? 0;
+  } catch {
+    completedInward = 0;
+  }
+
+  // LOW: Below auto-approve threshold
+  const autoApprove = Number(cfg['inward_auto_approve_below_cad'] ?? 3000);
+  if (amountCAD <= autoApprove) {
+    rules.push('inward_auto_approve_below_cad');
+    return {
+      level: 'LOW',
+      reason: `Amount below CAD ${autoApprove} auto-approve threshold`,
+      caRequired: false,
+      caBlocking: false,
+      rulesApplied: rules,
+      score: 10, breakdown: {}, missingDocuments: [],
+    };
+  }
+
+  // LOW: Trusted inward customer above auto-approve threshold
+  const trustedAfterInward = Number(cfg['inward_trusted_after_n_transfers'] ?? 2);
+  if (completedInward >= trustedAfterInward) {
+    rules.push('trusted_inward_customer');
+    return {
+      level: 'LOW',
+      reason: `Trusted customer with ${completedInward} completed inward transfers`,
+      caRequired: false,
+      caBlocking: false,
+      rulesApplied: rules,
+      score: 15, breakdown: {}, missingDocuments: [],
+    };
+  }
+
+  // MEDIUM: Everything else
+  rules.push('default_medium');
+  return {
+    level: 'MEDIUM',
+    reason: `CAD ${amountCAD} transfer — standard compliance check, proceeds immediately`,
+    caRequired: false,
+    caBlocking: false,
+    rulesApplied: rules,
+    score: 35, breakdown: {}, missingDocuments: [],
+  };
+}
+
+// ── STORE RISK ASSESSMENT ────────────────────────────────────────────────────
+export async function storeRiskAssessment(
+  transferId: string,
+  transferType: 'outward' | 'inward',
+  result: RiskResult,
+): Promise<void> {
+  try {
+    await supabaseAdmin.from('risk_assessments').insert({
+      transfer_id:   transferId,
+      transfer_type: transferType,
+      level:         result.level,
+      reason:        result.reason,
+      rules_applied: result.rulesApplied,
+      score:         result.score,
+      breakdown:     result.breakdown,
+    });
+  } catch (err) {
+    console.error('[Risk] Failed to store assessment:', err);
+  }
+}
+
+// Backward-compat alias used by existing admin route + transfers.ts
 export async function saveRiskAssessment(
   transferId: string,
   result: RiskResult,
 ): Promise<void> {
-  await supabaseAdmin.from('risk_assessments').insert({
-    transfer_id: transferId,
-    score:       result.score,
-    level:       result.level,
-    breakdown:   result.breakdown,
-  });
+  return storeRiskAssessment(transferId, 'outward', result);
+}
+
+// ── BACKWARD-COMPAT ALIAS ─────────────────────────────────────────────────────
+// Used by the existing transfers.ts route which was built before orchestrators.
+// Wraps assessOutwardRisk so both old and new callers work without changes.
+export async function calculateRiskScore(input: {
+  userId: string;
+  amountINR: number;
+  sourceOfFunds: string;
+  purposeCode?: string;
+  tdsDeducted: boolean;
+  tdsAmountINR?: number;
+  documents?: string[];
+  transferCount?: number;
+  monthlyTransferCount?: number;
+  avgTransferAmountINR?: number;
+  isKYCVerified?: boolean;
+}): Promise<RiskResult> {
+  return assessOutwardRisk(
+    input.amountINR,
+    input.userId,
+    input.sourceOfFunds,
+    input.tdsDeducted,
+  );
+}
+
+// ── DETERMINE TRANSFER STATUS ────────────────────────────────────────────────
+// Translates risk result + 15CB requirement into a concrete transfer status string.
+export function determineTransferStatus(
+  risk: RiskResult,
+  requires15CB: boolean,
+): string {
+  if (risk.caBlocking) {
+    return risk.level === 'HIGH' && requires15CB
+      ? '15CB_REQUESTED'      // Blocked — CA must certify before proceeding
+      : 'PENDING_REVIEW';     // Blocked — general hold for review
+  }
+  if (requires15CB) {
+    return '15CB_REQUESTED';  // Non-blocking — CA reviews in parallel
+  }
+  return 'KYC_VERIFIED';      // LOW risk — no CA needed
 }

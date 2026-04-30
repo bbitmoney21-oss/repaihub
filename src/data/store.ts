@@ -15,7 +15,8 @@ const DB_TO_CA: Record<string, TransferStatus> = {
   bank_processing:            'BANK_PROCESSING',
   completed:                  'COMPLETED',
   failed:                     'failed',
-  // 3-tier decision engine statuses — pass through as-is
+  pending_review:             'PENDING_REVIEW',
+  // Legacy 3-tier decision engine statuses
   pending_ca_approval:        'pending_ca_approval',
   processing_with_compliance: 'processing_with_compliance',
   processing:                 'processing',
@@ -31,6 +32,7 @@ const CA_TO_DB: Record<TransferStatus, string> = {
   COMPLETED:                  'completed',
   FAILED:                     'failed',
   failed:                     'failed',
+  PENDING_REVIEW:             'pending_review',
   pending_ca_approval:        'pending_ca_approval',
   processing_with_compliance: 'processing_with_compliance',
   processing:                 'processing',

@@ -7,13 +7,14 @@ export type TransferStatus =
   | 'BANK_PROCESSING'
   | 'COMPLETED'
   | 'FAILED'
-  // New 3-tier decision statuses (stored as-is in DB — no uppercase mapping)
+  | 'PENDING_REVIEW'
+  // Legacy 3-tier decision statuses (backward compat)
   | 'pending_ca_approval'
   | 'processing_with_compliance'
   | 'processing'
   | 'failed';
 
-export type FifteenCApart = 'A' | 'B' | 'C' | 'D';
+export type FifteenCApart = 'A' | 'B' | 'C' | 'D' | 'EXEMPT';
 
 export type SourceOfFunds =
   | 'rental_income'
