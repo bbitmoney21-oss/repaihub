@@ -525,6 +525,82 @@ CREATE POLICY "users_own_inward" ON public.inward_transfers
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION J: Auth support tables + missing profiles columns
+-- Required by src/routes/auth.ts for login, lockout, KYC, and bank accounts
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Profiles: lockout + password + residency columns used by auth.ts
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS password_hash          TEXT,
+  ADD COLUMN IF NOT EXISTS failed_login_attempts  INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS locked_until           TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS last_login_at          TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS referred_by_code       TEXT,
+  ADD COLUMN IF NOT EXISTS reset_token_hash       TEXT,
+  ADD COLUMN IF NOT EXISTS reset_token_expiry     TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS residency              TEXT;
+
+-- kyc_submissions: used by auth login + /auth/me to return verification status
+CREATE TABLE IF NOT EXISTS public.kyc_submissions (
+  id              UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  canada_verified BOOLEAN DEFAULT false,
+  india_verified  BOOLEAN DEFAULT false,
+  kyc_verified_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_kyc_submissions_user ON public.kyc_submissions(user_id);
+
+-- canada_bank_accounts: Canadian bank linked by customer (institution, holder, type)
+CREATE TABLE IF NOT EXISTS public.canada_bank_accounts (
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  institution  TEXT    NOT NULL,
+  holder_name  TEXT    NOT NULL,
+  account_type TEXT    NOT NULL DEFAULT 'chequing',
+  is_verified  BOOLEAN DEFAULT false,
+  is_primary   BOOLEAN DEFAULT false,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_canada_bank_user ON public.canada_bank_accounts(user_id);
+
+-- india_nro_accounts: Indian NRO account linked by customer
+CREATE TABLE IF NOT EXISTS public.india_nro_accounts (
+  id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  bank_name   TEXT    NOT NULL,
+  branch      TEXT,
+  account_no  TEXT,
+  ifsc_code   TEXT,
+  is_verified BOOLEAN DEFAULT false,
+  is_primary  BOOLEAN DEFAULT false,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_india_nro_user ON public.india_nro_accounts(user_id);
+
+-- RLS for auth support tables
+ALTER TABLE public.kyc_submissions      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.canada_bank_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.india_nro_accounts   ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_role_kyc_submissions"      ON public.kyc_submissions;
+DROP POLICY IF EXISTS "service_role_canada_bank_accounts" ON public.canada_bank_accounts;
+DROP POLICY IF EXISTS "service_role_india_nro_accounts"   ON public.india_nro_accounts;
+DROP POLICY IF EXISTS "users_own_kyc"                     ON public.kyc_submissions;
+DROP POLICY IF EXISTS "users_own_canada_bank"             ON public.canada_bank_accounts;
+DROP POLICY IF EXISTS "users_own_india_nro"               ON public.india_nro_accounts;
+
+CREATE POLICY "service_role_kyc_submissions"      ON public.kyc_submissions      FOR ALL TO service_role USING (true);
+CREATE POLICY "service_role_canada_bank_accounts" ON public.canada_bank_accounts FOR ALL TO service_role USING (true);
+CREATE POLICY "service_role_india_nro_accounts"   ON public.india_nro_accounts   FOR ALL TO service_role USING (true);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- DONE. To activate real Fable when API keys arrive (zero code changes):
 -- UPDATE public.payment_rails_config SET value = 'fable'
 --   WHERE key IN ('outward_rail', 'inward_collection_rail', 'inward_payout_rail');

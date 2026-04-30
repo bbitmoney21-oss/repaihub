@@ -1,5 +1,47 @@
 import { supabaseAdmin } from '../lib/supabaseServer';
 
+// ── Fable risk API delegation ────────────────────────────────────────────────
+// When FABLE_API_KEY is set, Fable handles compliance/risk assessment.
+// Falls back to local logic if the API is unreachable or returns an error.
+
+async function callFableRiskAPI(
+  type: 'outward' | 'inward',
+  params: Record<string, unknown>,
+): Promise<RiskResult | null> {
+  const apiKey = process.env.FABLE_API_KEY;
+  if (!apiKey) return null;
+
+  const baseUrl = process.env.FABLE_API_URL || 'https://api.fablefintech.com/v1';
+  try {
+    const resp = await fetch(`${baseUrl}/compliance/risk-assessment`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ transferType: type, ...params }),
+    });
+    if (!resp.ok) {
+      console.log(`[Risk] Fable risk API returned ${resp.status} — using local assessment`);
+      return null;
+    }
+    const data = await resp.json() as Record<string, unknown>;
+    return {
+      level:             (data['riskLevel'] as RiskResult['level']) ?? 'MEDIUM',
+      reason:            String(data['reason'] ?? 'Fable compliance assessment'),
+      caRequired:        Boolean(data['caRequired'] ?? false),
+      caBlocking:        Boolean(data['caBlocking'] ?? false),
+      rulesApplied:      (data['rulesApplied'] as string[]) ?? [],
+      score:             Number(data['score'] ?? 50),
+      breakdown:         (data['breakdown'] as Record<string, number>) ?? {},
+      missingDocuments:  (data['missingDocuments'] as string[]) ?? [],
+    };
+  } catch {
+    console.log('[Risk] Fable risk API unreachable — using local assessment');
+    return null;
+  }
+}
+
 // ── Config cache (5-min TTL) ─────────────────────────────────────────────────
 
 let riskConfigCache: Record<string, string> | null = null;
@@ -45,6 +87,10 @@ export async function assessOutwardRisk(
   sourceOfFunds: string | null,
   tdsDeducted: boolean,
 ): Promise<RiskResult> {
+  // Delegate to Fable when API key is configured
+  const fableResult = await callFableRiskAPI('outward', { amountINR, userId, sourceOfFunds, tdsDeducted });
+  if (fableResult) return fableResult;
+
   let cfg: Record<string, string>;
   try {
     cfg = await getRiskConfig();
@@ -165,6 +211,10 @@ export async function assessInwardRisk(
   amountCAD: number,
   userId: string,
 ): Promise<RiskResult> {
+  // Delegate to Fable when API key is configured
+  const fableResult = await callFableRiskAPI('inward', { amountCAD, userId });
+  if (fableResult) return fableResult;
+
   let cfg: Record<string, string>;
   try {
     cfg = await getRiskConfig();
