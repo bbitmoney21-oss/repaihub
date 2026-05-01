@@ -44,10 +44,10 @@ const S = {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  pending:      { label: 'Pending',      color: '#F39C12', icon: Clock },
-  under_review: { label: 'Under Review', color: '#3498DB', icon: AlertCircle },
-  approved:     { label: 'Approved',     color: '#27AE60', icon: CheckCircle },
-  rejected:     { label: 'Rejected',     color: '#E74C3C', icon: XCircle },
+  pending:      { label: 'Needs CA Action', color: '#F39C12', icon: Clock },
+  under_review: { label: 'Needs CA Action', color: '#F39C12', icon: Clock },
+  approved:     { label: 'Approved',        color: '#27AE60', icon: CheckCircle },
+  rejected:     { label: 'Rejected',        color: '#E74C3C', icon: XCircle },
 }
 
 const DOC_LABELS: Record<string, string> = {
@@ -60,6 +60,63 @@ const DOC_LABELS: Record<string, string> = {
 }
 
 function fmt(n: number) { return `₹${new Intl.NumberFormat('en-IN').format(Math.round(n))}` }
+
+function downloadWinmanExport(request: ComplianceRequest) {
+  const t = request.transfers
+  const fy = new Date().getMonth() >= 3
+    ? `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(-2)}`
+    : `${new Date().getFullYear() - 1}-${String(new Date().getFullYear()).slice(-2)}`
+  const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+  const lines = [
+    '================================================',
+    'REPAIHUB — Form 146 Data Export (Winman / Gen / Taxmann)',
+    `Transfer Ref: ${(request as unknown as Record<string,unknown>).transfer_id ?? request.id}`,
+    `Compliance ID: ${request.id}`,
+    `Generated: ${now} IST`,
+    '================================================',
+    `ASSESSEE_NAME: [Customer name — from KYC records]`,
+    `ASSESSEE_PAN: [Customer PAN — from KYC records]`,
+    `NATURE_OF_REMITTANCE: ${t?.source_of_funds?.replace(/_/g,' ') ?? 'NRO Repatriation'}`,
+    `AMOUNT_INR: ₹${t ? new Intl.NumberFormat('en-IN').format(Math.round(t.amount_inr)) : '-'}`,
+    `GROSS_AMOUNT_FOREIGN_CURRENCY: CAD ${t?.amount_cad?.toFixed(2) ?? '-'}`,
+    `NET_AMOUNT_TO_CUSTOMER: CAD ${t?.net_amount_cad?.toFixed(2) ?? '-'}`,
+    `CURRENCY_CODE: CAD`,
+    `COUNTRY_OF_REMITTANCE: Canada`,
+    `AD_BANK: Fable Fintech (AD Cat-I bank)`,
+    `PURPOSE_CODE: ${t?.purpose_code ?? 'P1301'}`,
+    `TDS_SECTION: 397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]`,
+    `TDS_RATE: [Check Form 26AS for actual TDS rate]`,
+    `TDS_AMOUNT_INR: [Check Form 26AS]`,
+    `DTAA_APPLICABLE: Yes`,
+    `DTAA_ARTICLE: Article 23 — India-Canada DTAA 1996`,
+    `FINANCIAL_YEAR: ${fy}`,
+    `FORM_145_PART: Part ${(request as unknown as Record<string,unknown>).form145_part ?? request.fifteen_ca_part ?? 'C'}`,
+    '================================================',
+    'CA CHECKLIST (complete BEFORE certifying Form 146):',
+    '[ ] Form 26AS downloaded — verify TDS amount matches',
+    '[ ] TDS certificate reviewed against Form 26AS',
+    '[ ] DTAA applicability confirmed — Article 23 India-Canada',
+    '[ ] Source of funds documents reviewed',
+    '[ ] Remittance amount matches bank statement',
+    '[ ] FEMA compliance confirmed — USD 1M annual limit',
+    '================================================',
+    'AFTER FILING ON incometax.gov.in → e-File → Income Tax Forms → Form 146:',
+    '',
+    'Form 146 Ack Number: ___________________________',
+    'Filed on (date): _______________________________',
+    `CA Name: ______________________________________`,
+    `ICAI Membership Number: ________________________`,
+    '',
+    '>>> Record the Form 146 Ack Number in REPAIHUB CA Portal, then click APPROVE.',
+    '================================================',
+  ]
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `repaihub-form146-data-${request.id.slice(0,8)}.txt`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
 
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_MAP[status] ?? { label: status, color: '#8BA0B4', icon: Clock }
@@ -79,8 +136,12 @@ function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void
   const [error, setError] = useState('')
 
   async function submit() {
-    if (!cbNumber || remarks.length < 10) {
-      setError('Form 146 certificate number and remarks (min 10 chars) are required.')
+    if (!cbNumber || cbNumber.trim().length < 5) {
+      setError('Form 146 acknowledgement number is required (as received from incometax.gov.in).')
+      return
+    }
+    if (remarks.length < 10) {
+      setError('CA remarks must be at least 10 characters.')
       return
     }
     setLoading(true)
@@ -376,18 +437,19 @@ function RequestRow({ request, onRefresh }: { request: ComplianceRequest; onRefr
             ) : null}
             <div style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>
               {new Date(request.created_at).toLocaleString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              {request.fifteen_cb_number && ` · Form 146 Ref: ${request.fifteen_cb_number}`}
-              {request.fifteen_ca_number && ` · Form 145 Ack: ${request.fifteen_ca_number}`}
+              {(request.fifteen_cb_number || (request as unknown as Record<string,unknown>).form146_number) && ` · Form 146 Ref: ${(request as unknown as Record<string,unknown>).form146_number ?? request.fifteen_cb_number}`}
+              {(request.fifteen_ca_number || (request as unknown as Record<string,unknown>).form145_number) && ` · Form 145 Ack: ${(request as unknown as Record<string,unknown>).form145_number ?? request.fifteen_ca_number}`}
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
             {(request.status === 'pending' || request.status === 'under_review') && (
               <>
-                <button style={S.btn('#27AE60')} onClick={() => setModal('approve')}>Approve</button>
+                <button style={S.btn('#27AE60')} onClick={() => setModal('approve')}>Certify Form 146</button>
                 <button style={S.btn('#E74C3C')} onClick={() => setModal('reject')}>Reject</button>
               </>
             )}
+            {/* Upload PDF + File Form 145 available once approved */}
             {request.status === 'approved' && (
               <>
                 <button style={S.btnOutline} onClick={() => setModal('upload-pdf')}>
@@ -396,9 +458,34 @@ function RequestRow({ request, onRefresh }: { request: ComplianceRequest; onRefr
                 <button style={S.btnOutline} onClick={() => setModal('15ca')}>File Form 145</button>
               </>
             )}
+            <button style={{ ...S.btnOutline, borderColor: 'rgba(201,150,58,0.6)', color: '#C9963A' }} onClick={() => downloadWinmanExport(request)}>
+              <Download size={11} style={{ display: 'inline', marginRight: 4 }} />Winman Data
+            </button>
             <button style={S.btnOutline} onClick={expand}>{expanded ? 'Hide' : 'Docs'}</button>
           </div>
         </div>
+
+        {/* CA Workflow Guide — shown for pending/under_review only */}
+        {(request.status === 'pending' || request.status === 'under_review') && (
+          <div style={{ marginTop: '0.75rem', background: 'rgba(201,150,58,0.04)', border: '1px solid rgba(201,150,58,0.15)', borderLeft: '3px solid #C9963A', padding: '0.75rem 1rem' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A', marginBottom: '0.5rem' }}>CA Action Required — 3 Steps</div>
+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+              {[
+                { n: '1', title: 'Download & import data', desc: 'Click "Winman Data" → import into Winman / Gen / Taxmann → certify Form 146' },
+                { n: '2', title: 'File on IT Portal', desc: 'Go to incometax.gov.in → e-File → Income Tax Forms → Form 146 → get Ack No.' },
+                { n: '3', title: 'Record in REPAIHUB', desc: 'Click "Certify Form 146" above → enter Form 146 Ack No. → submit' },
+              ].map(step => (
+                <div key={step.n} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flex: '1 1 180px' }}>
+                  <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(201,150,58,0.2)', border: '1px solid rgba(201,150,58,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.62rem', fontWeight: 700, color: '#C9963A', flexShrink: 0, marginTop: '1px' }}>{step.n}</span>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#FAF6F0', marginBottom: '0.15rem' }}>{step.title}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#8BA0B4', lineHeight: 1.4 }}>{step.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {request.status === 'rejected' && request.rejection_reason && (
           <div style={{ marginTop: '0.75rem', background: 'rgba(231,76,60,0.06)', border: '1px solid rgba(231,76,60,0.2)', padding: '0.65rem', fontSize: '0.82rem', color: '#E74C3C' }}>
@@ -473,8 +560,12 @@ export default function CaDashboard() {
     load()
   }, [statusFilter])
 
-  const counts = { total: requests.length, pending: 0, under_review: 0, approved: 0, rejected: 0 }
-  requests.forEach(r => { if (r.status in counts) counts[r.status as keyof typeof counts]++ })
+  const counts = { total: requests.length, needs_action: 0, approved: 0, rejected: 0 }
+  requests.forEach(r => {
+    if (r.status === 'pending' || r.status === 'under_review') counts.needs_action++
+    else if (r.status === 'approved') counts.approved++
+    else if (r.status === 'rejected') counts.rejected++
+  })
 
   return (
     <div style={S.page}>
@@ -495,8 +586,7 @@ export default function CaDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: '1px', background: 'rgba(201,150,58,0.15)', border: '1px solid rgba(201,150,58,0.15)', marginBottom: '2rem' }}>
           {[
             { label: 'Total', value: counts.total, color: '#FAF6F0' },
-            { label: 'Pending', value: counts.pending, color: '#F39C12' },
-            { label: 'Under Review', value: counts.under_review, color: '#3498DB' },
+            { label: 'Needs Action', value: counts.needs_action, color: '#F39C12' },
             { label: 'Approved', value: counts.approved, color: '#27AE60' },
             { label: 'Rejected', value: counts.rejected, color: '#E74C3C' },
           ].map(s => (
@@ -509,9 +599,14 @@ export default function CaDashboard() {
 
         {/* Filter */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {['', 'pending', 'under_review', 'approved', 'rejected'].map(v => (
+          {[
+            { v: '',             label: 'All' },
+            { v: 'under_review', label: 'Needs Action' },
+            { v: 'approved',     label: 'Approved' },
+            { v: 'rejected',     label: 'Rejected' },
+          ].map(({ v, label }) => (
             <button key={v} style={{ ...S.btnOutline, background: statusFilter === v ? 'rgba(201,150,58,0.15)' : 'transparent', borderColor: statusFilter === v ? '#C9963A' : 'rgba(201,150,58,0.4)' }} onClick={() => setStatusFilter(v)}>
-              {v === '' ? 'All' : STATUS_MAP[v]?.label ?? v}
+              {label}
             </button>
           ))}
         </div>
