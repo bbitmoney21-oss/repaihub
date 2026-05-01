@@ -35,6 +35,11 @@ function issueToken(userId: string, email: string): string {
   return jwt.sign({ id: userId, email }, JWT_SECRET(), { expiresIn: '7d' });
 }
 
+function issueRefreshToken(userId: string): string {
+  const refreshSecret = process.env.JWT_REFRESH_SECRET || (JWT_SECRET() + '_refresh');
+  return jwt.sign({ id: userId, type: 'refresh' }, refreshSecret, { expiresIn: '30d' });
+}
+
 function sha256(raw: string): string {
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
@@ -75,15 +80,20 @@ async function ensureProfile(
   phone: string | null,
   passwordHash: string,
   referredByCode: string | null,
+  residency: string | null = null,
 ): Promise<void> {
   // Step 1: ensure the base profile row exists (trigger should have done this,
   // but we upsert defensively in case the trigger isn't installed in some env).
-  const { error: baseErr } = await supabaseAdmin.from('profiles').upsert({
+  const basePayload: Record<string, unknown> = {
     id:        userId,
     email,
     full_name: name,
     phone:     phone ?? null,
-  }, { onConflict: 'id' });
+    status:    'active',
+  };
+  if (residency) basePayload['residency_type'] = residency;
+
+  const { error: baseErr } = await supabaseAdmin.from('profiles').upsert(basePayload, { onConflict: 'id' });
 
   if (baseErr) {
     console.error('[Auth] Base profile upsert failed:', baseErr.message);
@@ -115,14 +125,26 @@ async function ensureProfile(
 }
 
 // ── POST /auth/register ───────────────────────────────────────────────────────
+const VALID_RESIDENCY = ['canadian_citizen', 'permanent_resident', 'work_permit', 'oci'] as const;
+
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, name, phone, referredByCode } = req.body as {
-      email?: string; password?: string; name?: string; phone?: string; referredByCode?: string;
+    const { email, password, name, fullName, phone, residency, referredByCode } = req.body as {
+      email?: string; password?: string; name?: string; fullName?: string; phone?: string;
+      residency?: string; referredByCode?: string;
     };
 
-    if (!email || !password || !name) {
+    const displayName = name || fullName;
+    if (!email || !password || !displayName) {
       res.status(400).json({ error: 'email, password, and name are required', timestamp: ts() });
+      return;
+    }
+
+    if (residency && !VALID_RESIDENCY.includes(residency as typeof VALID_RESIDENCY[number])) {
+      res.status(400).json({
+        error: `residency must be one of: ${VALID_RESIDENCY.join(', ')}`,
+        timestamp: ts(),
+      });
       return;
     }
     if (password.length < 8) {
@@ -204,14 +226,15 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const userId = authData.user.id;
+    const residencyVal = residency ?? null;
 
     // CRITICAL: create profile record — resilient helper logs on failure but never blocks registration
-    await ensureProfile(userId, email, name, phone ?? null, passwordHash, referredByCode?.toUpperCase() ?? null);
+    await ensureProfile(userId, email, displayName!, phone ?? null, passwordHash, referredByCode?.toUpperCase() ?? null, residencyVal);
 
     // Generate referral code + record referral relationship (never blocks registration)
     let myReferralCode: string | null = null;
     try {
-      myReferralCode = await createReferralCode(userId, name);
+      myReferralCode = await createReferralCode(userId, displayName!);
       if (referredByCode) {
         await recordReferralSignup(userId, referredByCode);
       }
@@ -220,9 +243,12 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     const token = issueToken(userId, email);
+    const refreshToken = issueRefreshToken(userId);
     res.status(201).json({
+      success: true,
       token,
-      user: { id: userId, email, name, phone: phone ?? null, myReferralCode },
+      refreshToken,
+      user: { id: userId, email, name: displayName, phone: phone ?? null, residency: residencyVal, status: 'active', myReferralCode },
       timestamp: ts(),
     });
   } catch (err: unknown) {
@@ -531,6 +557,37 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     },
     timestamp: ts(),
   });
+});
+
+// ── POST /auth/refresh ────────────────────────────────────────────────────────
+router.post('/refresh', async (req: Request, res: Response) => {
+  const { refreshToken } = req.body as { refreshToken?: string };
+  if (!refreshToken) {
+    res.status(400).json({ error: 'refreshToken is required', timestamp: ts() });
+    return;
+  }
+  try {
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || (JWT_SECRET() + '_refresh');
+    const payload = jwt.verify(refreshToken, refreshSecret) as { id: string; type: string };
+    if (payload.type !== 'refresh') {
+      res.status(401).json({ error: 'Invalid token type', timestamp: ts() });
+      return;
+    }
+    // Fetch email from profile
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('email')
+      .eq('id', payload.id)
+      .maybeSingle();
+    if (!profile) {
+      res.status(401).json({ error: 'User not found', timestamp: ts() });
+      return;
+    }
+    const token = issueToken(payload.id, profile.email as string);
+    res.json({ success: true, token, timestamp: ts() });
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired refresh token', timestamp: ts() });
+  }
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────

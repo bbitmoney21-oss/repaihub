@@ -1,0 +1,102 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+/**
+ * REPAIHUB — RBI Compliance Rules
+ *
+ * ALL thresholds are read from environment variables.
+ * When RBI updates rules: change the env var in Render dashboard.
+ * Zero code deployment needed. Change is immediate.
+ *
+ * RBI Rule update history:
+ * 2026-04-01: Form 15CA/15CB renamed to Form 145/146 (IT Act 2025)
+ */
+export const getRBIRules = () => ({
+  // Annual NRO outward limit — USD 1M = approx Rs. 8.3 crore
+  annualLimitInr: Number(process.env.RBI_ANNUAL_LIMIT_INR ?? 83_000_000),
+
+  // Below this: no forms needed — fast track processing
+  fastTrackMaxInr: Number(process.env.RBI_FAST_TRACK_MAX_INR ?? 50_000),
+
+  // Above this: Form 145 (formerly 15CA) must be auto-filed
+  form145ThresholdInr: Number(process.env.RBI_FORM145_THRESHOLD_INR ?? 50_000),
+
+  // Above this: CA must certify Form 146 (formerly 15CB)
+  form146ThresholdInr: Number(process.env.RBI_FORM146_THRESHOLD_INR ?? 500_000),
+
+  // Internal safety cap on single transaction
+  maxSingleTxInr: Number(process.env.RBI_MAX_SINGLE_TX_INR ?? 8_300_000),
+
+  // Canadian law: report transfers above this to FINTRAC
+  fintracThresholdCad: Number(process.env.RBI_FINTRAC_THRESHOLD_CAD ?? 10_000),
+
+  // TCS threshold for inward remittances
+  tcsThresholdInr: Number(process.env.RBI_TCS_THRESHOLD_INR ?? 700_000),
+
+  // Indian financial year start month (3 = April, zero-indexed)
+  fyStartMonth: Number(process.env.RBI_FY_START_MONTH ?? 3),
+
+  // Enabled RBI purpose codes (comma-separated)
+  purposeCodesEnabled: (
+    process.env.RBI_PURPOSE_CODES_ENABLED ??
+    'P0101,P0102,P0103,P1004,P0301'
+  ).split(',').map(c => c.trim()),
+
+  // Date of last RBI rule update — shown in app and audit logs
+  rulesVersion: process.env.COMPLIANCE_RULES_VERSION ?? '2026-04-01',
+});
+
+export type RBIRules = ReturnType<typeof getRBIRules>;
+
+/**
+ * Determine compliance requirements for an outward transfer amount.
+ * Always call this fresh — reads env vars on every call.
+ */
+export const getComplianceRequirements = (amountInr: number) => {
+  const rules = getRBIRules();
+  return {
+    isFastTrack: amountInr < rules.fastTrackMaxInr,
+    requiresForm145: amountInr >= rules.form145ThresholdInr,
+    requiresForm146: amountInr > rules.form146ThresholdInr,
+    exceedsMaxSingle: amountInr > rules.maxSingleTxInr,
+    rulesVersion: rules.rulesVersion,
+    purposeCodeValid: (code: string) =>
+      rules.purposeCodesEnabled.includes(code),
+  };
+};
+
+/**
+ * Get the financial year start date for annual limit tracking.
+ */
+export const getFYStartDate = (): Date => {
+  const rules = getRBIRules();
+  const now = new Date();
+  const fyStart = new Date(now.getFullYear(), rules.fyStartMonth, 1);
+  if (now < fyStart) {
+    fyStart.setFullYear(fyStart.getFullYear() - 1);
+  }
+  return fyStart;
+};
+
+/**
+ * Human-readable compliance summary for display in app and audit logs.
+ */
+export const getComplianceSummary = (amountInr: number) => {
+  const reqs = getComplianceRequirements(amountInr);
+  const rules = getRBIRules();
+  return {
+    form145: reqs.requiresForm145
+      ? 'Filed automatically by REPAIHUB'
+      : 'Not required (below threshold)',
+    form146: reqs.requiresForm146
+      ? 'CA partner certifies (2-8 hours)'
+      : 'Not required (below threshold)',
+    fastTrack: reqs.isFastTrack,
+    estimatedTime: reqs.requiresForm146
+      ? '8-24 hours'
+      : reqs.requiresForm145
+      ? '4-8 hours'
+      : '2-4 hours',
+    rulesVersion: rules.rulesVersion,
+  };
+};

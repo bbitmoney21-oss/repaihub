@@ -29,8 +29,8 @@ export interface OutwardTransferInstruction {
   amountINR: number;
   nroBankName: string;
   nroBranchCity: string;
-  fifteenCANumber: string;
-  fifteenCBNumber: string;
+  form145Number: string;    // IT Act 2025 (was fifteenCANumber)
+  form146Number: string;    // IT Act 2025 (was fifteenCBNumber)
   purposeCode: string;
   beneficiaryCADDetails: {
     bankName: string;
@@ -89,8 +89,8 @@ export async function executeOutwardTransfer(
           purposeCode:  instruction.purposeCode,
           nroBank:      instruction.nroBankName,
           nroBranch:    instruction.nroBranchCity,
-          fifteenCA:    instruction.fifteenCANumber,
-          fifteenCB:    instruction.fifteenCBNumber,
+          form145Number: instruction.form145Number,
+          form146Number: instruction.form146Number,
           beneficiary:  instruction.beneficiaryCADDetails,
           exchangeRate: instruction.exchangeRate,
         }),

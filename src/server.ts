@@ -54,7 +54,21 @@ function printEnvStatus(): void {
     }
   }
 
-  // Special warning: SETU_API_KEY controls Reverse Penny Drop — mandatory for prod inward transfers
+  const fableMode  = process.env.FABLE_API_KEY  ? 'LIVE' : 'MOCK';
+  const flinksMode = process.env.FLINKS_CUSTOMER_ID ? 'LIVE' : 'MOCK';
+  const emailMode  = process.env.RESEND_API_KEY ? 'LIVE' : 'NOT SET';
+  const smsMode    = process.env.TWILIO_ACCOUNT_SID ? 'LIVE' : 'NOT SET';
+  const rulesVer   = process.env.COMPLIANCE_RULES_VERSION ?? '2026-04-01';
+
+  console.log(`\nFable API:    ${fableMode}`);
+  console.log(`Flinks KYC:   ${flinksMode}`);
+  console.log(`Email:        ${emailMode}`);
+  console.log(`SMS:          ${smsMode}`);
+  console.log(`RBI Rules:    v${rulesVer}`);
+  console.log(`Form145 min:  Rs. ${process.env.RBI_FORM145_THRESHOLD_INR ?? '50000'}`);
+  console.log(`Form146 min:  Rs. ${process.env.RBI_FORM146_THRESHOLD_INR ?? '500000'}`);
+  console.log(`Annual limit: Rs. ${process.env.RBI_ANNUAL_LIMIT_INR ?? '83000000'}`);
+
   if (!process.env.SETU_API_KEY) {
     console.warn('\n[WARN] SETU_API_KEY not set:');
     console.warn('       → Reverse Penny Drop runs in MOCK mode');
@@ -99,7 +113,18 @@ app.use(express.static(path.resolve('src/public')));
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'OK', app: 'REPAIHUB API', version: '1.0.0', env: process.env.NODE_ENV });
+  res.json({
+    status: 'OK',
+    app: 'REPAIHUB API',
+    version: '2.0.0',
+    environment: process.env.NODE_ENV,
+    fableMode:  process.env.FABLE_API_KEY  ? 'LIVE' : 'MOCK',
+    flinksMode: process.env.FLINKS_CUSTOMER_ID ? 'LIVE' : 'MOCK',
+    rbiRulesVersion:      process.env.COMPLIANCE_RULES_VERSION ?? '2026-04-01',
+    form145ThresholdInr:  Number(process.env.RBI_FORM145_THRESHOLD_INR ?? 50_000),
+    form146ThresholdInr:  Number(process.env.RBI_FORM146_THRESHOLD_INR ?? 500_000),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── Customer API routes ───────────────────────────────────────────────────────
@@ -128,6 +153,12 @@ app.use('/dev', devToolsRoutes);
 app.get('/ca', (_req, res) => {
   res.redirect('/ca-dashboard.html');
 });
+
+// ── API 404 handler (before SPA fallback — catches /api/* typos) ─────────────
+app.use('/auth', (_req, res) => res.status(404).json({ error: 'Auth route not found' }));
+app.use('/transfers', (_req, res) => res.status(404).json({ error: 'Transfer route not found' }));
+app.use('/inward', (_req, res) => res.status(404).json({ error: 'Inward transfer route not found' }));
+app.use('/rates', (_req, res) => res.status(404).json({ error: 'Rate route not found' }));
 
 // ── Serve React frontend (production build) ───────────────────────────────────
 const distPath = path.resolve('dist');
