@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS public.fee_config (
   id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   key         TEXT          UNIQUE NOT NULL,
-  value       DECIMAL(10,4) NOT NULL,
+  value       NUMERIC(18,4) NOT NULL,
   description TEXT          NOT NULL,
   unit        TEXT          NOT NULL,
   is_active   BOOLEAN       DEFAULT true,
