@@ -505,7 +505,8 @@ router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, 
     .from('compliance_requests')
     .update({
       status:            'approved',
-      fifteen_cb_number: cbNumber,   // old column name
+      fifteen_cb_number: cbNumber,   // legacy column (always exists)
+      form146_number:    cbNumber,   // IT Act 2025 column (exists after migration 022)
       ca_remarks:        remarks,
       ca_reviewed_by:    req.caUser?.name || 'CA',
       ca_reviewed_at:    ts(),
@@ -674,7 +675,10 @@ router.post('/compliance/:id/file-form145', caAuthMiddleware, async (req: CARequ
 
   const { data, error } = await supabaseAdmin
     .from('compliance_requests')
-    .update({ fifteen_ca_number: caNumber.trim() })
+    .update({
+      fifteen_ca_number: caNumber.trim(),  // legacy column (always exists)
+      form145_number:    caNumber.trim(),  // IT Act 2025 column (exists after migration 022)
+    })
     .eq('id', req.params.id)
     .select()
     .single();
@@ -687,10 +691,8 @@ router.post('/compliance/:id/file-form145', caAuthMiddleware, async (req: CARequ
   res.json({ request: data, message: 'Form 145 Ack number recorded (IT Act 2025)', timestamp: ts() });
 });
 
-// Backward-compat alias — old endpoint name
+// Backward-compat alias — old endpoint name redirects to file-form145
 router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest, res: Response) => {
-  req.url = req.url.replace('file-15ca', 'file-form145');
-  // Re-dispatch — handled by the route above inline
   const { caNumber } = req.body as { caNumber?: string };
   if (!caNumber || caNumber.trim().length === 0) {
     res.status(400).json({ error: 'caNumber is required', timestamp: ts() });
@@ -702,7 +704,10 @@ router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest
   }
   const { data, error } = await supabaseAdmin
     .from('compliance_requests')
-    .update({ fifteen_ca_number: caNumber.trim() })
+    .update({
+      fifteen_ca_number: caNumber.trim(),
+      form145_number:    caNumber.trim(),
+    })
     .eq('id', req.params.id)
     .select()
     .single();

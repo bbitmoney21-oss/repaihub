@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const FAQ_ITEMS = [
-  { q: 'Can I transfer without going to India?', a: 'Yes — 100% digital. REPAIHUB handles Form 15CA filing, Form 15CB certification, and the actual transfer from your phone in Canada. No branch visit required.' },
+  { q: 'Can I transfer without going to India?', a: 'Yes — 100% digital. REPAIHUB handles Form 145 filing, Form 146 certification (IT Act 2025), and the actual transfer from your phone in Canada. No branch visit required.' },
   { q: 'My Indian mobile number is inactive. Can I still verify?', a: 'Yes. We use Email OTP as our primary method (your bank-registered email, works globally), then netbanking login as backup. ~60% of NRIs have inactive Indian SIMs — we designed around this reality from day one.' },
   { q: 'Does REPAIHUB store my passport or Aadhaar?', a: 'Never. Your account number and PAN are stored only as SHA-256 hashes. We store zero identity documents on our servers — ever.' },
   { q: 'Is TCS my money or a fee?', a: 'TCS is YOUR money — collected as a credit against your Indian tax liability. Claim it back when filing your Indian ITR. REPAIHUB shows you exactly when TCS applies before any transfer.' },
@@ -106,16 +106,16 @@ export default function Guide() {
           </div>
         </section>
 
-        {/* 3. Form 15CA & 15CB */}
+        {/* 3. Form 145 & 146 */}
         <section style={{ marginBottom: '4rem' }}>
           <span style={S.sLabel}>Section 3</span>
-          <h2 style={S.h2}>What is Form 15CA & 15CB?</h2>
-          <p style={S.p}>These are two government forms required every time you transfer money out of your NRO account. Think of them as a receipt telling the Indian government: this money has been properly taxed and it's legal to send abroad.</p>
+          <h2 style={S.h2}>What is Form 145 & Form 146?</h2>
+          <p style={S.p}>These are two government forms required every time you transfer money out of your NRO account (under India's IT Act 2025, effective 1 April 2026). They replaced Form 15CA and Form 15CB. Think of them as a receipt telling the Indian government: this money has been properly taxed and it's legal to send abroad.</p>
           <table style={S.table}>
             <thead><tr><th style={S.th}>Form</th><th style={S.th}>What It Is</th><th style={S.th}>Who Files It</th><th style={S.th}>How Long</th></tr></thead>
             <tbody>
-              <tr><td style={S.tdGold}>Form 15CA</td><td style={S.td}>Your declaration to the IT department</td><td style={S.td}><strong style={{ color: '#27AE60' }}>REPAIHUB files it automatically</strong></td><td style={S.td}>~30 minutes</td></tr>
-              <tr><td style={S.tdGold}>Form 15CB</td><td style={S.td}>CA certificate confirming tax compliance</td><td style={S.td}><strong style={{ color: '#27AE60' }}>Our partner CA signs digitally</strong></td><td style={S.td}>2–4 hours</td></tr>
+              <tr><td style={S.tdGold}>Form 145</td><td style={S.td}>Your declaration to the IT department (formerly Form 15CA)</td><td style={S.td}><strong style={{ color: '#27AE60' }}>REPAIHUB files it automatically</strong></td><td style={S.td}>~30 minutes</td></tr>
+              <tr><td style={S.tdGold}>Form 146</td><td style={S.td}>CA certificate confirming tax compliance (formerly Form 15CB)</td><td style={S.td}><strong style={{ color: '#27AE60' }}>Our partner CA signs digitally</strong></td><td style={S.td}>2–4 hours</td></tr>
             </tbody>
           </table>
           <div style={S.infoBox}>
@@ -153,7 +153,7 @@ export default function Guide() {
             <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '1.5rem', borderRadius: 4 }}>
               <h4 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8BA0B4', marginBottom: '1rem' }}>Others (Remitly, Wise)</h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {['Move money INTO India only','No Form 15CA/15CB support','Not built for NRO accounts','No CA partner network'].map(item => (
+                {['Move money INTO India only','No Form 145/146 support','Not built for NRO accounts','No CA partner network'].map(item => (
                   <li key={item} style={{ fontSize: '0.85rem', color: '#FAF6F0', display: 'flex', alignItems: 'flex-start', gap: '0.6rem', lineHeight: 1.5 }}>
                     <span style={{ color: '#E74C3C', flexShrink: 0 }}>✗</span> {item}
                   </li>
@@ -163,7 +163,7 @@ export default function Guide() {
             <div style={{ background: 'rgba(201,150,58,0.04)', border: '1px solid #C9963A', padding: '1.5rem', borderRadius: 4 }}>
               <h4 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A', marginBottom: '1rem' }}>REPAIHUB</h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {['Move money OUT of India legally','15CA filed automatically','Built exclusively for NRO accounts','CA network ready for 15CB signing'].map(item => (
+                {['Move money OUT of India legally','Form 145 filed automatically (IT Act 2025)','Built exclusively for NRO accounts','CA network ready for Form 146 certification'].map(item => (
                   <li key={item} style={{ fontSize: '0.85rem', color: '#FAF6F0', display: 'flex', alignItems: 'flex-start', gap: '0.6rem', lineHeight: 1.5 }}>
                     <span style={{ color: '#27AE60', flexShrink: 0 }}>✓</span> {item}
                   </li>
