@@ -134,7 +134,7 @@ export default function AppSettings() {
           <div style={S.card}>
             <span style={S.sLabel}>Annual Tax Summary</span>
             <p style={{ fontSize: '0.9rem', color: '#8BA0B4', lineHeight: 1.7, marginBottom: '1.5rem' }}>
-              REPAIHUB generates an annual summary of all your NRO transfers for your Indian ITR filing. This report includes Form 15CA references, amounts transferred, and TCS deducted.
+              REPAIHUB generates an annual summary of all your NRO transfers for your Indian ITR filing. This report includes Form 145 references, amounts transferred, and TCS deducted.
             </p>
             {[
               { year: 'FY 2026 (Apr 25 – Mar 26)', status: 'In Progress', count: 3, note: 'Year end: Mar 31, 2026' },

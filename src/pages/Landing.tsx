@@ -201,7 +201,7 @@ export default function Landing() {
         <div ref={el => addReveal(el, 4)} className="reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5px', background: 'rgba(201,150,58,0.2)', border: '1px solid rgba(201,150,58,0.2)' }}>
           {[
             { n: '01', title: 'Set Up Once', tag: 'One Time Only', text: 'Connect your Canadian bank account and Indian NRO account. Verify through your bank — we never store documents. Takes 20 minutes. Never again after this.' },
-            { n: '02', title: 'Transfer in 90 Seconds', tag: 'Every Transfer', text: 'Enter the amount, see the live INR to CAD rate, confirm with Face ID. We handle Form 15CA, Form 15CB, and all compliance automatically. You just tap.' },
+            { n: '02', title: 'Transfer in 90 Seconds', tag: 'Every Transfer', text: 'Enter the amount, see the live INR to CAD rate, confirm with Face ID. We handle Form 145, Form 146, and all compliance automatically. You just tap.' },
             { n: '03', title: 'CAD in Your Account', tag: '24–48 Hours', text: 'Track your transfer live. Push notification at every step. Standard transfers arrive within 48 hours. Express within 8–12 hours. Rate locked at confirmation.' },
           ].map(c => (
             <div key={c.n} style={{ background: '#132233', padding: '2.5rem 2rem', transition: 'background 0.3s' }}
@@ -235,8 +235,8 @@ export default function Landing() {
           <ul ref={el => addReveal(el, 6)} className="reveal" style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem', padding: 0, margin: 0 }}>
             {[
               'No branch visit. No physical forms. No fax.',
-              'Form 15CA filed automatically on your behalf.',
-              'CA partner certifies Form 15CB — we handle it.',
+              'Form 145 filed automatically on your behalf (IT Act 2025).',
+              'CA partner certifies Form 146 — we handle it.',
               'We explain TCS, FEMA, and FINTRAC in plain English.',
               'Your documents are never stored on our servers — ever.',
               'Annual tax summary report for your ITR filing.',
@@ -263,7 +263,7 @@ export default function Landing() {
             Every transfer is fully legal, reported, and protected. You get a complete audit trail.
           </p>
           <div ref={el => addReveal(el, 10)} className="reveal" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['🍁 FINTRAC Registered MSB','🇮🇳 RBI — FEMA Compliant','🔒 PIPEDA Protected','📋 Form 15CA / 15CB Automated','🛡 Zero Document Storage','🏦 Bank-Verified Identity'].map(b => (
+            {['🍁 FINTRAC Registered MSB','🇮🇳 RBI — FEMA Compliant','🔒 PIPEDA Protected','📋 Form 145 / 146 Automated (IT Act 2025)','🛡 Zero Document Storage','🏦 Bank-Verified Identity'].map(b => (
               <span key={b} className="badge">{b}</span>
             ))}
           </div>

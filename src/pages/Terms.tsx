@@ -64,7 +64,7 @@ export default function Terms() {
 
         <h2 style={S.h2}>5. Compliance Obligations</h2>
         <p style={S.p}>
-          You represent that all funds being transferred are legally yours, have been appropriately taxed in India (TDS deducted where applicable), and you are entitled to remit them under RBI's USD 1 million annual limit for NRO accounts. You agree to provide accurate information for Form 15CA filing. Providing false information is a violation of Indian law (Section 276C of the Income Tax Act) and these Terms.
+          You represent that all funds being transferred are legally yours, have been appropriately taxed in India (TDS deducted where applicable), and you are entitled to remit them under RBI's USD 1 million annual limit for NRO accounts. You agree to provide accurate information for Form 145 filing (IT Act 2025, formerly Form 15CA). Providing false information is a violation of Indian law (Section 276C of the Income Tax Act) and these Terms.
         </p>
 
         <h2 style={S.h2}>6. Prohibited Uses</h2>

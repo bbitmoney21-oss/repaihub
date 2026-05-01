@@ -171,7 +171,7 @@ export default function Dashboard() {
       <div style={{ marginTop: '2rem', background: 'rgba(201,150,58,0.04)', border: '1px solid rgba(201,150,58,0.2)', borderLeft: '3px solid #C9963A', padding: '1.25rem 1.5rem' }}>
         <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#C9963A', display: 'block', marginBottom: '0.4rem' }}>How Your Transfer Works</span>
         <p style={{ fontSize: '0.85rem', color: '#8BA0B4', lineHeight: 1.7, margin: 0 }}>
-          Every REPAIHUB transfer goes through our state machine: Initiate → KYC Check → Form 15CA filed → CA certifies 15CB → Bank processes → SWIFT → CAD in your account. You'll get a push notification at every step. Standard: 24–48 hours. Express: 8–12 hours.
+          Every REPAIHUB transfer goes through our state machine: Initiate → KYC Check → Form 145 filed → CA certifies Form 146 → Bank processes → SWIFT → CAD in your account. You'll get a push notification at every step. Standard: 24–48 hours. Express: 8–12 hours.
         </p>
       </div>
     </div>

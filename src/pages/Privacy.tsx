@@ -49,8 +49,8 @@ export default function Privacy() {
         <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}>
           {[
             'To process and complete your NRO remittance transfers',
-            'To file Form 15CA with the Indian Income Tax portal on your behalf',
-            'To coordinate Form 15CB certification with our CA partner network',
+            'To file Form 145 with the Indian Income Tax portal on your behalf (IT Act 2025)',
+            'To coordinate Form 146 certification with our CA partner network',
             'To comply with FINTRAC reporting obligations as a registered MSB',
             'To detect and prevent fraud and money laundering',
             'To send transfer status notifications and service updates',
@@ -68,8 +68,8 @@ export default function Privacy() {
         <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}>
           {[
             'Our banking infrastructure partners (Setu / Razorpay) — to execute the debit instruction on your NRO account',
-            'Our CA partner network — only Form 15CB-related information required for certification',
-            'Indian Income Tax portal — Form 15CA filing only',
+            'Our CA partner network — only Form 146-related information required for certification',
+            'Indian Income Tax portal — Form 145 filing only',
             'FINTRAC — as required by Canadian law',
             'Canadian correspondent bank — for the CAD credit to your account',
           ].map((item, i) => <li key={i} style={S.li}>{item}</li>)}

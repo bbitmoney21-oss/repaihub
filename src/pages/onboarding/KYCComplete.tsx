@@ -51,8 +51,8 @@ export default function KYCComplete() {
           {[
             { icon: '1', text: 'Enter the amount in INR you want to send' },
             { icon: '2', text: 'We show you the live FX rate and all fees upfront' },
-            { icon: '3', text: 'Confirm — Form 15CA is filed automatically' },
-            { icon: '4', text: 'Our CA certifies Form 15CB (2–4 hours)' },
+            { icon: '3', text: 'Confirm — Form 145 is filed automatically (IT Act 2025)' },
+            { icon: '4', text: 'Our CA certifies Form 146 (2–4 hours)' },
             { icon: '5', text: 'CAD arrives in your account within 24–48 hours' },
           ].map(item => (
             <div key={item.icon} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.75rem' }}>
