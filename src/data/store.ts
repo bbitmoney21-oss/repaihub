@@ -1,21 +1,34 @@
+// NOTE: Under India Income Tax Act 2025 (effective 1 Apr 2026):
+// Form 15CA is now Form 145 | Form 15CB is now Form 146
+// Section 195 is now Section 397(3)(d)
+
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { Transfer, CAUser, TransferStatus, FifteenCApart, SourceOfFunds, RBIPurposeCode } from '../types/compliance';
+import { Transfer, CAUser, TransferStatus, Form145Part, SourceOfFunds, RBIPurposeCode } from '../types/compliance';
 import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 
 // ── Status mapping ────────────────────────────────────────────────────────────
+// DB stores lowercase snake_case; CA API uses SCREAMING_SNAKE_CASE
+// Supports both old (15ca/15cb) and new (form145/form146) DB values during migration window
 
 const DB_TO_CA: Record<string, TransferStatus> = {
   initiated:                  'INITIATED',
   kyc_verified:               'KYC_VERIFIED',
-  '15cb_requested':           '15CB_REQUESTED',
-  '15cb_received':            '15CB_RECEIVED',
-  '15ca_filed':               '15CA_FILED',
+  // New IT Act 2025 status values (after migration 016)
+  'form146_requested':        'FORM146_REQUESTED',
+  'form146_received':         'FORM146_RECEIVED',
+  'form145_filed':            'FORM145_FILED',
+  // Legacy IT Act 1961 values (before migration 016 — backward compat)
+  '15cb_requested':           'FORM146_REQUESTED',
+  '15cb_received':            'FORM146_RECEIVED',
+  '15ca_filed':               'FORM145_FILED',
   bank_processing:            'BANK_PROCESSING',
   completed:                  'COMPLETED',
-  failed:                     'failed',
+  failed:                     'FAILED',
   pending_review:             'PENDING_REVIEW',
+  cancelled:                  'CANCELLED',
+  gateway_retry:              'GATEWAY_RETRY',
   // Legacy 3-tier decision engine statuses
   pending_ca_approval:        'pending_ca_approval',
   processing_with_compliance: 'processing_with_compliance',
@@ -25,14 +38,16 @@ const DB_TO_CA: Record<string, TransferStatus> = {
 const CA_TO_DB: Record<TransferStatus, string> = {
   INITIATED:                  'initiated',
   KYC_VERIFIED:               'kyc_verified',
-  '15CB_REQUESTED':           '15cb_requested',
-  '15CB_RECEIVED':            '15cb_received',
-  '15CA_FILED':               '15ca_filed',
+  'FORM146_REQUESTED':        'form146_requested',
+  'FORM146_RECEIVED':         'form146_received',
+  'FORM145_FILED':            'form145_filed',
   BANK_PROCESSING:            'bank_processing',
   COMPLETED:                  'completed',
   FAILED:                     'failed',
   failed:                     'failed',
   PENDING_REVIEW:             'pending_review',
+  CANCELLED:                  'cancelled',
+  GATEWAY_RETRY:              'gateway_retry',
   pending_ca_approval:        'pending_ca_approval',
   processing_with_compliance: 'processing_with_compliance',
   processing:                 'processing',
@@ -55,10 +70,14 @@ function mapRow(
   canada?: CanadaRow,
 ): Transfer {
   const amountINR = Number(row.amount_inr);
-  const part: FifteenCApart = amountINR <= 500000 ? 'A' : 'C';
-  const hasCB = ['15CB_RECEIVED', '15CA_FILED', 'BANK_PROCESSING', 'COMPLETED'].includes(
-    mapStatus(row.status),
-  );
+  const part: Form145Part = amountINR <= 500000 ? 'A' : 'C';
+  const status = mapStatus(row.status);
+  const hasCB = ['FORM146_RECEIVED', 'FORM145_FILED', 'BANK_PROCESSING', 'COMPLETED'].includes(status);
+
+  // Support both old column names (pre-migration) and new names (post-migration 016)
+  const form146Number = row.form146_number ?? row.fifteen_cb_number ?? null;
+  const form145Number = row.form145_number ?? row.fifteen_ca_number ?? null;
+  const form145Part   = (row.form145_part ?? row.fifteen_ca_part ?? part) as Form145Part;
 
   return {
     id: row.id,
@@ -86,20 +105,26 @@ function mapRow(
     nroBranchCity: india?.branch || 'N/A',
     canadianBankName: canada?.institution || 'N/A',
     financialYearCumulativeINR: amountINR,
-    fifteenCAPart: part,
-    fifteenCBRequired: part === 'C',
-    fifteenCBNumber: row.fifteen_cb_number || null,
-    fifteenCANumber: row.fifteen_ca_number || null,
+    form145Part,
+    form146Required: form145Part === 'C',
+    form146Number: hasCB ? (form146Number || `CB${new Date().getFullYear()}-placeholder`) : form146Number,
+    form145Number,
     caRemarks: row.ca_remarks || '',
     caApprovedAt: row.ca_approved_at || null,
     caApprovedBy: row.ca_approved_by || '',
-    status: mapStatus(row.status),
+    status,
     priority: (row.priority as 'standard' | 'express') || (row.speed as 'standard' | 'express') || 'standard',
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
     risk_level: (row.risk_level as 'LOW' | 'MEDIUM' | 'HIGH') ?? null,
     risk_score: row.risk_score != null ? Number(row.risk_score) : null,
     risk_breakdown: (row.risk_breakdown as Record<string, number>) ?? null,
+    cancelledAt: row.cancelled_at ?? null,
+    cancellationReason: row.cancellation_reason ?? null,
+    indicativeRate: row.indicative_rate ?? Number(row.exchange_rate) ?? null,
+    finalExecutionRate: row.final_execution_rate ?? null,
+    swiftReference: row.swift_reference ?? null,
+    completedAt: row.completed_at ?? null,
   };
 }
 
@@ -139,7 +164,7 @@ async function fetchAllFromSupabase(): Promise<Transfer[]> {
 const _demo: Transfer[] = [];
 const caUsers: CAUser[] = [];
 
-function determineFifteenCAPart(cumulativeINR: number): FifteenCApart {
+function determineForm145Part(cumulativeINR: number): Form145Part {
   return cumulativeINR <= 500000 ? 'A' : 'C';
 }
 
@@ -172,25 +197,25 @@ function seedDemoIfEmpty() {
   };
 
   const demos: DemoSeed[] = [
-    { customerName: 'Priya Venkataraman', customerEmail: 'priya.v@gmail.com', panLast4: '190K', amountINR: 2000000, amountCAD: 32000, exchangeRate: 0.0160, feeCAD: 45, sourceOfFunds: 'rental_income', sourceBreakdown: [{ type: 'rental_income', amountINR: 1800000, tdsDeducted: true, tdsRate: 0.30 }, { type: 'dividend_income', amountINR: 200000, tdsDeducted: true, tdsRate: 0.10 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 560000, tdsReference: 'TDS2026-SBI-00412', adBankName: 'State Bank of India', nroBankName: 'HDFC Bank', nroBranchCity: 'Pune', canadianBankName: 'Royal Bank of Canada', financialYearCumulativeINR: 2000000, priority: 'standard', status: '15CB_REQUESTED' },
-    { customerName: 'Raj Krishnamurthy', customerEmail: 'raj.k@hotmail.com', panLast4: '445P', amountINR: 3500000, amountCAD: 56000, exchangeRate: 0.0160, feeCAD: 45, sourceOfFunds: 'property_sale', sourceBreakdown: [{ type: 'property_sale', amountINR: 3500000, tdsDeducted: true, tdsRate: 0.20 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 700000, tdsReference: 'TDS2026-ICICI-00891', adBankName: 'ICICI Bank', nroBankName: 'ICICI Bank', nroBranchCity: 'Bangalore', canadianBankName: 'TD Canada Trust', financialYearCumulativeINR: 3500000, priority: 'express', status: '15CB_REQUESTED' },
+    { customerName: 'Priya Venkataraman', customerEmail: 'priya.v@gmail.com', panLast4: '190K', amountINR: 2000000, amountCAD: 32000, exchangeRate: 0.0160, feeCAD: 45, sourceOfFunds: 'rental_income', sourceBreakdown: [{ type: 'rental_income', amountINR: 1800000, tdsDeducted: true, tdsRate: 0.30 }, { type: 'dividend_income', amountINR: 200000, tdsDeducted: true, tdsRate: 0.10 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 560000, tdsReference: 'TDS2026-SBI-00412', adBankName: 'State Bank of India', nroBankName: 'HDFC Bank', nroBranchCity: 'Pune', canadianBankName: 'Royal Bank of Canada', financialYearCumulativeINR: 2000000, priority: 'standard', status: 'FORM146_REQUESTED' },
+    { customerName: 'Raj Krishnamurthy', customerEmail: 'raj.k@hotmail.com', panLast4: '445P', amountINR: 3500000, amountCAD: 56000, exchangeRate: 0.0160, feeCAD: 45, sourceOfFunds: 'property_sale', sourceBreakdown: [{ type: 'property_sale', amountINR: 3500000, tdsDeducted: true, tdsRate: 0.20 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 700000, tdsReference: 'TDS2026-ICICI-00891', adBankName: 'ICICI Bank', nroBankName: 'ICICI Bank', nroBranchCity: 'Bangalore', canadianBankName: 'TD Canada Trust', financialYearCumulativeINR: 3500000, priority: 'express', status: 'FORM146_REQUESTED' },
     { customerName: 'Ananya Sharma', customerEmail: 'ananya.s@yahoo.com', panLast4: '782A', amountINR: 300000, amountCAD: 4800, exchangeRate: 0.0160, feeCAD: 25, sourceOfFunds: 'dividend_income', sourceBreakdown: [{ type: 'dividend_income', amountINR: 300000, tdsDeducted: true, tdsRate: 0.10 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 30000, tdsReference: 'TDS2026-AXIS-00234', adBankName: 'Axis Bank', nroBankName: 'Axis Bank', nroBranchCity: 'Mumbai', canadianBankName: 'Scotiabank', financialYearCumulativeINR: 300000, priority: 'standard', status: 'KYC_VERIFIED' },
-    { customerName: 'Suresh Iyer', customerEmail: 'suresh.i@gmail.com', panLast4: '334M', amountINR: 1500000, amountCAD: 24000, exchangeRate: 0.0160, feeCAD: 35, sourceOfFunds: 'matured_investment', sourceBreakdown: [{ type: 'matured_investment', amountINR: 1500000, tdsDeducted: true, tdsRate: 0.10 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 150000, tdsReference: 'TDS2026-PNB-00667', adBankName: 'Punjab National Bank', nroBankName: 'Punjab National Bank', nroBranchCity: 'Delhi', canadianBankName: 'BMO Bank of Montreal', financialYearCumulativeINR: 1500000, priority: 'standard', status: '15CB_RECEIVED' },
-    { customerName: 'Deepa Nair', customerEmail: 'deepa.n@gmail.com', panLast4: '519D', amountINR: 800000, amountCAD: 12800, exchangeRate: 0.0160, feeCAD: 30, sourceOfFunds: 'rental_income', sourceBreakdown: [{ type: 'rental_income', amountINR: 800000, tdsDeducted: true, tdsRate: 0.30 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 240000, tdsReference: 'TDS2026-KVB-00112', adBankName: 'Karur Vysya Bank', nroBankName: 'Karur Vysya Bank', nroBranchCity: 'Chennai', canadianBankName: 'CIBC', financialYearCumulativeINR: 800000, priority: 'express', status: '15CA_FILED' },
+    { customerName: 'Suresh Iyer', customerEmail: 'suresh.i@gmail.com', panLast4: '334M', amountINR: 1500000, amountCAD: 24000, exchangeRate: 0.0160, feeCAD: 35, sourceOfFunds: 'matured_investment', sourceBreakdown: [{ type: 'matured_investment', amountINR: 1500000, tdsDeducted: true, tdsRate: 0.10 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 150000, tdsReference: 'TDS2026-PNB-00667', adBankName: 'Punjab National Bank', nroBankName: 'Punjab National Bank', nroBranchCity: 'Delhi', canadianBankName: 'BMO Bank of Montreal', financialYearCumulativeINR: 1500000, priority: 'standard', status: 'FORM146_RECEIVED' },
+    { customerName: 'Deepa Nair', customerEmail: 'deepa.n@gmail.com', panLast4: '519D', amountINR: 800000, amountCAD: 12800, exchangeRate: 0.0160, feeCAD: 30, sourceOfFunds: 'rental_income', sourceBreakdown: [{ type: 'rental_income', amountINR: 800000, tdsDeducted: true, tdsRate: 0.30 }], purposeCode: 'P1301', tdsDeducted: true, tdsAmountINR: 240000, tdsReference: 'TDS2026-KVB-00112', adBankName: 'Karur Vysya Bank', nroBankName: 'Karur Vysya Bank', nroBranchCity: 'Chennai', canadianBankName: 'CIBC', financialYearCumulativeINR: 800000, priority: 'express', status: 'FORM145_FILED' },
   ];
 
   demos.forEach(d => {
-    const part = determineFifteenCAPart(d.financialYearCumulativeINR);
-    const hasCB = d.status === '15CB_RECEIVED' || d.status === '15CA_FILED';
-    const hasCA = d.status === '15CA_FILED';
+    const part = determineForm145Part(d.financialYearCumulativeINR);
+    const hasCB = d.status === 'FORM146_RECEIVED' || d.status === 'FORM145_FILED';
+    const hasCA = d.status === 'FORM145_FILED';
     _demo.push({
       ...d,
       id: uuidv4(),
       panHash: crypto.createHash('sha256').update('DEMO_' + d.panLast4).digest('hex'),
-      fifteenCAPart: part,
-      fifteenCBRequired: part === 'C',
-      fifteenCBNumber: hasCB ? `CB2026-04-${d.panLast4}-${Math.floor(Math.random() * 9000 + 1000)}` : null,
-      fifteenCANumber: hasCA ? `CA2026-04-${d.panLast4}-${Math.floor(Math.random() * 9000 + 1000)}` : null,
+      form145Part: part,
+      form146Required: part === 'C',
+      form146Number: hasCB ? `CB2026-04-${d.panLast4}-${Math.floor(Math.random() * 9000 + 1000)}` : null,
+      form145Number: hasCA ? `CA2026-04-${d.panLast4}-${Math.floor(Math.random() * 9000 + 1000)}` : null,
       caRemarks: hasCB ? 'Verified on Form 26AS and WISEMAN. TDS confirmed. DTAA relief assessed.' : '',
       caApprovedAt: hasCB ? new Date(Date.now() - Math.random() * 3600000).toISOString() : null,
       caApprovedBy: hasCB ? 'CA Partner' : '',
@@ -222,7 +247,11 @@ export async function getTransferById(id: string): Promise<Transfer | undefined>
 export async function getPendingTransfers(): Promise<Transfer[]> {
   const all = await getAllTransfers();
   return all
-    .filter(t => t.status === '15CB_REQUESTED' || t.status === 'KYC_VERIFIED' || t.status === 'INITIATED')
+    .filter(t =>
+      t.status === 'FORM146_REQUESTED' ||
+      t.status === 'KYC_VERIFIED' ||
+      t.status === 'INITIATED'
+    )
     .sort((a, b) => {
       if (a.priority === 'express' && b.priority !== 'express') return -1;
       if (b.priority === 'express' && a.priority !== 'express') return 1;
@@ -239,11 +268,18 @@ export async function updateTransferStatus(
     const updateData: Record<string, unknown> = {
       status: CA_TO_DB[status],
     };
-    if (extras.fifteenCBNumber !== undefined) updateData.fifteen_cb_number = extras.fifteenCBNumber;
-    if (extras.fifteenCANumber !== undefined) updateData.fifteen_ca_number = extras.fifteenCANumber;
-    if (extras.caRemarks       !== undefined) updateData.ca_remarks         = extras.caRemarks;
-    if (extras.caApprovedAt    !== undefined) updateData.ca_approved_at      = extras.caApprovedAt;
-    if (extras.caApprovedBy    !== undefined) updateData.ca_approved_by      = extras.caApprovedBy;
+    // Support both old and new column names during migration window
+    if (extras.form146Number !== undefined) {
+      updateData.form146_number = extras.form146Number;
+      updateData.fifteen_cb_number = extras.form146Number; // keep old col in sync pre-migration
+    }
+    if (extras.form145Number !== undefined) {
+      updateData.form145_number = extras.form145Number;
+      updateData.fifteen_ca_number = extras.form145Number;
+    }
+    if (extras.caRemarks    !== undefined) updateData.ca_remarks     = extras.caRemarks;
+    if (extras.caApprovedAt !== undefined) updateData.ca_approved_at = extras.caApprovedAt;
+    if (extras.caApprovedBy !== undefined) updateData.ca_approved_by = extras.caApprovedBy;
 
     const { error } = await supabaseAdmin
       .from('transfers')
@@ -262,14 +298,14 @@ export async function updateTransferStatus(
 }
 
 export async function createTransfer(
-  data: Omit<Transfer, 'id' | 'fifteenCAPart' | 'fifteenCBRequired' | 'createdAt' | 'updatedAt'>,
+  data: Omit<Transfer, 'id' | 'form145Part' | 'form146Required' | 'createdAt' | 'updatedAt'>,
 ): Promise<Transfer> {
-  const part = determineFifteenCAPart(data.financialYearCumulativeINR);
+  const part = determineForm145Part(data.financialYearCumulativeINR);
   const transfer: Transfer = {
     ...data,
     id: uuidv4(),
-    fifteenCAPart: part,
-    fifteenCBRequired: part === 'C',
+    form145Part: part,
+    form146Required: part === 'C',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -278,8 +314,6 @@ export async function createTransfer(
     seedDemoIfEmpty();
     _demo.push(transfer);
   }
-  // When Supabase is configured, transfers are created by the React frontend
-  // directly via the Supabase client — the CA portal doesn't create them.
 
   return transfer;
 }
@@ -287,3 +321,6 @@ export async function createTransfer(
 export function getCAUserByEmail(email: string): CAUser | undefined {
   return caUsers.find(u => u.email === email);
 }
+
+// Export the CA_TO_DB map for use in routes
+export { CA_TO_DB };

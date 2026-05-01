@@ -22,6 +22,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-login:hover{background:#0a5543}
 .login-error{color:#DC2626;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
 
+/* ── IT Act 2025 Banner ── */
+.act-banner{background:#1E3A5F;color:#fff;padding:9px 32px;font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.act-banner strong{color:#FDE68A}
+.act-banner a{color:#93C5FD;text-decoration:none}
+.act-banner a:hover{text-decoration:underline}
+
 /* ── App Layout ── */
 .app-layout{display:flex;min-height:100vh}
 .sidebar{width:240px;min-height:100vh;background:#0F6E56;color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
@@ -70,6 +76,11 @@ td{padding:12px 16px;border-bottom:1px solid #F9FAFB;font-size:13px;color:#37415
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#FAFAFA}
 .empty-row td{text-align:center;color:#9CA3AF;padding:40px}
+
+/* ── Queue headers ── */
+.queue-header{padding:10px 20px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.queue-header.blocked{background:#FEF2F2;color:#991B1B;border-bottom:1px solid #FECACA}
+.queue-header.parallel{background:#FFFBEB;color:#92400E;border-bottom:1px solid #FDE68A}
 
 /* ── Badges ── */
 .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.04em}
@@ -184,6 +195,13 @@ tr:hover td{background:#FAFAFA}
 <!-- ── Main App ────────────────────────────────────────────────────────────── -->
 <div id="app" style="display:none" class="app-layout">
 
+  <!-- IT Act 2025 Banner -->
+  <div class="act-banner" style="position:fixed;top:0;left:240px;right:0;z-index:99">
+    ⚠ <strong>IT Act 2025 in force from 1 Apr 2026:</strong>
+    Form 15CB → <strong>Form 146</strong> &nbsp;|&nbsp; Form 15CA → <strong>Form 145</strong> &nbsp;|&nbsp; Section 195 → <strong>Section 397(3)(d)</strong>.
+    File on: <a href="#" onclick="return false">incometax.gov.in → e-File → Income Tax Forms → Form 146</a>
+  </div>
+
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo">
@@ -210,29 +228,29 @@ tr:hover td{background:#FAFAFA}
   </aside>
 
   <!-- Main Content -->
-  <div class="main-area">
+  <div class="main-area" style="padding-top:36px">
 
     <!-- Dashboard View -->
     <div id="view-dashboard">
       <div class="page-header">
         <h1>Dashboard</h1>
-        <p>15CA/15CB compliance overview — auto-refreshes every 30 seconds</p>
+        <p>Form 145/146 (IT Act 2025) compliance overview — auto-refreshes every 30 seconds</p>
       </div>
       <div class="content-area">
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="label">Pending Approvals</div>
-            <div class="value amber" id="stat-pending">—</div>
-            <div class="sub">Awaiting CA review</div>
+            <div class="label">Blocked Transfers</div>
+            <div class="value red" id="stat-pending">—</div>
+            <div class="sub">Awaiting CA approval</div>
           </div>
           <div class="stat-card">
             <div class="label">Approved Today</div>
             <div class="value green" id="stat-approved">—</div>
-            <div class="sub">15CB certified</div>
+            <div class="sub">Form 146 certified</div>
           </div>
           <div class="stat-card">
             <div class="label">Express Pending</div>
-            <div class="value red" id="stat-express">—</div>
+            <div class="value amber" id="stat-express">—</div>
             <div class="sub">4-hour SLA</div>
           </div>
           <div class="stat-card">
@@ -244,7 +262,7 @@ tr:hover td{background:#FAFAFA}
 
         <div class="card">
           <div class="card-header">
-            <h2>Pending Transfers</h2>
+            <h2>Blocked Transfers — Action Required</h2>
             <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
           </div>
           <div id="pending-table-wrap">
@@ -258,12 +276,12 @@ tr:hover td{background:#FAFAFA}
     <div id="view-pending" style="display:none">
       <div class="page-header">
         <h1>Pending Transfers</h1>
-        <p>Express-first queue — requires 15CB certification</p>
+        <p>Express-first queue — requires Form 146 (CA certification under IT Act 2025)</p>
       </div>
       <div class="content-area">
         <div class="card">
           <div class="card-header">
-            <h2>Awaiting Review</h2>
+            <h2>Form 146 Queue</h2>
             <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
           </div>
           <div id="pending-view-table-wrap">
@@ -286,21 +304,24 @@ tr:hover td{background:#FAFAFA}
             <div class="filter-row">
               <select id="status-filter" onchange="applyFilter()">
                 <option value="">All Statuses</option>
+                <optgroup label="IT Act 2025 (current)">
+                  <option value="FORM146_REQUESTED">Form 146 Requested</option>
+                  <option value="FORM146_RECEIVED">Form 146 Received</option>
+                  <option value="FORM145_FILED">Form 145 Filed</option>
+                </optgroup>
                 <optgroup label="3-Tier Decision Engine">
                   <option value="pending_ca_approval">Pending CA Approval (HIGH)</option>
                   <option value="processing_with_compliance">Processing + Compliance (MEDIUM)</option>
                   <option value="processing">Processing — Auto (LOW)</option>
                 </optgroup>
-                <optgroup label="Legacy Workflow">
+                <optgroup label="Other Statuses">
                   <option value="INITIATED">Initiated</option>
                   <option value="KYC_VERIFIED">KYC Verified</option>
-                  <option value="15CB_REQUESTED">15CB Requested</option>
-                  <option value="15CB_RECEIVED">15CB Received</option>
-                  <option value="15CA_FILED">15CA Filed</option>
                   <option value="BANK_PROCESSING">Bank Processing</option>
                   <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
                   <option value="FAILED">Failed</option>
-                  <option value="failed">Failed (lowercase)</option>
+                  <option value="failed">Failed (legacy)</option>
                 </optgroup>
               </select>
               <button class="btn btn-outline btn-sm" onclick="refreshData()">↻ Refresh</button>
@@ -337,6 +358,8 @@ let currentTransferId = null;
 let currentFormData = null;
 let allTransfersCache = [];
 let pendingCache = [];
+let blockedCache = [];
+let parallelCache = [];
 let statsCache = {};
 let autoRefreshTimer = null;
 
@@ -344,11 +367,18 @@ let autoRefreshTimer = null;
 const STATUS_CLASS = {
   'INITIATED':                  'badge-gray',
   'KYC_VERIFIED':               'badge-blue',
+  // IT Act 2025 (current)
+  'FORM146_REQUESTED':          'badge-amber',
+  'FORM146_RECEIVED':           'badge-teal',
+  'FORM145_FILED':              'badge-green',
+  // Legacy IT Act 1961 (backward compat)
   '15CB_REQUESTED':             'badge-amber',
   '15CB_RECEIVED':              'badge-teal',
   '15CA_FILED':                 'badge-green',
   'BANK_PROCESSING':            'badge-purple',
   'COMPLETED':                  'badge-green',
+  'CANCELLED':                  'badge-gray',
+  'GATEWAY_RETRY':              'badge-amber',
   'FAILED':                     'badge-red',
   'failed':                     'badge-red',
   'pending_ca_approval':        'badge-red',
@@ -357,12 +387,16 @@ const STATUS_CLASS = {
 };
 
 const STATUS_LABEL = {
+  'FORM146_REQUESTED':          'Form 146 Requested',
+  'FORM146_RECEIVED':           'Form 146 Received',
+  'FORM145_FILED':              'Form 145 Filed',
+  'GATEWAY_RETRY':              'Gateway Retry',
   'pending_ca_approval':        'Pending CA Approval',
   'processing_with_compliance': 'Processing + Compliance',
   'processing':                 'Processing',
 };
 
-const PULSE_STATUSES = ['15CB_REQUESTED', 'pending_ca_approval'];
+const PULSE_STATUSES = ['FORM146_REQUESTED', '15CB_REQUESTED', 'pending_ca_approval'];
 
 const RISK_CLASS = { 'LOW': 'risk-low', 'MEDIUM': 'risk-medium', 'HIGH': 'risk-high' };
 
@@ -483,9 +517,9 @@ function showView(view) {
 function renderCurrentView() {
   if (currentView === 'dashboard') {
     renderStats();
-    renderPendingTable('pending-table-wrap', pendingCache);
+    renderPendingTable('pending-table-wrap', blockedCache, []);
   } else if (currentView === 'pending') {
-    renderPendingTable('pending-view-table-wrap', pendingCache);
+    renderPendingTable('pending-view-table-wrap', blockedCache, parallelCache);
   } else if (currentView === 'all') {
     renderAllTable();
   }
@@ -499,7 +533,11 @@ async function refreshData() {
     apiFetch('GET', '/transfers'),
   ]);
   if (statsData) { statsCache = statsData; }
-  if (pendingData) { pendingCache = pendingData.transfers || []; }
+  if (pendingData) {
+    pendingCache  = pendingData.transfers || [];
+    blockedCache  = pendingData.blocked   || pendingCache;
+    parallelCache = pendingData.parallel  || [];
+  }
   if (allData) { allTransfersCache = allData.transfers || []; }
   updatePendingBadge();
   renderCurrentView();
@@ -508,7 +546,7 @@ async function refreshData() {
 // ── Stats ──────────────────────────────────────────────────────────────────
 function renderStats() {
   const s = statsCache;
-  document.getElementById('stat-pending').textContent = s.pendingCount ?? '—';
+  document.getElementById('stat-pending').textContent = s.blockedCount ?? s.pendingCount ?? '—';
   document.getElementById('stat-approved').textContent = s.approvedToday ?? '—';
   document.getElementById('stat-express').textContent = s.expressCount ?? '—';
   const vol = s.monthlyVolumeINR;
@@ -518,7 +556,7 @@ function renderStats() {
 
 function updatePendingBadge() {
   const badge = document.getElementById('pending-badge');
-  const count = pendingCache.length;
+  const count = blockedCache.length || pendingCache.length;
   badge.textContent = count;
   badge.style.display = count > 0 ? '' : 'none';
 }
@@ -551,8 +589,32 @@ function buildTransferTable(transfers) {
     </table>`;
 }
 
-function renderPendingTable(wrapperId, transfers) {
-  document.getElementById(wrapperId).innerHTML = buildTransferTable(transfers);
+function renderPendingTable(wrapperId, blocked, parallel) {
+  const wrap = document.getElementById(wrapperId);
+  if (!blocked.length && !parallel.length) {
+    wrap.innerHTML = buildTransferTable([]);
+    return;
+  }
+
+  let html = '';
+
+  if (blocked.length) {
+    html += `<div class="queue-header blocked">
+      🔴 QUEUE 1 — ACTION REQUIRED — TRANSFER BLOCKED (${blocked.length})
+      <span style="font-weight:400;font-size:11px;margin-left:4px">Customer cannot proceed until Form 146 certified</span>
+    </div>`;
+    html += buildTransferTable(blocked);
+  }
+
+  if (parallel.length) {
+    html += `<div class="queue-header parallel" style="margin-top:${blocked.length ? '16px' : '0'}">
+      🟡 QUEUE 2 — IN PROGRESS — REVIEW WHEN READY (${parallel.length})
+      <span style="font-weight:400;font-size:11px;margin-left:4px">Transfer processing in parallel — certification for compliance records</span>
+    </div>`;
+    html += buildTransferTable(parallel);
+  }
+
+  wrap.innerHTML = html;
 }
 
 function renderAllTable() {
@@ -594,12 +656,16 @@ function renderDetailPanel(form, transferId) {
   const rd = f.remittanceDetails;
   const td = f.taxDetails;
   const wf = f.wisemanFields;
-  const cb = f.fifteenCBChecklist;
+  const cb = f.form146Checklist || f.fifteenCBChecklist || {};
   const meta = f.formMeta;
 
   // Find transfer from cache for status and action
   const transfer = [...allTransfersCache, ...pendingCache].find(t => t.id === transferId);
   const status = transfer?.status || '';
+
+  // Prefer new field names, fall back to old ones
+  const form145Part = meta.form145Part || meta.fifteenCAPart || '?';
+  const form146Required = meta.form146Required ?? meta.fifteenCBRequired ?? false;
 
   document.getElementById('panel-title').textContent =
     `${r.fullName} — ₹${formatINR(rd.amountINR)}`;
@@ -615,7 +681,7 @@ function renderDetailPanel(form, transferId) {
       ${transfer?.risk_level ? riskBadge(transfer.risk_level, transfer.risk_score) : ''}
       <span style="font-size:11px;color:#6B7280">ID: ${h(transferId.slice(0,8))}…</span>
       <span style="font-size:11px;color:${slaColor};font-weight:600">SLA: ${meta.slaHoursRemaining.toFixed(1)}h remaining</span>
-      <span style="font-size:11px;color:#6B7280">15CA Part <strong>${meta.fifteenCAPart}</strong>${meta.fifteenCBRequired ? ' · 15CB Required' : ''}</span>
+      <span style="font-size:11px;color:#6B7280">Form 145 Part <strong>${form145Part}</strong>${form146Required ? ' · Form 146 Required' : ''}</span>
     </div>
 
     <!-- Section 0: Risk Assessment -->
@@ -681,7 +747,7 @@ function renderDetailPanel(form, transferId) {
         <div class="detail-item full"><div class="key">Purpose Description</div><div class="val">${h(rd.purposeDescription)}</div></div>
         <div class="detail-item"><div class="key">Primary Source</div><div class="val">${h(rd.sourceOfFunds)}</div></div>
         <div class="detail-item"><div class="key">FY Cumulative</div><div class="val">₹${formatINR(rd.financialYearCumulative)}</div></div>
-        <div class="detail-item"><div class="key">15CA Part</div><div class="val"><strong>Part ${meta.fifteenCAPart}</strong> — ${rd.financialYearCumulative <= 500000 ? 'Cumulative ≤ ₹5 lakh' : 'Cumulative > ₹5 lakh, 15CB required'}</div></div>
+        <div class="detail-item"><div class="key">Form 145 Part</div><div class="val"><strong>Part ${form145Part}</strong> — ${rd.financialYearCumulative <= 500000 ? 'Cumulative ≤ ₹5 lakh (Part A)' : 'Cumulative > ₹5 lakh — Form 146 required (Part C)'}</div></div>
         <div class="detail-item"><div class="key">First Remittance This FY</div><div class="val">${rd.isFirstRemittanceThisYear ? 'Yes' : 'No'}</div></div>
       </div>
       <div style="margin-top:12px">
@@ -704,12 +770,12 @@ function renderDetailPanel(form, transferId) {
     <!-- Section 4: Tax & TDS -->
     <div class="form-section">
       <h3>4 — Tax &amp; TDS Details</h3>
-      ${!td.tdsVerificationRequired ? '' : '<div class="warn-banner">⚠ TDS verification against Form 26AS is mandatory before certifying 15CB.</div>'}
+      ${!td.tdsVerificationRequired ? '' : '<div class="warn-banner">⚠ TDS verification against Form 26AS is mandatory before certifying Form 146 (IT Act 2025, Section 397(3)(d)).</div>'}
       <div class="detail-grid">
         <div class="detail-item"><div class="key">TDS Deducted</div><div class="val">${td.tdsDeducted ? '✓ Yes' : '✗ No'}</div></div>
         <div class="detail-item"><div class="key">TDS Amount</div><div class="val" style="font-weight:700">₹${formatINR(td.tdsAmountINR)}</div></div>
         <div class="detail-item"><div class="key">TDS Certificate Ref</div><div class="val" style="font-family:monospace">${h(td.tdsReference)}</div></div>
-        <div class="detail-item"><div class="key">Section</div><div class="val">Section 195</div></div>
+        <div class="detail-item"><div class="key">Section</div><div class="val">Section 397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]</div></div>
         <div class="detail-item"><div class="key">Applicable DTAA</div><div class="val">${h(td.applicableDTAA)}</div></div>
         <div class="detail-item"><div class="key">DTAA Article</div><div class="val">${h(td.dtaaArticle)}</div></div>
         <div class="detail-item"><div class="key">Withholding Rate</div><div class="val">${h(td.withholdingTaxRate)}</div></div>
@@ -729,14 +795,14 @@ function renderDetailPanel(form, transferId) {
           </div>`).join('')}
       </div>
       <div class="wiseman-actions-row">
-        <button class="btn btn-outline btn-sm" onclick="exportWiseman()">⬇ Export .txt for WISEMAN</button>
+        <button class="btn btn-outline btn-sm" onclick="exportWiseman()">📥 Download Form 146 Data (.txt)</button>
         <button class="btn btn-sm" style="background:#F3F4F6;color:#374151" onclick="copyAllWiseman()">Copy All Fields</button>
       </div>
     </div>
 
-    <!-- Section 6: 15CB Checklist -->
+    <!-- Section 6: Form 146 Pre-Certification Checklist -->
     <div class="form-section">
-      <h3>6 — Pre-Certification Checklist</h3>
+      <h3>6 — Form 146 Pre-Certification Checklist</h3>
       <div class="checklist" id="checklist">
         ${Object.keys(cb).map(k => `
           <div class="checklist-item" onclick="toggleCheck(this)">
@@ -762,45 +828,50 @@ function toggleCheck(row) {
 }
 
 function renderActionArea(status, transfer) {
-  if (status === '15CA_FILED' || status === 'COMPLETED' || status === 'BANK_PROCESSING') {
+  // Completed / post-filing states
+  if (status === 'FORM145_FILED' || status === '15CA_FILED' || status === 'COMPLETED' || status === 'BANK_PROCESSING') {
+    const form146Num = transfer?.form146Number || transfer?.fifteenCBNumber;
+    const form145Num = transfer?.form145Number || transfer?.fifteenCANumber;
     return `
       <div class="completed-badge">
         <span class="icon">✅</span>
         <div>
           <div>Compliance complete</div>
-          ${transfer?.fifteenCBNumber ? `<div style="font-size:12px;font-weight:400;margin-top:4px">15CB: ${h(transfer.fifteenCBNumber)}</div>` : ''}
-          ${transfer?.fifteenCANumber ? `<div style="font-size:12px;font-weight:400">15CA: ${h(transfer.fifteenCANumber)}</div>` : ''}
+          ${form146Num ? `<div style="font-size:12px;font-weight:400;margin-top:4px">Form 146: ${h(form146Num)}</div>` : ''}
+          ${form145Num ? `<div style="font-size:12px;font-weight:400">Form 145: ${h(form145Num)}</div>` : ''}
         </div>
       </div>`;
   }
 
-  if (status === '15CB_RECEIVED') {
+  // Form 146 received — now need to file Form 145 on IT portal
+  if (status === 'FORM146_RECEIVED' || status === '15CB_RECEIVED') {
     return `
       <div class="action-box">
-        <div style="font-size:13px;color:#374151;margin-bottom:14px">15CB has been certified. File 15CA on the Income Tax portal and enter the acknowledgement number below.</div>
+        <div style="font-size:13px;color:#374151;margin-bottom:14px">Form 146 has been certified. File Form 145 on the Income Tax portal (incometax.gov.in → e-File → Income Tax Forms → Form 145) and enter the acknowledgement number below.</div>
         <div id="file-error" class="err-banner"></div>
-        <label class="field-label">15CA Acknowledgement Number</label>
-        <input id="ca-number" type="text" placeholder="e.g. CA2026-04-190K-1234">
+        <label class="field-label">Form 145 Acknowledgement Number</label>
+        <input id="ca-number" type="text" placeholder="e.g. F145-2026-04-190K-1234">
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handle15CAFiled()">Mark 15CA Filed →</button>
+          <button class="btn btn-primary" onclick="handleForm145Filed()">Mark Form 145 Filed →</button>
         </div>
       </div>`;
   }
 
-  if (status === '15CB_REQUESTED' || status === 'KYC_VERIFIED') {
+  // Form 146 requested (standard NRO workflow)
+  if (status === 'FORM146_REQUESTED' || status === '15CB_REQUESTED' || status === 'KYC_VERIFIED') {
     return `
       <div class="action-box">
         <div id="approve-error" class="err-banner"></div>
-        <label class="field-label">15CB Certificate Number</label>
-        <input id="cb-number" type="text" placeholder="e.g. CB2026-04-190K-5678">
+        <label class="field-label">Form 146 Certificate Number</label>
+        <input id="cb-number" type="text" placeholder="e.g. F146-2026-04-190K-5678">
         <label class="field-label">CA Remarks (minimum 20 characters)</label>
-        <textarea id="ca-remarks" rows="3" placeholder="Verified source of funds against Form 26AS. TDS confirmed. DTAA relief assessed under Article 23..."></textarea>
+        <textarea id="ca-remarks" rows="3" placeholder="Verified source of funds against Form 26AS. TDS confirmed under Section 397(3)(d). DTAA relief assessed under Article 23..."></textarea>
         <label class="confirm-check">
           <input type="checkbox" id="confirm-check">
-          I confirm I have verified the above details on WISEMAN and Form 26AS, and I take professional responsibility for this 15CB certification.
+          I confirm I have verified the above details on WISEMAN and Form 26AS, and I take professional responsibility for this Form 146 certification under IT Act 2025.
         </label>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleApprove()">Certify 15CB ✓</button>
+          <button class="btn btn-primary" onclick="handleApprove()">Certify Form 146 ✓</button>
           <button class="btn btn-danger" onclick="showRejectForm()">Reject ✗</button>
         </div>
         <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
@@ -819,18 +890,18 @@ function renderActionArea(status, transfer) {
   if (status === 'pending_ca_approval') {
     return `
       <div class="action-box">
-        <div class="warn-banner" style="display:block">⚠ HIGH RISK — This transfer is <strong>blocked</strong>. The customer cannot proceed until you certify 15CB and approve. Review the risk assessment in Section 0 before certifying.</div>
+        <div class="warn-banner" style="display:block">⚠ HIGH RISK — This transfer is <strong>blocked</strong>. The customer cannot proceed until you certify Form 146 (IT Act 2025, Section 397(3)(d)) and approve. Review the risk assessment in Section 0 before certifying.</div>
         <div id="approve-error" class="err-banner"></div>
-        <label class="field-label">15CB Certificate Number</label>
-        <input id="cb-number" type="text" placeholder="e.g. CB2026-04-190K-5678">
+        <label class="field-label">Form 146 Certificate Number</label>
+        <input id="cb-number" type="text" placeholder="e.g. F146-2026-04-190K-5678">
         <label class="field-label">CA Remarks (minimum 20 characters)</label>
-        <textarea id="ca-remarks" rows="3" placeholder="Reviewed high-risk indicators. Source of funds verified against Form 26AS. DTAA relief assessed…"></textarea>
+        <textarea id="ca-remarks" rows="3" placeholder="Reviewed high-risk indicators. Source of funds verified against Form 26AS. DTAA relief assessed under Article 23 per Section 397(3)(d)…"></textarea>
         <label class="confirm-check">
           <input type="checkbox" id="confirm-check">
-          I have reviewed the risk assessment, verified source of funds on WISEMAN/Form 26AS, and take professional responsibility for approving this high-risk transfer.
+          I have reviewed the risk assessment, verified source of funds on WISEMAN/Form 26AS, and take professional responsibility for approving this high-risk transfer under IT Act 2025.
         </label>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleApprove()">Approve &amp; Certify 15CB ✓</button>
+          <button class="btn btn-primary" onclick="handleApprove()">Approve &amp; Certify Form 146 ✓</button>
           <button class="btn btn-danger" onclick="showRejectForm()">Reject Transfer ✗</button>
         </div>
         <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
@@ -848,19 +919,19 @@ function renderActionArea(status, transfer) {
     return `
       <div class="action-box">
         <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:10px 14px;font-size:12px;color:#1D4ED8;margin-bottom:14px">
-          ℹ MEDIUM RISK — Transfer is already processing. Your 15CB certification is required for compliance records but does not block the customer.
+          ℹ MEDIUM RISK — Transfer is already processing. Your Form 146 certification is required for compliance records under IT Act 2025 but does not block the customer.
         </div>
         <div id="approve-error" class="err-banner"></div>
-        <label class="field-label">15CB Certificate Number</label>
-        <input id="cb-number" type="text" placeholder="e.g. CB2026-04-190K-5678">
+        <label class="field-label">Form 146 Certificate Number</label>
+        <input id="cb-number" type="text" placeholder="e.g. F146-2026-04-190K-5678">
         <label class="field-label">CA Remarks (minimum 20 characters)</label>
-        <textarea id="ca-remarks" rows="3" placeholder="Reviewed source of funds. TDS verified against Form 26AS. DTAA relief assessed under Article 23…"></textarea>
+        <textarea id="ca-remarks" rows="3" placeholder="Reviewed source of funds. TDS verified against Form 26AS under Section 397(3)(d). DTAA relief assessed under Article 23…"></textarea>
         <label class="confirm-check">
           <input type="checkbox" id="confirm-check">
-          I confirm verification and take professional responsibility for this 15CB certification.
+          I confirm verification and take professional responsibility for this Form 146 certification under IT Act 2025.
         </label>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleApprove()">Certify 15CB ✓</button>
+          <button class="btn btn-primary" onclick="handleApprove()">Certify Form 146 ✓</button>
           <button class="btn btn-danger" onclick="showRejectForm()">Flag Compliance Issue ✗</button>
         </div>
         <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
@@ -881,7 +952,7 @@ function renderActionArea(status, transfer) {
         <span class="icon">${isProcessing ? 'ℹ' : '✕'}</span>
         <div>
           <div>${isProcessing ? 'Low-risk transfer — processing automatically' : 'Transfer failed or rejected'}</div>
-          <div style="font-size:12px;font-weight:400;margin-top:4px">${isProcessing ? 'Risk score below threshold. No CA certification required.' : 'Check audit logs for details.'}</div>
+          <div style="font-size:12px;font-weight:400;margin-top:4px">${isProcessing ? 'Risk score below threshold. No Form 146 certification required.' : 'Check audit logs for details.'}</div>
         </div>
       </div>`;
   }
@@ -900,14 +971,13 @@ async function handleApprove() {
   const errEl = document.getElementById('approve-error');
   errEl.style.display = 'none';
 
-  if (!cbNumber) { showErr(errEl, '15CB certificate number is required.'); return; }
+  if (!cbNumber) { showErr(errEl, 'Form 146 certificate number is required.'); return; }
   if (!remarks || remarks.length < 20) { showErr(errEl, 'CA remarks must be at least 20 characters.'); return; }
   if (!confirmed) { showErr(errEl, 'You must confirm verification before certifying.'); return; }
 
   const res = await apiFetch('POST', `/transfers/${currentTransferId}/approve`, { cbNumber, remarks });
   if (res && res.transfer) {
     await refreshData();
-    const updated = [...allTransfersCache, ...pendingCache].find(t => t.id === currentTransferId);
     document.getElementById('action-area').innerHTML = renderActionArea(res.transfer.status, res.transfer);
     updateStatusBadgeInPanel(res.transfer.status);
   } else {
@@ -931,13 +1001,13 @@ async function handleReject() {
   }
 }
 
-async function handle15CAFiled() {
+async function handleForm145Filed() {
   const caNumber = document.getElementById('ca-number')?.value?.trim();
   const errEl = document.getElementById('file-error');
   errEl.style.display = 'none';
-  if (!caNumber) { showErr(errEl, '15CA acknowledgement number is required.'); return; }
+  if (!caNumber) { showErr(errEl, 'Form 145 acknowledgement number is required.'); return; }
 
-  const res = await apiFetch('POST', `/transfers/${currentTransferId}/15ca-filed`, { caNumber });
+  const res = await apiFetch('POST', `/transfers/${currentTransferId}/form145-filed`, { caNumber });
   if (res && res.transfer) {
     await refreshData();
     document.getElementById('action-area').innerHTML = renderActionArea(res.transfer.status, res.transfer);
@@ -969,24 +1039,61 @@ function copyWiseman(key) {
 
 function copyAllWiseman() {
   if (!currentFormData) return;
-  const text = Object.entries(currentFormData.wisemanFields)
-    .map(([k, v]) => `${k}: ${v}`).join('\n');
+  const wf = currentFormData.wisemanFields;
+  const text = Object.entries(wf).map(([k, v]) => `${k}: ${v}`).join('\n');
   navigator.clipboard.writeText(text).catch(() => {});
 }
 
-function exportWiseman() {
-  if (!currentFormData) return;
-  const text = Object.entries(currentFormData.wisemanFields)
-    .map(([k, v]) => `${k}: ${v}`).join('\n');
-  const blob = new Blob([text], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `wiseman-${currentTransferId?.slice(0,8) || 'export'}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+async function exportWiseman() {
+  if (!currentTransferId) return;
+  try {
+    // Fetch formatted export from server (includes Form 146 header and WISEMAN layout)
+    const res = await apiFetch('GET', `/transfers/${currentTransferId}/wiseman-export`);
+    const text = res?.export || buildLocalWisemanExport();
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `form146-wiseman-${currentTransferId?.slice(0,8) || 'export'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch {
+    // Fallback to local build
+    const text = buildLocalWisemanExport();
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `form146-wiseman-${currentTransferId?.slice(0,8) || 'export'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
+
+function buildLocalWisemanExport() {
+  if (!currentFormData) return '';
+  const wf = currentFormData.wisemanFields;
+  const lines = [
+    '================================================================',
+    'REPAIHUB — FORM 146 DATA FOR WISEMAN ENTRY',
+    'India Income Tax Act 2025 (effective 1 April 2026)',
+    'Section 397(3)(d) — Remittance from NRO Account',
+    '================================================================',
+    `Transfer ID : ${currentTransferId || '—'}`,
+    `Generated   : ${new Date().toISOString()}`,
+    '----------------------------------------------------------------',
+    '',
+    ...Object.entries(wf).map(([k, v]) => `${k.padEnd(30)}: ${v}`),
+    '',
+    '================================================================',
+    'FILE THIS FORM AT: incometax.gov.in → e-File → Income Tax Forms → Form 146',
+    '================================================================',
+  ];
+  return lines.join('\n');
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────

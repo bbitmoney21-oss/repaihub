@@ -37,20 +37,35 @@ export default function Signup() {
       nav('/onboarding/residency')
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? ''
+      const lower = msg.toLowerCase()
       let displayMsg: string
-      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already exists')) {
+      let errorField: 'email' | 'pw' | 'general' = 'email'
+
+      if (lower.includes('already registered') || lower.includes('already exists')) {
         displayMsg = 'An account with this email already exists. Please sign in instead.'
+      } else if (lower.includes('password')) {
+        // Password policy / weakness errors should surface on the password field
+        displayMsg = msg
+        errorField = 'pw'
+      } else if (lower.includes('rate') || lower.includes('too many')) {
+        displayMsg = msg
+        errorField = 'general'
       } else if (
         msg === 'Failed to fetch' ||
-        msg.toLowerCase().includes('networkerror') ||
-        msg.toLowerCase().includes('not configured') ||
-        msg.toLowerCase().includes('failed to fetch')
+        lower.includes('networkerror') ||
+        lower.includes('not configured') ||
+        lower.includes('failed to fetch') ||
+        lower.includes('unavailable')
       ) {
         displayMsg = 'Cannot connect to server. Please check your connection and try again.'
+        errorField = 'general'
       } else {
+        // Surface the actual server-provided reason — no more generic "exists" lie
         displayMsg = msg || 'Registration failed. Please try again.'
+        errorField = 'general'
       }
-      setErrors(ex => ({ ...ex, email: displayMsg }))
+
+      setErrors(ex => ({ ...ex, [errorField]: displayMsg }))
     } finally {
       setLoading(false)
     }
@@ -156,6 +171,12 @@ export default function Signup() {
               </span>
             </label>
             {errors.agree && <p style={{ fontSize: '0.75rem', color: '#E74C3C', marginTop: '-0.75rem' }}>{errors.agree}</p>}
+
+            {errors.general && (
+              <div style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', padding: '0.75rem 1rem', fontSize: '0.8rem', color: '#E74C3C', lineHeight: 1.5 }}>
+                {errors.general}
+              </div>
+            )}
 
             <button type="submit" disabled={loading}
               style={{ background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: '0.5rem', transition: 'background 0.2s' }}>

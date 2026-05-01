@@ -13,6 +13,23 @@ const router = Router();
 const JWT_SECRET = () => process.env.JWT_SECRET || 'repaihub_customer_secret_change_in_production';
 const FRONTEND_URL = () => process.env.FRONTEND_URL || 'http://localhost:3000';
 const ts = () => new Date().toISOString();
+const isDev = () => process.env.NODE_ENV !== 'production';
+
+// Build an error response body. In dev, includes a debug field with the
+// underlying message so the frontend "Request failed (500)" mystery never
+// happens again. In prod, only the user-safe message is sent.
+function errBody(userMessage: string, debugCause?: unknown): Record<string, unknown> {
+  const body: Record<string, unknown> = { error: userMessage, timestamp: ts() };
+  if (isDev() && debugCause !== undefined) {
+    const e = debugCause as { message?: string; code?: string; status?: number };
+    body.debug = {
+      message: e?.message ?? String(debugCause),
+      code: e?.code,
+      status: e?.status,
+    };
+  }
+  return body;
+}
 
 function issueToken(userId: string, email: string): string {
   return jwt.sign({ id: userId, email }, JWT_SECRET(), { expiresIn: '7d' });
@@ -46,81 +63,183 @@ function emailHtml(name: string, resetUrl: string): string {
   `;
 }
 
-// ── POST /auth/register ───────────────────────────────────────────────────────
-router.post('/register', async (req: Request, res: Response) => {
-  const { email, password, name, phone, referredByCode } = req.body as {
-    email?: string; password?: string; name?: string; phone?: string; referredByCode?: string;
-  };
-
-  if (!email || !password || !name) {
-    res.status(400).json({ error: 'email, password, and name are required', timestamp: ts() });
-    return;
-  }
-  if (password.length < 8) {
-    res.status(400).json({ error: 'Password must be at least 8 characters', timestamp: ts() });
-    return;
-  }
-
-  if (!supabaseAdminConfigured) {
-    res.status(503).json({ error: 'Auth service not configured', timestamp: ts() });
-    return;
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: name, phone: phone ?? null },
-  });
-
-  if (authError) {
-    const msg = authError.message?.toLowerCase() ?? '';
-    if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
-      res.status(409).json({ error: 'Email already registered', timestamp: ts() });
-    } else {
-      res.status(400).json({ error: authError.message, timestamp: ts() });
-    }
-    return;
-  }
-
-  if (!authData.user) {
-    res.status(500).json({ error: 'Registration failed', timestamp: ts() });
-    return;
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  const userId = authData.user.id;
-
-  await supabaseAdmin.from('profiles').upsert({
-    id: userId,
+// ── Profile creation helper — resilient, logs on failure ─────────────────────
+// The on_auth_user_created trigger already inserts the base profile row
+// (id, email, full_name, phone) on auth.users insert. This helper layers in the
+// optional auth fields IF those columns exist (migrations 004/008). Each optional
+// column is set in its own update so a single missing column doesn't break the rest.
+async function ensureProfile(
+  userId: string,
+  email: string,
+  name: string,
+  phone: string | null,
+  passwordHash: string,
+  referredByCode: string | null,
+): Promise<void> {
+  // Step 1: ensure the base profile row exists (trigger should have done this,
+  // but we upsert defensively in case the trigger isn't installed in some env).
+  const { error: baseErr } = await supabaseAdmin.from('profiles').upsert({
+    id:        userId,
     email,
     full_name: name,
-    phone: phone ?? null,
-    password_hash: passwordHash,
-    referred_by_code: referredByCode?.toUpperCase() ?? null,
+    phone:     phone ?? null,
   }, { onConflict: 'id' });
 
-  // Generate referral code + record referral relationship (never blocks registration)
-  let myReferralCode: string | null = null;
-  try {
-    myReferralCode = await createReferralCode(userId, name);
-    if (referredByCode) {
-      await recordReferralSignup(userId, referredByCode);
-    }
-  } catch (err) {
-    console.error('[Auth] Referral setup failed (non-critical):', err);
+  if (baseErr) {
+    console.error('[Auth] Base profile upsert failed:', baseErr.message);
+    // The auth.users row exists — login flow has a self-heal that recreates the profile.
+    return;
   }
 
-  const token = issueToken(userId, email);
-  res.status(201).json({
-    token,
-    user: { id: userId, email, name, phone: phone ?? null, myReferralCode },
-    timestamp: ts(),
-  });
+  // Step 2: try to write password_hash if column exists (migration 004)
+  const { error: pwErr } = await supabaseAdmin
+    .from('profiles')
+    .update({ password_hash: passwordHash })
+    .eq('id', userId);
+  if (pwErr) {
+    // Most likely the column doesn't exist in this Supabase project — log and continue.
+    // Login will still work because it falls back to Supabase auth signInWithPassword.
+    console.warn('[Auth] password_hash update skipped (column likely missing — apply migration 004):', pwErr.message);
+  }
+
+  // Step 3: try to write referred_by_code if column exists (migration 008)
+  if (referredByCode) {
+    const { error: refErr } = await supabaseAdmin
+      .from('profiles')
+      .update({ referred_by_code: referredByCode })
+      .eq('id', userId);
+    if (refErr) {
+      console.warn('[Auth] referred_by_code update skipped (column likely missing — apply migration 008):', refErr.message);
+    }
+  }
+}
+
+// ── POST /auth/register ───────────────────────────────────────────────────────
+router.post('/register', async (req: Request, res: Response) => {
+  try {
+    const { email, password, name, phone, referredByCode } = req.body as {
+      email?: string; password?: string; name?: string; phone?: string; referredByCode?: string;
+    };
+
+    if (!email || !password || !name) {
+      res.status(400).json({ error: 'email, password, and name are required', timestamp: ts() });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters', timestamp: ts() });
+      return;
+    }
+
+    if (!supabaseAdminConfigured) {
+      console.error('[Auth] supabaseAdminConfigured is FALSE — env vars not loaded. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+      res.status(503).json(errBody('Auth service not configured', { message: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing or placeholder', code: 'env_not_loaded' }));
+      return;
+    }
+
+    let authData: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.createUser>>['data'];
+    let authError: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.createUser>>['error'];
+
+    try {
+      const result = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: name, phone: phone ?? null },
+      });
+      authData = result.data;
+      authError = result.error;
+    } catch (createErr: unknown) {
+      // Network / unexpected throw from Supabase SDK. Log full error for ops.
+      console.error('[Auth] createUser threw unexpectedly:', createErr);
+      const msg = String((createErr as { message?: string })?.message ?? createErr).toLowerCase();
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('user already') ||
+        msg.includes('email address has already') ||
+        msg.includes('duplicate key')
+      ) {
+        res.status(409).json(errBody('A user with this email address has already been registered', createErr));
+      } else {
+        res.status(503).json(errBody('Registration service unavailable. Please try again in a moment.', createErr));
+      }
+      return;
+    }
+
+    if (authError) {
+      // IMPORTANT: Supabase returns HTTP 422 for many reasons (weak password,
+      // signup disabled, invalid email format, rate limit, AND user-already-exists).
+      // We previously mapped ANY 422 to "already exists", which produced the
+      // false-positive "email exists when it doesn't" symptom. Match on the
+      // message text only, and surface the actual reason for everything else.
+      const msg = authError.message?.toLowerCase() ?? '';
+      console.error('[Auth] createUser returned error:', { code: (authError as { code?: string }).code, status: (authError as unknown as { status?: number }).status, message: authError.message });
+
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('user already') ||
+        msg.includes('email address has already')
+      ) {
+        res.status(409).json(errBody('A user with this email address has already been registered', authError));
+      } else if (msg.includes('password') && (msg.includes('weak') || msg.includes('short') || msg.includes('characters'))) {
+        res.status(400).json(errBody('Password does not meet requirements. Use at least 8 characters with a mix of letters and numbers.', authError));
+      } else if (msg.includes('signup') && msg.includes('disabled')) {
+        res.status(503).json(errBody('New signups are temporarily disabled. Please try again later.', authError));
+      } else if (msg.includes('rate') || msg.includes('too many')) {
+        res.status(429).json(errBody('Too many signup attempts. Please wait a few minutes and try again.', authError));
+      } else if (msg.includes('invalid') && msg.includes('email')) {
+        res.status(400).json(errBody('Please enter a valid email address.', authError));
+      } else {
+        // Surface the real reason instead of generic "400 + raw message"
+        res.status(400).json(errBody(authError.message || 'Registration failed. Please try again.', authError));
+      }
+      return;
+    }
+
+    if (!authData?.user) {
+      res.status(500).json({ error: 'Registration failed — no user returned', timestamp: ts() });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const userId = authData.user.id;
+
+    // CRITICAL: create profile record — resilient helper logs on failure but never blocks registration
+    await ensureProfile(userId, email, name, phone ?? null, passwordHash, referredByCode?.toUpperCase() ?? null);
+
+    // Generate referral code + record referral relationship (never blocks registration)
+    let myReferralCode: string | null = null;
+    try {
+      myReferralCode = await createReferralCode(userId, name);
+      if (referredByCode) {
+        await recordReferralSignup(userId, referredByCode);
+      }
+    } catch (err) {
+      console.error('[Auth] Referral setup failed (non-critical):', err);
+    }
+
+    const token = issueToken(userId, email);
+    res.status(201).json({
+      token,
+      user: { id: userId, email, name, phone: phone ?? null, myReferralCode },
+      timestamp: ts(),
+    });
+  } catch (err: unknown) {
+    // Capture stack + message — previously we lost the cause of every 500
+    const e = err as { message?: string; stack?: string; code?: string };
+    console.error('[Auth] Unhandled registration error:', {
+      message: e?.message,
+      code: e?.code,
+      stack: e?.stack,
+    });
+    res.status(500).json(errBody('Registration failed. Please try again.', err));
+  }
 });
 
 // ── POST /auth/login ──────────────────────────────────────────────────────────
 router.post('/login', async (req: Request, res: Response) => {
+  try {
   const { email, password } = req.body as { email?: string; password?: string };
 
   if (!email || !password) {
@@ -139,15 +258,32 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
 
-  const { data: profile, error: profileError } = await supabaseAdmin
+  let profile = (await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('email', email)
-    .maybeSingle();
+    .maybeSingle()).data;
 
-  if (profileError || !profile) {
-    res.status(401).json({ error: 'Invalid email or password', timestamp: ts() });
-    return;
+  // Safety net: profile record missing — auth user may exist (e.g. registration profile insert failed)
+  if (!profile) {
+    const { data: signInData, error: signInCheck } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+    if (!signInCheck && signInData?.user) {
+      const authUser = signInData.user;
+      console.log('[Auth] Repairing missing profile for user:', authUser.id);
+      const hash = await bcrypt.hash(password, 12);
+      const { data: repaired } = await supabaseAdmin.from('profiles').upsert({
+        id:            authUser.id,
+        email,
+        full_name:     (authUser.user_metadata?.full_name as string | undefined) ?? '',
+        phone:         (authUser.user_metadata?.phone as string | undefined) ?? null,
+        password_hash: hash,
+      }, { onConflict: 'id' }).select().single();
+      profile = repaired;
+    }
+    if (!profile) {
+      res.status(401).json({ error: 'Invalid email or password', timestamp: ts() });
+      return;
+    }
   }
 
   // Account lockout check
@@ -169,7 +305,7 @@ router.post('/login', async (req: Request, res: Response) => {
       const { error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
       if (!signInErr) {
         authenticated = true;
-        // Re-sync bcrypt hash with new password
+        // Re-sync bcrypt hash
         const hash = await bcrypt.hash(password, 12);
         await supabaseAdmin.from('profiles').update({ password_hash: hash }).eq('email', email);
       }
@@ -231,6 +367,10 @@ router.post('/login', async (req: Request, res: Response) => {
     },
     timestamp: ts(),
   });
+  } catch (err: unknown) {
+    console.error('[Auth] Unhandled login error:', err);
+    res.status(500).json({ error: 'Login failed. Please try again.', timestamp: ts() });
+  }
 });
 
 // ── POST /auth/forgot-password ────────────────────────────────────────────────
@@ -266,7 +406,6 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
   if (linkError || !linkData?.properties?.action_link) {
     console.error('[Auth] generateLink failed:', linkError?.message);
-    // Last-resort fallback: Supabase native email
     await supabaseAdmin.auth.resetPasswordForEmail(email, {
       redirectTo: `${FRONTEND_URL()}/reset-password`,
     }).catch((e: unknown) => console.error('[Auth] resetPasswordForEmail failed:', e));
@@ -288,11 +427,11 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       html: emailHtml(profile.full_name ?? 'there', actionLink),
     });
 
-    if (!sendError) return; // Resend worked — done
+    if (!sendError) return;
     console.log('[Resend] Send failed, falling back to Supabase SMTP:', sendError.message);
   }
 
-  // Fallback: Supabase native SMTP (always works, from noreply@mail.supabase.io)
+  // Fallback: Supabase native SMTP
   await supabaseAdmin.auth.resetPasswordForEmail(email, {
     redirectTo: `${FRONTEND_URL()}/reset-password`,
   }).catch((e: unknown) => console.error('[Auth] Supabase SMTP fallback failed:', e));

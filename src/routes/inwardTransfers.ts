@@ -20,18 +20,60 @@ function genInwardReference(): string {
   return `RH-IN-${year}-${rand}`;
 }
 
-// ── GET /inward/rates?amount_cad=500 ─────────────────────────────────────────
+// ── GET /inward/rates?amount_cad=500&speed=standard ──────────────────────────
 router.get('/rates', async (req, res) => {
   const amountCAD = Number((req.query as Record<string, string>).amount_cad) || 500;
+  const speed = ((req.query as Record<string, string>).speed ?? 'standard') as 'standard' | 'express';
 
   const adapter = await getInwardCollectionAdapter();
   const rateResult = await adapter.getRate('CAD', 'INR');
+  const feeConfig = await calculateInwardFees({
+    amountCAD,
+    exchangeRate: rateResult.rate > 0 ? 1 / rateResult.rate : 1 / 62.5,
+    speed,
+    isFirstTransfer: false,
+    userId: '',
+  }).catch(() => null);
   const grossINR = Math.round(amountCAD * rateResult.rate * 100) / 100;
 
-  // Fee estimate (Remitly model: no flat fee >= CAD 500 economy)
-  const flatFee = amountCAD >= 500 ? 0 : 1.99;
-  const totalFeesCAD = flatFee; // FX margin is in the rate, not shown separately
-  const netINR = Math.round((amountCAD - totalFeesCAD) * rateResult.rate * 100) / 100;
+  // Use fee config if available, else fall back to simple logic
+  let flatFeeCAD = 0;
+  let flatFeeWaived = false;
+  let flatFeeWaivedReason = '';
+  let expressFeeCAD = 0;
+  let totalFeesCAD = 0;
+
+  if (feeConfig) {
+    flatFeeCAD = feeConfig.flatFeeCAD;
+    flatFeeWaived = feeConfig.flatFeeWaived;
+    flatFeeWaivedReason = feeConfig.flatFeeWaivedReason ?? '';
+    expressFeeCAD = feeConfig.expressFeeCAD;
+    totalFeesCAD = feeConfig.totalFeesCAD;
+  } else {
+    // Safe fallback using inward_fee_config defaults
+    const { getInwardFeeConfig } = await import('../services/inwardFeeService');
+    const cfg = await getInwardFeeConfig().catch(() => null);
+    const baseFlatFee = cfg?.flatFeeCAD ?? 1.99;
+    flatFeeWaived = speed === 'standard' && amountCAD >= (cfg?.maxTransferCAD ?? 500);
+    flatFeeCAD = flatFeeWaived ? 0 : baseFlatFee;
+    flatFeeWaivedReason = flatFeeWaived ? `Economy transfers of CAD ${cfg?.maxTransferCAD ?? 500}+ have no flat fee` : '';
+    expressFeeCAD = speed === 'express' ? (cfg?.expressSurchargeCAD ?? 1.99) : 0;
+    totalFeesCAD = flatFeeCAD + expressFeeCAD;
+  }
+
+  const netCAD = amountCAD - totalFeesCAD;
+  const netINR = Math.round(netCAD * rateResult.rate * 100) / 100;
+  const totalCustomerPaysCAD = amountCAD + (speed === 'express' ? expressFeeCAD : 0);
+
+  const breakdown: string[] = [
+    `You send: CAD ${amountCAD.toFixed(2)}`,
+    flatFeeWaived
+      ? `Flat fee: CAD 0.00 (${flatFeeWaivedReason || 'waived'})`
+      : `Flat fee: CAD ${flatFeeCAD.toFixed(2)}`,
+  ];
+  if (speed === 'express') breakdown.push(`Express fee: CAD ${expressFeeCAD.toFixed(2)}`);
+  breakdown.push(`Exchange rate: 1 CAD = ₹${rateResult.rate}`);
+  breakdown.push(`Recipient gets: ₹${netINR.toLocaleString('en-IN')}`);
 
   res.json({
     rate: rateResult.rate,
@@ -43,17 +85,15 @@ router.get('/rates', async (req, res) => {
       amountCAD,
       amountINR: grossINR,
       netAmountINR: netINR,
+      recipientGetsINR: netINR,
       totalFeesCAD,
-      flatFeeCAD: flatFee,
+      flatFeeCAD,
+      flatFeeWaived,
+      flatFeeWaivedReason,
+      expressFeeCAD,
+      totalCustomerPaysCAD,
       fxMarginNote: 'FX margin of ~1.5% is built into the exchange rate',
-      breakdown: [
-        `You send: CAD ${amountCAD}`,
-        flatFee === 0
-          ? 'Flat fee: CAD 0.00 (waived — Economy >= CAD 500)'
-          : `Flat fee: CAD ${flatFee.toFixed(2)}`,
-        `Exchange rate: 1 CAD = ₹${rateResult.rate}`,
-        `Recipient gets: ₹${netINR.toLocaleString('en-IN')}`,
-      ],
+      breakdown,
       note: 'Rate provided by Fable. India payout via Fable→Nium.',
     },
     validForSeconds: rateResult.validForSeconds,

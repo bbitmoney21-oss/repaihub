@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "tsx watch src/server.ts",
+    "dev:all": "concurrently -n API,VITE -c cyan,yellow \"npm run dev:server\" \"npm run dev\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:server": "tsx watch src/server.ts",
     "build:server": "tsc -p tsconfig.server.json && node scripts/post-build-server.mjs",
     "start:server": "node dist-server/server.js"
   },
@@ -41,6 +42,7 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.14",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.14",

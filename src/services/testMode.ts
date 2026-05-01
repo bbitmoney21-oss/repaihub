@@ -1,3 +1,6 @@
+// NOTE: Under India Income Tax Act 2025 (effective 1 Apr 2026):
+// Form 15CA is now Form 145 | Form 15CB is now Form 146
+
 import { supabaseAdmin } from '../lib/supabaseServer';
 
 const log = (msg: string) => console.log(`[TEST MODE] ${msg}`);
@@ -30,38 +33,41 @@ export async function autoProgressTestTransfer(transferId: string): Promise<void
   ]);
   log(`${transferId} → kyc_verified / under_review`);
 
-  // 15s → CA approves: 15CB received + compliance approved
+  // 15s → CA approves: Form 146 received + compliance approved
   await delay(15000);
-  const cbNumber = `CB-TEST-${Date.now().toString().slice(-4)}`;
+  const cbNumber = `F146-TEST-${Date.now().toString().slice(-4)}`;
   await Promise.all([
     updateTransfer(transferId, {
-      status: '15cb_received',
+      status: 'form146_received',
+      // Write to both old and new column names during migration 016 window
+      form146_number: cbNumber,
       fifteen_cb_number: cbNumber,
-      ca_remarks: 'Test mode — auto-approved. TDS verified in 26AS. DTAA Article 23 applied.',
+      ca_remarks: 'Test mode — Form 146 auto-approved. TDS verified in 26AS. DTAA Article 23 [India-Canada] applied. Section 397(3)(d) IT Act 2025.',
       ca_approved_at: new Date().toISOString(),
       ca_approved_by: 'CA Partner (Test Mode) — ICAI 123456',
     }),
     updateCompliance(transferId, {
       status: 'approved',
       fifteen_cb_number: cbNumber,
-      ca_remarks: 'Test mode — auto-approved. TDS verified in 26AS. DTAA Article 23 applied.',
+      ca_remarks: 'Test mode — Form 146 auto-approved (IT Act 2025). TDS verified in 26AS.',
       ca_reviewed_by: 'CA Partner (Test Mode)',
       ca_reviewed_at: new Date().toISOString(),
     }),
   ]);
-  log(`${transferId} → 15cb_received / approved (15CB: ${cbNumber})`);
+  log(`${transferId} → form146_received / approved (Form 146: ${cbNumber})`);
 
-  // 20s → 15CA filed
+  // 20s → Form 145 filed
   await delay(5000);
-  const caNumber = `CA-TEST-${Date.now().toString().slice(-4)}`;
+  const caNumber = `F145-TEST-${Date.now().toString().slice(-4)}`;
   await Promise.all([
     updateTransfer(transferId, {
-      status: '15ca_filed',
-      fifteen_ca_number: caNumber,
+      status: 'form145_filed',
+      form145_number: caNumber,
+      fifteen_ca_number: caNumber, // backward compat
     }),
     updateCompliance(transferId, { fifteen_ca_number: caNumber }),
   ]);
-  log(`${transferId} → 15ca_filed (15CA: ${caNumber})`);
+  log(`${transferId} → form145_filed (Form 145: ${caNumber})`);
 
   // 25s → Bank processing
   await delay(5000);

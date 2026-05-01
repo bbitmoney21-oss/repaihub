@@ -1,5 +1,25 @@
-// Email notifications — real sending requires SENDGRID_API_KEY in env.
-// Without the key, all functions log to console and resolve silently.
+// Email notifications via Resend.
+// Without RESEND_API_KEY, all functions log to console and resolve silently.
+
+import { Resend } from 'resend';
+
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'REPAIHUB <onboarding@resend.dev>';
+
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
+
+async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[email-mock] To: ${to} | Subject: ${subject}`);
+    return;
+  }
+  const { error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+  if (error) console.error('[Resend] Send failed:', error.message);
+}
 
 interface TransferNotificationParams {
   customerEmail: string;
@@ -10,39 +30,48 @@ interface TransferNotificationParams {
   status: string;
 }
 
-const hasSendGrid = !!process.env.SENDGRID_API_KEY;
-
-async function sendEmail(to: string, subject: string, text: string): Promise<void> {
-  if (!hasSendGrid) {
-    console.log(`[email stub] To: ${to} | Subject: ${subject}`);
-    return;
-  }
-  // Real SendGrid call would go here when key is added.
-  console.log(`[email] Sent to ${to}: ${subject}`);
+function wrapHtml(body: string): string {
+  return `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0B1C2C;color:#FAF6F0;">
+    <h1 style="color:#E8B86D;font-size:1.5rem;margin-bottom:8px;">REPAIHUB</h1>
+    <p style="color:#8BA0B4;font-size:0.85rem;margin-bottom:24px;">NRI Remittance — Canada ↔ India</p>
+    ${body}
+    <p style="font-size:0.75rem;color:#4A5568;margin-top:24px;">REPAIHUB is a FINTRAC registered Money Services Business.</p>
+  </div>`;
 }
 
 export async function notifyTransferInitiated(p: TransferNotificationParams): Promise<void> {
-  await sendEmail(
-    p.customerEmail,
-    `Transfer Initiated — ₹${p.amountINR.toLocaleString('en-IN')} → CA$${p.amountCAD.toFixed(2)}`,
-    `Hi ${p.customerName},\n\nYour transfer (Ref: ${p.transferId}) has been received and is under review.\n\nAmount: ₹${p.amountINR.toLocaleString('en-IN')} → CA$${p.amountCAD.toFixed(2)}\n\nWe'll notify you at each step.\n\n— REPAIHUB`,
-  );
+  const html = wrapHtml(`
+    <h2 style="font-size:1.1rem;margin-bottom:16px;">Hi ${p.customerName},</h2>
+    <p style="line-height:1.7;margin-bottom:24px;">
+      Your transfer has been received and is under compliance review.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <tr><td style="padding:8px 0;color:#8BA0B4;font-size:0.85rem;">Reference</td><td style="font-weight:600;">${p.transferId.slice(0,8).toUpperCase()}</td></tr>
+      <tr><td style="padding:8px 0;color:#8BA0B4;font-size:0.85rem;">Amount</td><td style="font-weight:600;">₹${p.amountINR.toLocaleString('en-IN')} → CA$${p.amountCAD.toFixed(2)}</td></tr>
+    </table>
+    <p style="color:#8BA0B4;font-size:0.85rem;line-height:1.6;">We'll notify you at each step. Most transfers complete within 1-2 business days.</p>
+  `);
+  await sendEmail(p.customerEmail, `Transfer Initiated — ₹${p.amountINR.toLocaleString('en-IN')} → CA$${p.amountCAD.toFixed(2)}`, html);
 }
 
 export async function notifyTransferStatusChange(p: TransferNotificationParams): Promise<void> {
   const statusLabels: Record<string, string> = {
-    kyc_verified:     'KYC Verified',
-    '15cb_requested': 'CA Review in Progress',
-    '15cb_received':  '15CB Certificate Issued',
-    '15ca_filed':     '15CA Filed — Bank Processing Soon',
-    bank_processing:  'Bank Processing',
-    completed:        'Transfer Completed',
-    failed:           'Transfer Failed',
+    kyc_verified:        'KYC Verified — Proceeding to compliance review',
+    form146_requested:   'Form 146 (CA Certificate) requested',
+    form146_received:    'Form 146 Issued — Filing Form 145',
+    form145_filed:       'Form 145 Filed — Bank Processing Soon',
+    bank_processing:     'Bank Processing — Transfer with SWIFT',
+    completed:           'Transfer Completed',
+    failed:              'Transfer Failed',
+    cancelled:           'Transfer Cancelled',
   };
   const label = statusLabels[p.status] ?? p.status;
-  await sendEmail(
-    p.customerEmail,
-    `Transfer Update: ${label} — Ref ${p.transferId.slice(0, 8)}`,
-    `Hi ${p.customerName},\n\nYour transfer status has been updated to: ${label}\n\nRef: ${p.transferId}\n\n— REPAIHUB`,
-  );
+  const html = wrapHtml(`
+    <h2 style="font-size:1.1rem;margin-bottom:16px;">Transfer Update: ${label}</h2>
+    <p style="color:#8BA0B4;font-size:0.85rem;line-height:1.6;">
+      Reference: ${p.transferId.slice(0,8).toUpperCase()}<br/>
+      Amount: ₹${p.amountINR.toLocaleString('en-IN')} → CA$${p.amountCAD.toFixed(2)}
+    </p>
+  `);
+  await sendEmail(p.customerEmail, `Transfer Update: ${label} — Ref ${p.transferId.slice(0,8)}`, html);
 }

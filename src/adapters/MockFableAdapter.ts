@@ -2,6 +2,7 @@
 // Used when FABLE_API_KEY is not set (dev mode)
 // Fires real webhook callbacks so the full pipeline is testable end-to-end
 
+import { createHash } from 'crypto';
 import type {
   IPaymentGateway,
   RateResult,
@@ -11,6 +12,7 @@ import type {
   InwardPayoutInstruction,
   TransferResult,
 } from './IPaymentGateway.js';
+import type { KYCInitiateResult, PANVerifyResult } from './SetuAdapter.js';
 
 const PORT = process.env.PORT || '3000';
 const WEBHOOK_URL = `http://localhost:${PORT}/webhooks/fable`;
@@ -78,7 +80,7 @@ export class MockFableAdapter implements IPaymentGateway {
       console.log(`  Fable AD bank debiting NRE account at ${instruction.nroBankName} via Kotak AD bank`);
     } else {
       console.log(`[ORANGE-MOCK] Fable.executeOutward — AD bank debiting ${instruction.nroBankName} account via Kotak AD bank`);
-      console.log(`  Route: ${instruction.customerType} | 15CA: ${instruction.fifteenCANumber || 'N/A'} | 15CB: ${instruction.fifteenCBNumber || 'N/A'}`);
+      console.log(`  Route: ${instruction.customerType} | Form145: ${instruction.form145Number || 'N/A'} | Form146: ${instruction.form146Number || 'N/A'}`);
     }
 
     // Fire webhook after 4 seconds (non-blocking)
@@ -168,6 +170,40 @@ export class MockFableAdapter implements IPaymentGateway {
       status: 'processing',
       updatedAt: new Date().toISOString(),
       details: { providerReference, source: 'mock' },
+    };
+  }
+
+  // ── KYC mocks — always return mock data, never throw ─────────────────────────
+  async initiateIndiaKYC(userId: string): Promise<KYCInitiateResult> {
+    const sessionId = `fable-india-mock-${userId}-${Date.now()}`;
+    console.log(`[ORANGE-MOCK] Fable.initiateIndiaKYC — mock session ${sessionId}`);
+    return {
+      sessionId,
+      redirectUrl: `http://localhost:3001/kyc/mock-fable-india?session=${sessionId}`,
+      provider: 'fable_india_mock',
+      instructions: '[MOCK] Fable India KYC — unconfirmed capability, using mock',
+    };
+  }
+
+  async initiateCanadaKYC(userId: string): Promise<KYCInitiateResult> {
+    const sessionId = `fable-canada-mock-${userId}-${Date.now()}`;
+    console.log(`[ORANGE-MOCK] Fable.initiateCanadaKYC — mock session ${sessionId}`);
+    return {
+      sessionId,
+      widgetToken: 'mock-fable-canada-widget-token',
+      provider: 'fable_canada_mock',
+      instructions: '[MOCK] Fable Canada KYC — unconfirmed capability, using mock',
+    };
+  }
+
+  async verifyPAN(panNumber: string): Promise<PANVerifyResult> {
+    const hash = createHash('sha256').update(panNumber.toUpperCase().trim()).digest('hex');
+    console.log(`[ORANGE-MOCK] Fable.verifyPAN — mock valid, hash stored`);
+    return {
+      valid: true,
+      name: 'MOCK PAN HOLDER',
+      provider: 'fable_pan_mock',
+      panHash: hash,
     };
   }
 

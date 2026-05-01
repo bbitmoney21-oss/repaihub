@@ -1,5 +1,6 @@
-// [GREEN] FifteenCBService — CA webhook and WISEMAN data preparation
-// CA uses WISEMAN to prepare 15CB. This service formats the data.
+// NOTE: Under India Income Tax Act 2025 (effective 1 Apr 2026):
+// Form 15CB is now Form 146 | Section 195 is now Section 397(3)(d)
+// CA uses WISEMAN to prepare Form 146. This service formats the data.
 
 export interface WisemanFields {
   assessee_pan: string;
@@ -47,7 +48,8 @@ export function buildWisemanFields(
     country_of_remittance: 'Canada',
     bank_name: 'AD Bank via Fable Fintech',
     purpose_code: purposeCode,
-    tds_section: '195',
+    // IT Act 2025: Section 397(3)(d) replaces Section 195
+    tds_section: '397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]',
     tds_rate: `${tdsRate}%`,
     dtaa_applicable: 'Yes',
     dtaa_article: 'Article 23 — India-Canada DTAA 1996',

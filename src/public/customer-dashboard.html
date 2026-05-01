@@ -294,6 +294,7 @@
             <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value" id="stat-active">—</div></div>
             <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value" id="stat-completed">—</div></div>
             <div class="stat-card"><div class="stat-label">Total Remitted (CAD)</div><div class="stat-value" id="stat-volume">—</div></div>
+            <div id="fema-widget" style="grid-column:1/-1"></div>
           </div>
           <div class="page-title serif" style="font-size:1.2rem;margin-bottom:1rem">Recent Outward Transfers</div>
           <div id="recent-transfers"><div class="loading-center"><div class="spinner"></div><span>Loading…</span></div></div>
@@ -350,7 +351,7 @@
             <div class="rate-box" id="rate-box" style="display:none">
               <div class="rate-row"><span style="color:var(--muted)">Exchange Rate</span><span id="rate-display">—</span></div>
               <div class="rate-row"><span style="color:var(--muted)">Transfer Fee</span><span id="fee-display">—</span></div>
-              <div class="rate-row"><span style="color:var(--muted)">15CA Part</span><span id="part-display">—</span></div>
+              <div class="rate-row"><span style="color:var(--muted)">Form 145 Part</span><span id="part-display">—</span></div>
               <div class="rate-row total"><span>Total Deducted from NRO</span><span id="total-display">—</span></div>
             </div>
           </div>
@@ -362,7 +363,7 @@
                 <label>Account Type</label>
                 <select id="nt-account-type" onchange="updateOutwardAccountNote()">
                   <option value="NRO">NRO — Non-Resident Ordinary (taxable)</option>
-                  <option value="NRE">NRE — Non-Resident External (tax-free, no 15CA)</option>
+                  <option value="NRE">NRE — Non-Resident External (tax-free, no Form 145/146)</option>
                 </select>
               </div>
               <div class="field">
@@ -376,7 +377,7 @@
               </div>
             </div>
             <div id="account-type-note" class="rate-box" style="margin-top:1rem;font-size:0.82rem;color:var(--muted)">
-              NRO: Subject to 15CA/15CB compliance. Annual limit ₹1 crore. TDS may apply.
+              NRO: Subject to Form 145/146 compliance (IT Act 2025). FEMA annual limit USD 1,000,000. TDS may apply.
             </div>
           </div>
 
@@ -624,6 +625,8 @@ function enterApp() {
   loadDashboard();
   fetchRate();
   fetchInwardRate();
+  startKeepAlive();
+  loadFemaWidget();
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -662,17 +665,26 @@ function switchDashTab(tab, btn) {
 // ── Status helpers ────────────────────────────────────────────────────────────
 const OUTWARD_STATUS_LABELS = {
   initiated: 'Initiated', processing: 'Processing',
-  kyc_verified: 'KYC Verified', '15cb_requested': 'CA Review',
-  '15cb_received': '15CB Certified', '15ca_filed': '15CA Filed',
+  kyc_verified: 'KYC Verified',
+  // IT Act 2025 names
+  form146_requested: 'CA Review (Form 146)', form146_received: 'Form 146 Certified',
+  form145_filed: 'Form 145 Filed',
+  // Legacy IT Act 1961 (backward compat)
+  '15cb_requested': 'CA Review', '15cb_received': 'Form 146 Certified',
+  '15ca_filed': 'Form 145 Filed',
   bank_processing: 'Bank Processing', processing_with_compliance: 'Processing',
-  pending_review: 'Under Review', completed: 'Completed', failed: 'Failed',
+  pending_review: 'Under Review', cancelled: 'Cancelled',
+  gateway_retry: 'Processing (Retry)', completed: 'Completed', failed: 'Failed',
 };
 const OUTWARD_BADGE = {
   initiated: 'badge-initiated', kyc_verified: 'badge-kyc',
+  form146_requested: 'badge-15cb_req', form146_received: 'badge-15cb_done',
+  form145_filed: 'badge-15ca',
   '15cb_requested': 'badge-15cb_req', '15cb_received': 'badge-15cb_done',
   '15ca_filed': 'badge-15ca', bank_processing: 'badge-bank',
   processing: 'badge-bank', processing_with_compliance: 'badge-bank',
-  pending_review: 'badge-15cb_req', completed: 'badge-completed', failed: 'badge-failed',
+  pending_review: 'badge-15cb_req', cancelled: 'badge-failed',
+  gateway_retry: 'badge-15cb_req', completed: 'badge-completed', failed: 'badge-failed',
 };
 const INWARD_STATUS_LABELS = {
   initiated: 'Initiated', collection_initiated: 'Collecting CAD',
@@ -684,7 +696,11 @@ const INWARD_BADGE = {
   payment_received: 'badge-payment_received', payout_initiated: 'badge-payout_initiated',
   pending_review: 'badge-15cb_req', completed: 'badge-completed', failed: 'badge-failed',
 };
-const OUTWARD_STEPS = ['initiated','kyc_verified','15cb_requested','15cb_received','15ca_filed','bank_processing','completed'];
+const OUTWARD_STEPS = ['initiated','kyc_verified','form146_requested','form146_received','form145_filed','bank_processing','completed'];
+const OUTWARD_STEP_LABELS = {
+  initiated: 'Initiated', kyc_verified: 'KYC', form146_requested: 'CA Review',
+  form146_received: 'Form 146', form145_filed: 'Form 145', bank_processing: 'Bank', completed: 'Done',
+};
 const INWARD_STEPS  = ['initiated','collection_initiated','payment_received','payout_initiated','completed'];
 
 function badge(status, map) {
@@ -804,11 +820,17 @@ async function showDetail(id) {
   try {
     const data = await apiCall('/transfers/' + id);
     const t = data.transfer;
-    const stepIdx = OUTWARD_STEPS.indexOf(t.status);
+    // Normalize legacy status strings to new names for progress bar
+    const STATUS_NORMALIZE = {
+      '15cb_requested': 'form146_requested', '15cb_received': 'form146_received',
+      '15ca_filed': 'form145_filed',
+    };
+    const normalizedStatus = STATUS_NORMALIZE[t.status] || t.status;
+    const stepIdx = OUTWARD_STEPS.indexOf(normalizedStatus);
     const progressHtml = '<div class="progress-track"><div class="progress-steps">' +
       OUTWARD_STEPS.map((s, i) => {
         const cls = i < stepIdx ? 'done' : i === stepIdx ? 'active' : '';
-        return `<div class="progress-step ${cls}"><div class="progress-dot ${cls}">${i < stepIdx ? '✓' : i+1}</div><div class="progress-step-label">${OUTWARD_STATUS_LABELS[s] || s}</div></div>`;
+        return `<div class="progress-step ${cls}"><div class="progress-dot ${cls}">${i < stepIdx ? '✓' : i+1}</div><div class="progress-step-label">${OUTWARD_STEP_LABELS[s] || s}</div></div>`;
       }).join('') + '</div></div>';
     const accountType = t.account_type || 'NRO';
     document.getElementById('detail-content').innerHTML = `
@@ -828,12 +850,25 @@ async function showDetail(id) {
         <div><div class="detail-label">Exchange Rate</div><div class="detail-value">1 INR = ${Number(t.exchange_rate || 0).toFixed(6)} CAD</div></div>
         <div><div class="detail-label">Fee</div><div class="detail-value">${fmtCAD(t.fee_cad || t.total_fees_cad || 0)}</div></div>
         <div><div class="detail-label">Purpose Code</div><div class="detail-value">${t.purpose_code || '—'}</div></div>
-        <div><div class="detail-label">15CA Part</div><div class="detail-value">${accountType === 'NRE' ? 'EXEMPT (NRE)' : (t.fifteen_ca_part || '—')}</div></div>
-        ${t.fifteen_cb_number ? `<div><div class="detail-label">15CB Number</div><div class="detail-value">${t.fifteen_cb_number}</div></div>` : ''}
-        ${t.fifteen_ca_number ? `<div><div class="detail-label">15CA Number</div><div class="detail-value">${t.fifteen_ca_number}</div></div>` : ''}
+        <div><div class="detail-label">Form 145 Part</div><div class="detail-value">${accountType === 'NRE' ? 'EXEMPT (NRE)' : (t.form145_part || t.fifteen_ca_part || '—')}</div></div>
+        ${(t.form146_number || t.fifteen_cb_number) ? `<div><div class="detail-label">Form 146 Number</div><div class="detail-value">${t.form146_number || t.fifteen_cb_number}</div></div>` : ''}
+        ${(t.form145_number || t.fifteen_ca_number) ? `<div><div class="detail-label">Form 145 Number</div><div class="detail-value">${t.form145_number || t.fifteen_ca_number}</div></div>` : ''}
         ${t.swift_reference ? `<div><div class="detail-label">SWIFT Reference</div><div class="detail-value">${t.swift_reference}</div></div>` : ''}
+        ${t.indicative_rate ? `<div><div class="detail-label">Indicative Rate</div><div class="detail-value">1 INR = ${Number(t.indicative_rate).toFixed(6)} CAD</div></div>` : ''}
+        ${t.final_execution_rate ? `<div><div class="detail-label">Final Rate</div><div class="detail-value">1 INR = ${Number(t.final_execution_rate).toFixed(6)} CAD</div></div>` : ''}
+        ${t.cancelled_at ? `<div><div class="detail-label">Cancelled At</div><div class="detail-value" style="color:var(--red)">${fmtDate(t.cancelled_at)}${t.cancellation_reason ? ' — ' + t.cancellation_reason : ''}</div></div>` : ''}
       </div>
-      ${accountType === 'NRE' ? '<div class="rate-box" style="margin-top:1rem;font-size:0.82rem;color:var(--muted)">NRE account: No 15CA/15CB required. CA portal not involved. Fable executes immediately.</div>' : ''}
+      ${accountType === 'NRE' ? '<div class="rate-box" style="margin-top:1rem;font-size:0.82rem;color:var(--muted)">NRE account: No Form 145/146 required. CA portal not involved. Fable executes immediately.</div>' : ''}
+      <div id="transfer-actions-${t.id}" style="margin-top:1.5rem;display:flex;gap:0.75rem;flex-wrap:wrap">
+        ${['initiated','kyc_verified','form146_requested','15cb_requested','pending_review'].includes(t.status)
+          ? `<button class="btn-outline" style="color:var(--red);border-color:var(--red)" onclick="cancelTransfer('${t.id}')">Cancel Transfer</button>`
+          : ''}
+        ${t.status === 'completed'
+          ? `<button class="btn-outline" onclick="viewCertificate('${t.id}')">View Certificate</button>`
+          : ''}
+      </div>
+      <div id="cancel-error-${t.id}" class="error-banner" style="display:none;margin-top:1rem"></div>
+      <div id="cert-area-${t.id}" style="display:none;margin-top:1rem"></div>
     `;
   } catch (ex) {
     document.getElementById('detail-content').innerHTML = `<div class="error-banner">${ex.message}</div>`;
@@ -857,8 +892,8 @@ function calcRate() {
   document.getElementById('nt-cad').value = cad > 0 ? cad.toFixed(2) : '0.00';
   document.getElementById('rate-display').textContent = `1 INR = ${currentRate.toFixed(6)} CAD`;
   document.getElementById('fee-display').textContent = `CA$${fee}`;
-  const partLabel = accountType === 'NRE' ? 'EXEMPT (NRE — no 15CA/15CB)' :
-    inr <= 500000 ? 'Part A (≤₹5L — auto-approved)' : 'Part C (>₹5L — 15CB required)';
+  const partLabel = accountType === 'NRE' ? 'EXEMPT (NRE — no Form 145/146)' :
+    inr <= 500000 ? 'Part A (≤₹5L — auto-approved)' : 'Part C (>₹5L — Form 146 CA cert required)';
   document.getElementById('part-display').textContent = partLabel;
   document.getElementById('total-display').textContent = fmtINR(inr) + ` (≈ ${fmtCAD(cad)})`;
   document.getElementById('rate-box').style.display = 'block';
@@ -875,11 +910,11 @@ function updateOutwardAccountNote() {
   const accountType = document.getElementById('nt-account-type').value;
   const note = document.getElementById('account-type-note');
   if (accountType === 'NRE') {
-    note.textContent = 'NRE: Tax-free repatriation. No 15CA/15CB. No CA portal. Fable executes immediately. Annual limit: no RBI cap.';
+    note.textContent = 'NRE: Tax-free repatriation. No Form 145/146. No CA portal. Fable executes immediately. No RBI annual cap.';
     note.style.color = 'var(--green)';
     document.getElementById('nt-purpose').value = 'P1302';
   } else {
-    note.textContent = 'NRO: Subject to 15CA/15CB compliance. Annual limit ₹1 crore. TDS may apply. CA review required above ₹5L.';
+    note.textContent = 'NRO: Subject to Form 145/146 compliance (IT Act 2025, Section 397(3)(d)). FEMA annual limit USD 1,000,000 (≈₹8.3 crore). CA review required above ₹5L.';
     note.style.color = 'var(--muted)';
     document.getElementById('nt-purpose').value = 'P1301';
   }
@@ -1062,6 +1097,81 @@ async function loadProfile() {
     `;
   } catch (ex) {
     document.getElementById('profile-content').innerHTML = `<div class="error-banner">${ex.message}</div>`;
+  }
+}
+
+// ── Keep-alive ping (prevents Render spin-down during active sessions) ────────
+function startKeepAlive() {
+  setInterval(async () => {
+    try { await fetch('/health'); } catch { /* ignore */ }
+  }, 4 * 60 * 1000); // every 4 minutes
+}
+
+// ── FEMA status widget ────────────────────────────────────────────────────────
+async function loadFemaWidget() {
+  const container = document.getElementById('fema-widget');
+  if (!container) return;
+  try {
+    const data = await apiCall('/transfers/fema-status');
+    const { usedINR = 0, remainingINR = 83000000, maxINR = 83000000, fyResetDate } = data;
+    const pct = Math.min(100, Math.round((usedINR / maxINR) * 100));
+    const barColor = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--orange)' : 'var(--green)';
+    container.innerHTML = `
+      <div class="stat-card" style="grid-column:1/-1">
+        <div class="stat-label">FEMA Annual Repatriation (NRO) — Resets ${fyResetDate || '—'}</div>
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem">
+          <div style="flex:1;background:rgba(139,160,180,0.15);border-radius:4px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;transition:width 0.5s"></div>
+          </div>
+          <span style="font-size:0.78rem;color:var(--muted);white-space:nowrap">${pct}% used</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-top:0.4rem">
+          <span>Used: ₹${Number(usedINR).toLocaleString('en-IN')}</span>
+          <span>Remaining: ₹${Number(remainingINR).toLocaleString('en-IN')} of ₹${Number(maxINR).toLocaleString('en-IN')}</span>
+        </div>
+      </div>`;
+  } catch { /* FEMA widget is non-critical — fail silently */ }
+}
+
+// ── Transfer cancel ───────────────────────────────────────────────────────────
+async function cancelTransfer(id) {
+  if (!confirm('Are you sure you want to cancel this transfer?')) return;
+  const reason = prompt('Reason for cancellation (optional):') || 'Customer cancelled';
+  const errEl = document.getElementById('cancel-error-' + id);
+  try {
+    await apiCall('/transfers/' + id + '/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+    showDetail(id); // Reload detail panel
+  } catch (ex) {
+    if (errEl) { errEl.textContent = ex.message || 'Cancellation failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+// ── Transfer certificate ──────────────────────────────────────────────────────
+async function viewCertificate(id) {
+  const area = document.getElementById('cert-area-' + id);
+  if (!area) return;
+  area.style.display = 'block';
+  area.innerHTML = '<div class="loading-center" style="padding:1rem"><div class="spinner" style="width:18px;height:18px"></div></div>';
+  try {
+    const data = await apiCall('/transfers/' + id + '/certificate');
+    const c = data.certificate;
+    area.innerHTML = `
+      <div style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.25);padding:1.25rem">
+        <div class="form-section-title" style="margin-bottom:0.75rem">Transfer Certificate</div>
+        <div class="detail-grid">
+          ${c.form145Number ? `<div><div class="detail-label">Form 145 No.</div><div class="detail-value">${c.form145Number}</div></div>` : ''}
+          ${c.form146Number ? `<div><div class="detail-label">Form 146 No.</div><div class="detail-value">${c.form146Number}</div></div>` : ''}
+          ${c.swiftReference ? `<div><div class="detail-label">SWIFT Ref</div><div class="detail-value">${c.swiftReference}</div></div>` : ''}
+          ${c.indicativeRate ? `<div><div class="detail-label">Indicative Rate</div><div class="detail-value">1 INR = ${Number(c.indicativeRate).toFixed(6)} CAD</div></div>` : ''}
+          ${c.finalExecutionRate ? `<div><div class="detail-label">Final Rate</div><div class="detail-value">1 INR = ${Number(c.finalExecutionRate).toFixed(6)} CAD</div></div>` : ''}
+          ${c.completedAt ? `<div><div class="detail-label">Completed</div><div class="detail-value">${fmtDate(c.completedAt)}</div></div>` : ''}
+        </div>
+      </div>`;
+  } catch (ex) {
+    area.innerHTML = `<div class="error-banner">${ex.message || 'Could not load certificate.'}</div>`;
   }
 }
 

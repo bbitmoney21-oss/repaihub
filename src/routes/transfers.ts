@@ -1,5 +1,6 @@
-// [GREEN] Outward transfer routes — NRO/NRE → CAD
-// Routes are thin controllers. All business logic in services + orchestrator.
+// NOTE: Under India Income Tax Act 2025 (effective 1 Apr 2026):
+// Form 15CA is now Form 145 | Form 15CB is now Form 146
+// Section 195 is now Section 397(3)(d)
 
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
@@ -10,14 +11,13 @@ import { processReferralReward, deductUserCredit } from '../services/referralSer
 import { assessOutwardRisk, calculateRiskScore, saveRiskAssessment } from '../services/riskService';
 import { evaluateCompliance, saveComplianceCheck, applyDecisionEngine } from '../services/complianceService';
 import { determineAccountRoute } from '../compliance/accountTypeService';
+import { checkFemaLimit, FEMA_MAX_INR } from '../compliance/femaService';
 import { orchestrateOutwardTransfer } from '../orchestrator/outwardOrchestrator';
 import { log } from '../services/auditService';
 import type { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
 
 const router = Router();
 const ts = () => new Date().toISOString();
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function genReference(): string {
   const year = new Date().getFullYear();
@@ -35,7 +35,7 @@ function isWithinCurrentMonth(isoDate: string): boolean {
 router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response) => {
   const {
     amountInr,
-    accountType = 'NRO',  // NEW — NRO (default) or NRE
+    accountType = 'NRO',
     exchangeRate,
     purposeCode,
     sourceOfFunds,
@@ -47,6 +47,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     nroBranchCity,
     documents,
     lockId,
+    idempotencyKey,   // Challenge 2 fix — prevents duplicate on retry
   } = req.body as {
     amountInr?: number;
     accountType?: 'NRO' | 'NRE';
@@ -61,8 +62,30 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     nroBranchCity?: string;
     documents?: string[];
     lockId?: string;
-    amountCad?: number; feeCad?: number; // ignored — computed server-side
+    idempotencyKey?: string;
+    amountCad?: number; feeCad?: number;
   };
+
+  // ── Idempotency check (prevents duplicate on Render wake-up retry) ─────────
+  if (idempotencyKey && supabaseAdminConfigured) {
+    const { data: existing } = await supabaseAdmin
+      .from('transfers')
+      .select('*')
+      .eq('idempotency_key', idempotencyKey)
+      .eq('user_id', req.userId!)
+      .maybeSingle();
+
+    if (existing) {
+      console.log(`[IDEMPOTENCY] Duplicate detected — returning existing transfer ${existing.id}`);
+      res.status(200).json({
+        transfer: existing,
+        idempotent: true,
+        message: 'Transfer already created for this idempotency key',
+        timestamp: ts(),
+      });
+      return;
+    }
+  }
 
   // ── Input validation ───────────────────────────────────────────────────────
   if (!amountInr || !exchangeRate || !purposeCode || !speed) {
@@ -73,10 +96,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     return;
   }
   if (accountType === 'NRO' && !sourceOfFunds) {
-    res.status(400).json({
-      error: 'sourceOfFunds is required for NRO transfers',
-      timestamp: ts(),
-    });
+    res.status(400).json({ error: 'sourceOfFunds is required for NRO transfers', timestamp: ts() });
     return;
   }
   if (!['NRO', 'NRE'].includes(accountType)) {
@@ -92,7 +112,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     return;
   }
 
-  // ── Demo mode (Supabase not configured) ───────────────────────────────────
+  // ── Demo mode ─────────────────────────────────────────────────────────────
   if (!supabaseAdminConfigured) {
     const grossCAD      = Math.round((amountInr / exchangeRate) * 100) / 100;
     const commissionCAD = Math.round(grossCAD * 0.018 * 100) / 100;
@@ -111,20 +131,13 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
         purpose_code: purposeCode, source_of_funds: sourceOfFunds, speed, reference,
         account_type: accountType, customer_model: isNRE ? 'citizen_nre' : 'p2p',
         status: isNRE ? 'processing' : 'kyc_verified',
-        risk_level: 'LOW', fifteen_ca_part: isNRE ? 'EXEMPT' : 'A',
+        risk_level: 'LOW', form145_part: isNRE ? 'EXEMPT' : 'A',
         created_at: ts(),
       },
       feeBreakdown: {
         grossAmountCAD: grossCAD, commissionCAD, flatFeeCAD, totalFeesCAD, netAmountCAD,
         breakdown: [`Commission: CAD ${commissionCAD}`, `Flat fee: CAD ${flatFeeCAD}`],
-        accountTypeNote: isNRE ? 'NRE: no 15CA/15CB required' : 'NRO: standard compliance applies',
-      },
-      accountTypeDecision: {
-        customerModel: isNRE ? 'citizen_nre' : 'p2p',
-        accountType,
-        requires15CACB: !isNRE,
-        fifteenCAPart: isNRE ? 'EXEMPT' : 'A',
-        description: isNRE ? 'NRE account — fully repatriable' : 'Demo mode',
+        accountTypeNote: isNRE ? 'NRE: no Form 145/146 required' : 'NRO: standard compliance applies',
       },
       timestamp: ts(),
     });
@@ -132,6 +145,23 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   const userId = req.userId!;
+
+  // ── FEMA annual limit check (Challenge 8) ─────────────────────────────────
+  if (accountType === 'NRO') {
+    const fema = await checkFemaLimit(userId, amountInr);
+    if (!fema.allowed) {
+      res.status(400).json({
+        error: 'FEMA_LIMIT_EXCEEDED',
+        message: fema.message,
+        remainingLimitINR: fema.remainingINR,
+        usedThisYearINR: fema.usedINR,
+        maxYearlyLimitINR: fema.maxINR,
+        fyResetDate: fema.fyResetDate,
+        timestamp: ts(),
+      });
+      return;
+    }
+  }
 
   // ── Parallel data fetch ────────────────────────────────────────────────────
   const [historyRes, kycRes, profileRes, residencyRes] = await Promise.all([
@@ -172,50 +202,31 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
 
   // ── Step 1: Fee calculation ────────────────────────────────────────────────
   const fees = await calculateFees({
-    amountINR:       amountInr,
-    exchangeRate,
-    speed,
-    isFirstTransfer,
-    promoCode:       promoCode ?? null,
-    userId,
+    amountINR: amountInr, exchangeRate, speed, isFirstTransfer,
+    promoCode: promoCode ?? null, userId,
   });
 
   // ── Step 2: Account type routing (NRO vs NRE) ─────────────────────────────
-  const accountTypeDecision = await determineAccountRoute(
-    residencyType,
-    accountType,
-    amountInr,
-    userId,
-  );
+  const accountTypeDecision = await determineAccountRoute(residencyType, accountType, amountInr, userId);
 
-  // ── Step 3: Risk assessment (for response data) ────────────────────────────
+  // ── Step 3: Risk assessment ────────────────────────────────────────────────
   const riskResult = await calculateRiskScore({
-    userId,
-    amountINR:           amountInr,
-    sourceOfFunds:       sourceOfFunds ?? '',
-    purposeCode,
-    tdsDeducted:         tdsDeductedBool,
-    tdsAmountINR:        tdsAmountInrNum,
-    documents:           docsProvided,
-    transferCount,
-    monthlyTransferCount: monthlyCount,
-    avgTransferAmountINR: avgAmountINR,
-    isKYCVerified,
+    userId, amountINR: amountInr, sourceOfFunds: sourceOfFunds ?? '',
+    purposeCode, tdsDeducted: tdsDeductedBool, tdsAmountINR: tdsAmountInrNum,
+    documents: docsProvided, transferCount, monthlyTransferCount: monthlyCount,
+    avgTransferAmountINR: avgAmountINR, isKYCVerified,
   });
 
   // ── Step 4: Compliance evaluation ─────────────────────────────────────────
   const complianceResult = await evaluateCompliance({
-    amountINR:     amountInr,
-    sourceOfFunds: (sourceOfFunds ?? 'other') as SourceOfFunds,
-    documents:     docsProvided,
+    amountINR: amountInr, sourceOfFunds: (sourceOfFunds ?? 'other') as SourceOfFunds, documents: docsProvided,
   });
 
   // ── Step 5: Decision engine ────────────────────────────────────────────────
-  const decision      = applyDecisionEngine(riskResult.level, complianceResult);
-  const fifteenCAPart = accountTypeDecision.fifteenCAPart;
-  const reference     = genReference();
+  const decision     = applyDecisionEngine(riskResult.level, complianceResult);
+  const form145Part  = accountTypeDecision.form145Part;
+  const reference    = genReference();
 
-  // NRE transfers skip CA queue — always go to processing
   const initialStatus = accountTypeDecision.accountType === 'NRE'
     ? 'initiated'
     : (decision.transferStatus ?? 'initiated');
@@ -228,6 +239,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       amount_inr:          amountInr,
       amount_cad:          fees.grossAmountCAD,
       exchange_rate:       exchangeRate,
+      indicative_rate:     exchangeRate,       // Rate at initiation — preserved for transparency
       fee_cad:             fees.totalFeesCAD,
       commission_cad:      fees.commissionCAD,
       repaihub_commission: fees.repaihubCommissionCAD,
@@ -246,6 +258,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       speed,
       priority:            speed,
       reference,
+      idempotency_key:     idempotencyKey ?? null,
       status:              initialStatus,
       risk_score:          riskResult.score,
       risk_level:          riskResult.level,
@@ -255,14 +268,16 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       ca_status:           decision.caStatus,
       tds_deducted:        tdsDeductedBool,
       tds_amount_inr:      tdsAmountInrNum,
-      // NEW fields
       account_type:        accountType,
       customer_model:      accountTypeDecision.customerModel,
-      fifteen_ca_part:     fifteenCAPart,
+      // Write to both old and new column names during migration 016 window
+      form145_part:        form145Part,
+      fifteen_ca_part:     form145Part,
       nro_bank_name:       nroBankName ?? null,
       nro_branch_city:     nroBranchCity ?? null,
       residency_type:      residencyType,
-      is_mock:             true, // updated by orchestrator when Fable is called
+      is_mock:             true,
+      tax_act_version:     '2025',
     })
     .select()
     .single();
@@ -276,12 +291,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   void log('TRANSFER_INITIATED', 'customer', {
     transferId: transfer.id,
     userId,
-    metadata: {
-      accountType,
-      customerModel: accountTypeDecision.customerModel,
-      fifteenCAPart,
-      risk: riskResult.level,
-    },
+    metadata: { accountType, customerModel: accountTypeDecision.customerModel, form145Part, risk: riskResult.level },
   });
 
   void saveRiskAssessment(transfer.id, riskResult).catch(() => {});
@@ -291,16 +301,17 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     transfer_id: transfer.id,
     user_id:     userId,
     status:      initialStatus,
-    note:        `[GREEN] TRANSFER_INITIATED — accountType: ${accountType} | model: ${accountTypeDecision.customerModel} | 15CA Part ${fifteenCAPart} | Risk: ${riskResult.level}`,
+    note:        `TRANSFER_INITIATED — accountType: ${accountType} | model: ${accountTypeDecision.customerModel} | Form 145 Part ${form145Part} | Risk: ${riskResult.level}`,
   });
 
-  // Compliance request (for CA portal visibility)
   void supabaseAdmin.from('compliance_requests').insert({
     transfer_id:         transfer.id,
     user_id:             userId,
     status:              riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved',
-    fifteen_ca_part:     fifteenCAPart,
-    fifteen_cb_required: complianceResult.requires15CB && accountTypeDecision.accountType !== 'NRE',
+    fifteen_ca_part:     form145Part,
+    form145_part:        form145Part,
+    fifteen_cb_required: complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+    form146_required:    complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
   });
 
   // ── Step 8: Financial side-effects ────────────────────────────────────────
@@ -333,13 +344,11 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // ── Step 10: Background orchestration (non-blocking) ─────────────────────
-  // Orchestrator handles: account routing, risk, CA workflow, Fable execution
   setImmediate(() => {
     orchestrateOutwardTransfer(transfer.id).catch(err =>
       console.error('[Orchestrator] outwardOrchestrator failed (non-critical):', err));
   });
 
-  // ── Return 201 immediately ────────────────────────────────────────────────
   res.status(201).json({
     transfer,
     feeBreakdown: {
@@ -355,21 +364,16 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       promoCode:           fees.promoCodeApplied,
       promoError:          fees.promoError,
       accountTypeNote:     accountTypeDecision.accountType === 'NRE'
-        ? 'NRE: fully repatriable — no 15CA/15CB required'
-        : `NRO: 15CA Part ${fifteenCAPart} applies`,
+        ? 'NRE: fully repatriable — no Form 145/146 required (IT Act 2025)'
+        : `NRO: Form 145 Part ${form145Part} applies (IT Act 2025)`,
     },
     accountTypeDecision,
-    risk: {
-      score:            riskResult.score,
-      level:            riskResult.level,
-      breakdown:        riskResult.breakdown,
-      missingDocuments: riskResult.missingDocuments,
-    },
+    risk: { score: riskResult.score, level: riskResult.level, breakdown: riskResult.breakdown, missingDocuments: riskResult.missingDocuments },
     compliance: {
-      requiresCA:       complianceResult.requiresCA,
-      requires15CA:     complianceResult.requires15CA,
-      requires15CB:     complianceResult.requires15CB && accountTypeDecision.accountType !== 'NRE',
-      documentStatus:   complianceResult.documentStatus,
+      requiresCA:      complianceResult.requiresCA,
+      requiresForm145: complianceResult.requiresForm145,
+      requiresForm146: complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+      documentStatus:  complianceResult.documentStatus,
     },
     decision: {
       status:  initialStatus,
@@ -377,7 +381,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
         ? 'NRE account — no CA approval needed. Fable will execute directly.'
         : decision.customerMessage,
     },
-    fifteenCAPart,
+    form145Part,
     reference,
     timestamp: ts(),
   });
@@ -404,6 +408,33 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res: Response) =
   res.json({ transfers: data ?? [], count: (data ?? []).length, timestamp: ts() });
 });
 
+// ── GET /transfers/fema-limit (alias: /fema-status) ──────────────────────────
+async function handleFemaLimit(req: AuthRequest, res: Response) {
+  if (!supabaseAdminConfigured) {
+    res.json({ usedINR: 0, remainingINR: FEMA_MAX_INR, maxINR: FEMA_MAX_INR, maxYearlyLimitINR: FEMA_MAX_INR, timestamp: ts() });
+    return;
+  }
+  const fema = await checkFemaLimit(req.userId!, 0);
+  const fyStart = new Date().getMonth() >= 3
+    ? `${new Date().getFullYear()}-04-01`
+    : `${new Date().getFullYear() - 1}-04-01`;
+  const fyEnd = new Date().getMonth() >= 3
+    ? `${new Date().getFullYear() + 1}-03-31`
+    : `${new Date().getFullYear()}-03-31`;
+  res.json({
+    maxYearlyLimitINR: FEMA_MAX_INR,
+    usedThisYearINR:   fema.usedINR,
+    remainingINR:      fema.remainingINR,
+    maxINR:            fema.maxINR,
+    fyResetDate:       fema.fyResetDate,
+    fyStart,
+    fyEnd,
+    timestamp: ts(),
+  });
+}
+router.get('/fema-limit', authMiddleware, handleFemaLimit);
+router.get('/fema-status', authMiddleware, handleFemaLimit);
+
 // ── GET /transfers/:id/status ─────────────────────────────────────────────────
 router.get('/:id/status', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!supabaseAdminConfigured) {
@@ -413,7 +444,7 @@ router.get('/:id/status', authMiddleware, async (req: AuthRequest, res: Response
 
   const { data, error } = await supabaseAdmin
     .from('transfers')
-    .select('id, status, account_type, customer_model, fifteen_ca_part, risk_level, ca_required, ca_blocking, swift_reference, completed_at, provider_reference, adapter_name, is_mock, updated_at')
+    .select('id, status, account_type, customer_model, form145_part, fifteen_ca_part, risk_level, ca_required, ca_blocking, swift_reference, completed_at, provider_reference, adapter_name, is_mock, updated_at, cancelled_at, cancellation_reason')
     .eq('id', req.params.id)
     .eq('user_id', req.userId!)
     .single();
@@ -424,6 +455,128 @@ router.get('/:id/status', authMiddleware, async (req: AuthRequest, res: Response
   }
 
   res.json({ transfer: data, timestamp: ts() });
+});
+
+// ── GET /transfers/:id/certificate ────────────────────────────────────────────
+// Returns completed transfer certificate with all compliance document numbers.
+router.get('/:id/certificate', authMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.status(404).json({ error: 'Transfer not found (demo mode)', timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('transfers')
+    .select('*')
+    .eq('id', req.params.id)
+    .eq('user_id', req.userId!)
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
+    return;
+  }
+
+  if (data.status !== 'completed') {
+    res.status(400).json({
+      error: 'Certificate only available for completed transfers',
+      currentStatus: data.status,
+      timestamp: ts(),
+    });
+    return;
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', data.user_id)
+    .maybeSingle();
+
+  res.json({
+    certificate: {
+      transferId:       data.id,
+      reference:        data.reference,
+      completedAt:      data.completed_at,
+      amountINR:        Number(data.amount_inr),
+      amountCAD:        Number(data.net_amount_cad ?? data.amount_cad),
+      exchangeRate:     Number(data.final_execution_rate ?? data.exchange_rate),
+      indicativeRate:   Number(data.indicative_rate ?? data.exchange_rate),
+      totalFeesCAD:     Number(data.total_fees_cad ?? data.fee_cad),
+      // IT Act 2025 form numbers
+      form145Number:    data.form145_number ?? data.fifteen_ca_number ?? null,
+      form146Number:    data.form146_number ?? data.fifteen_cb_number ?? null,
+      swiftReference:   data.swift_reference ?? null,
+      caName:           data.ca_approved_by ?? null,
+      purpose:          data.purpose_code,
+      sourceOfFunds:    data.source_of_funds,
+      customerName:     profile?.full_name ?? 'Customer',
+      customerEmail:    profile?.email ?? '',
+      taxActVersion:    data.tax_act_version ?? '2025',
+    },
+    timestamp: ts(),
+  });
+});
+
+// ── POST /transfers/:id/cancel ────────────────────────────────────────────────
+// Cancellable only before bank processing starts.
+router.post('/:id/cancel', authMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { reason } = req.body as { reason?: string };
+  const cancellableStatuses = ['initiated', 'kyc_verified', 'form146_requested', '15cb_requested', 'pending_review', 'INITIATED', 'KYC_VERIFIED', 'FORM146_REQUESTED', 'PENDING_REVIEW'];
+
+  const { data, error } = await supabaseAdmin
+    .from('transfers')
+    .select('id, status, user_id, amount_inr, amount_cad')
+    .eq('id', req.params.id)
+    .eq('user_id', req.userId!)
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
+    return;
+  }
+
+  if (!cancellableStatuses.includes(data.status)) {
+    res.status(400).json({
+      error: 'CANNOT_CANCEL',
+      message: `Transfer cannot be cancelled at status: ${data.status}`,
+      tip: ['bank_processing', 'BANK_PROCESSING'].includes(data.status)
+        ? 'Transfer is already with the bank. Contact support immediately.'
+        : ['completed', 'COMPLETED'].includes(data.status)
+          ? 'Transfer has already completed.'
+          : 'Contact support for assistance.',
+      timestamp: ts(),
+    });
+    return;
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('transfers')
+    .update({
+      status:               'cancelled',
+      cancelled_at:         ts(),
+      cancellation_reason:  reason || 'Customer requested cancellation',
+    })
+    .eq('id', req.params.id);
+
+  if (updateError) {
+    res.status(500).json({ error: updateError.message, timestamp: ts() });
+    return;
+  }
+
+  void log('TRANSFER_CANCELLED', 'customer', { transferId: String(req.params.id), metadata: { reason } });
+  void supabaseAdmin.from('transfer_events').insert({
+    transfer_id: req.params.id,
+    user_id:     req.userId!,
+    status:      'cancelled',
+    note:        `Transfer cancelled by customer. Reason: ${reason || 'Not specified'}`,
+  });
+
+  res.json({ message: 'Transfer cancelled successfully', transferId: req.params.id, timestamp: ts() });
 });
 
 // ── GET /transfers/:id ────────────────────────────────────────────────────────
