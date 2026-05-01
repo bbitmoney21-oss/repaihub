@@ -25,8 +25,8 @@ export interface OutwardInstruction {
   amountINR: number;
   nroBankName: string;         // customer's Indian bank (e.g. HDFC)
   nroBranchCity: string;
-  fifteenCANumber: string;     // required for NRO, not for NRE
-  fifteenCBNumber: string;     // required when Part C, not for NRE
+  form145Number: string;       // required for NRO, not for NRE (IT Act 2025 — was 15CA)
+  form146Number: string;       // required when Part C, not for NRE (IT Act 2025 — was 15CB)
   purposeCode: string;         // P1301
   exchangeRate: number;
   beneficiaryCAD: {

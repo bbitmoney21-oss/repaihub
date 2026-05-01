@@ -13,6 +13,7 @@ import type {
   InwardPayoutInstruction,
   TransferResult,
 } from './IPaymentGateway.js';
+import type { KYCInitiateResult, PANVerifyResult } from './SetuAdapter.js';
 
 const mock = new MockFableAdapter();
 
@@ -201,6 +202,24 @@ export class FableAdapter implements IPaymentGateway {
     } catch {
       return mock.getTransferStatus(providerReference);
     }
+  }
+
+  // ── KYC stubs — unconfirmed with Fable, throw when key set ─────────────────
+  // Once Fable confirms KYC capability, replace throw with real fablePost() call.
+  async initiateIndiaKYC(userId: string): Promise<KYCInitiateResult> {
+    if (!process.env.FABLE_API_KEY) return mock.initiateIndiaKYC(userId);
+    // DO NOT call in production until Fable KYC confirmed in meeting
+    throw new Error('[FABLE-UNCONFIRMED] Fable India KYC endpoint not yet confirmed — see docs/FABLE_QUESTIONS.md');
+  }
+
+  async initiateCanadaKYC(userId: string): Promise<KYCInitiateResult> {
+    if (!process.env.FABLE_API_KEY) return mock.initiateCanadaKYC(userId);
+    throw new Error('[FABLE-UNCONFIRMED] Fable Canada KYC endpoint not yet confirmed — see docs/FABLE_QUESTIONS.md');
+  }
+
+  async verifyPAN(panNumber: string): Promise<PANVerifyResult> {
+    if (!process.env.FABLE_API_KEY) return mock.verifyPAN(panNumber);
+    throw new Error('[FABLE-UNCONFIRMED] Fable PAN verification endpoint not yet confirmed — see docs/FABLE_QUESTIONS.md');
   }
 
   getProviderName(): string { return 'FableFintech'; }

@@ -1,4 +1,12 @@
+import { createHash, createHmac } from 'crypto';
 import { supabaseAdmin } from '../lib/supabaseServer';
+import { FableAdapter } from '../adapters/FableAdapter';
+import { setuAdapter } from '../adapters/SetuAdapter';
+import type { BankVerifyResult, PANVerifyResult } from '../adapters/SetuAdapter';
+
+// ── Shared singletons ─────────────────────────────────────────────────────────
+
+const fableAdapter = new FableAdapter();
 
 // ── Config cache ─────────────────────────────────────────────────────────────
 
@@ -42,44 +50,37 @@ export interface KYCVerifyResult {
   failureReason?: string;
 }
 
+export type { PANVerifyResult, BankVerifyResult };
+
 // ── CANADA SIDE KYC ──────────────────────────────────────────────────────────
+// Routing: fable_canada_kyc_enabled=true → FableAdapter (throws if key absent)
+//          active_canada_kyc=flinks → FlinksAdapter (widget token)
+//          fallback → mock session
 
 export async function initiateCanadaKYC(userId: string): Promise<KYCInitiateResult> {
   const cfg = await getKYCConfig();
 
-  if (cfg['active_canada_kyc'] === 'fable' && cfg['fable_kyc_api_url']) {
+  // Fable-first: check kyc_config row before calling adapter (Fable KYC unconfirmed)
+  if (cfg['fable_canada_kyc_enabled'] === 'true') {
     try {
-      const response = await fetch(`${cfg['fable_kyc_api_url']}/kyc/initiate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.FABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          country: 'CA',
-          verificationType: 'bank_account',
-          webhookUrl: `${process.env.API_BASE_URL}/kyc/fable/callback`,
-        }),
-      });
-      const data = await response.json() as { sessionId: string; redirectUrl: string };
-      return {
-        sessionId: data.sessionId,
-        redirectUrl: data.redirectUrl,
-        provider: 'fable',
-        instructions: 'Complete bank verification via Fable',
-      };
+      const result = await fableAdapter.initiateCanadaKYC(userId);
+      await supabaseAdmin.from('profiles').update({
+        kycStatus: 'in_progress',
+        kycSessionId: result.sessionId,
+        kycProvider: result.provider,
+      }).eq('id', userId);
+      return result;
     } catch (err) {
-      console.error('[KYC] Fable Canada KYC initiation failed:', err);
+      console.warn('[KYC] Fable Canada KYC initiation failed, falling through to Flinks:', err);
     }
   }
 
-  // Default: Flinks
+  // Flinks: standard Canadian bank KYC
   const sessionId = `flinks-${userId}-${Date.now()}`;
   await supabaseAdmin.from('profiles').update({
     kycStatus: 'in_progress',
     kycSessionId: sessionId,
-    kycProvider: 'flinks_digilocker',
+    kycProvider: 'flinks',
   }).eq('id', userId);
 
   return {
@@ -100,102 +101,62 @@ export async function verifyCanadaKYC(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000);
 
-  if (cfg['active_canada_kyc'] === 'fable' && cfg['fable_kyc_api_url'] && token) {
-    try {
-      const response = await fetch(`${cfg['fable_kyc_api_url']}/kyc/verify`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.FABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId, token }),
-      });
-      const data = await response.json() as { verified: boolean; metadata?: object };
-      if (data.verified) {
-        await updateKYCStatus(userId, 'canada', true, sessionId, now, expiresAt);
-        return {
-          verified: true,
-          provider: 'fable',
-          sessionId,
-          verifiedAt: now.toISOString(),
-          expiresAt: expiresAt.toISOString(),
-          metadata: data.metadata || {},
-        };
-      }
-    } catch (err) {
-      console.error('[KYC] Fable Canada KYC verify failed:', err);
-    }
-  }
-
-  // Flinks: token is the loginId returned by Flinks widget
-  if (token) {
-    await updateKYCStatus(userId, 'canada', true, sessionId, now, expiresAt);
+  if (!token) {
     return {
-      verified: true,
+      verified: false,
       provider: 'flinks',
       sessionId,
       verifiedAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
-      metadata: { loginId: token },
+      metadata: {},
+      failureReason: 'No valid token provided',
     };
   }
 
+  // Flinks verification: token is the loginId returned by the Flinks widget
+  await updateKYCStatus(userId, 'canada', true, sessionId, now, expiresAt);
   return {
-    verified: false,
+    verified: true,
     provider: 'flinks',
     sessionId,
     verifiedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
-    metadata: {},
-    failureReason: 'No valid token provided',
+    metadata: { loginId: token },
   };
 }
 
 // ── INDIA SIDE KYC ───────────────────────────────────────────────────────────
+// Routing: fable_india_kyc_enabled=true → FableAdapter (throws if key set without confirmation)
+//          active_india_kyc=setu_digilocker → SetuAdapter.initiateDigiLockerKYC
+//          fallback → mock session
 
 export async function initiateIndiaKYC(userId: string): Promise<KYCInitiateResult> {
   const cfg = await getKYCConfig();
+  const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/kyc/digilocker/callback`;
 
-  if (cfg['fable_kyc_enabled'] === 'true' && cfg['fable_kyc_api_url']) {
+  // Fable-first (unconfirmed capability — will throw if FABLE_API_KEY set until confirmed)
+  if (cfg['fable_india_kyc_enabled'] === 'true') {
     try {
-      const response = await fetch(`${cfg['fable_kyc_api_url']}/kyc/initiate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.FABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          country: 'IN',
-          verificationType: 'identity',
-          webhookUrl: `${process.env.API_BASE_URL}/kyc/fable/callback`,
-        }),
-      });
-      const data = await response.json() as { sessionId: string; redirectUrl: string };
-      return {
-        sessionId: data.sessionId,
-        redirectUrl: data.redirectUrl,
-        provider: 'fable',
-        instructions: 'Complete identity verification via Fable',
-      };
+      const result = await fableAdapter.initiateIndiaKYC(userId);
+      await supabaseAdmin.from('profiles').update({
+        kycStatus: 'in_progress',
+        kycSessionId: result.sessionId,
+        kycProvider: result.provider,
+      }).eq('id', userId);
+      return result;
     } catch (err) {
-      console.error('[KYC] Fable India KYC initiation failed:', err);
+      console.warn('[KYC] Fable India KYC initiation failed, falling through to Setu:', err);
     }
   }
 
-  // Default: DigiLocker consent URL
-  const sessionId = `digilocker-${userId}-${Date.now()}`;
+  // Setu DigiLocker (default India KYC path)
+  const result = await setuAdapter.initiateDigiLockerKYC(userId, redirectUri);
   await supabaseAdmin.from('profiles').update({
     kycStatus: 'in_progress',
-    kycSessionId: sessionId,
+    kycSessionId: result.sessionId,
+    kycProvider: result.provider,
   }).eq('id', userId);
-
-  return {
-    sessionId,
-    redirectUrl: `https://digilocker.gov.in/public/oauth2/1/authorize?response_type=code&client_id=${process.env.DIGILOCKER_CLIENT_ID || 'demo'}&redirect_uri=${process.env.API_BASE_URL}/kyc/digilocker/callback&state=${sessionId}`,
-    provider: 'digilocker',
-    instructions: 'Connect your DigiLocker to verify your Indian identity',
-  };
+  return result;
 }
 
 export async function verifyIndiaKYC(
@@ -208,31 +169,81 @@ export async function verifyIndiaKYC(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000);
 
-  if (token) {
-    await updateKYCStatus(userId, 'india', true, sessionId, now, expiresAt);
+  if (!token) {
     return {
-      verified: true,
-      provider: cfg['active_india_kyc'] === 'fable' ? 'fable' : 'digilocker',
+      verified: false,
+      provider: 'setu_digilocker',
       sessionId,
       verifiedAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
-      metadata: { code: token },
+      metadata: {},
+      failureReason: 'No valid token provided',
     };
   }
 
+  // Call Setu to actually verify the DigiLocker code
+  const setuResult = await setuAdapter.verifyKYC(sessionId, token);
+  if (setuResult.verified) {
+    await updateKYCStatus(userId, 'india', true, sessionId, now, expiresAt);
+  }
+
   return {
-    verified: false,
-    provider: 'digilocker',
+    verified: setuResult.verified,
+    provider: setuResult.provider,
     sessionId,
     verifiedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
-    metadata: {},
-    failureReason: 'No valid token provided',
+    metadata: setuResult.metadata,
+    failureReason: setuResult.failureReason,
   };
 }
 
+// ── PAN VERIFICATION ─────────────────────────────────────────────────────────
+// Routing: fable_pan_enabled=true → FableAdapter (throws if unconfirmed)
+//          else → SetuAdapter
+// PAN SHA-256 hash is ALWAYS stored in profiles.pan_hash regardless of provider.
+
+export async function verifyPAN(userId: string, panNumber: string): Promise<PANVerifyResult> {
+  const cfg = await getKYCConfig();
+
+  // Always compute hash — stored regardless of which provider verifies
+  const panHashValue = createHash('sha256').update(panNumber.toUpperCase().trim()).digest('hex');
+
+  let result: PANVerifyResult;
+
+  // Fable-first (unconfirmed)
+  if (cfg['fable_pan_enabled'] === 'true') {
+    try {
+      result = await fableAdapter.verifyPAN(panNumber);
+    } catch (err) {
+      console.warn('[KYC] Fable PAN verification failed, falling through to Setu:', err);
+      result = await setuAdapter.verifyPAN(panNumber);
+    }
+  } else {
+    result = await setuAdapter.verifyPAN(panNumber);
+  }
+
+  // Always store hash — Form 145 compliance record (IT Act 2025 s.397(3)(d))
+  await supabaseAdmin.from('profiles').update({
+    pan_hash: panHashValue,
+  }).eq('id', userId);
+
+  return { ...result, panHash: panHashValue };
+}
+
+// ── INWARD RECIPIENT BANK VERIFICATION ───────────────────────────────────────
+// Setu Reverse Penny Drop — MANDATORY. Fable cannot replace this.
+// Always routes to SetuAdapter regardless of kyc_config.
+
+export async function verifyInwardRecipientBank(
+  accountNumber: string,
+  ifscCode: string,
+): Promise<BankVerifyResult> {
+  return setuAdapter.reversePennyDrop(accountNumber, ifscCode);
+}
+
 // ── AML SCREENING (Fable) ────────────────────────────────────────────────────
-// Never blocks customer if not configured.
+
 export async function runAMLScreening(userId: string, fullName: string): Promise<{
   cleared: boolean;
   provider: string;
@@ -241,12 +252,13 @@ export async function runAMLScreening(userId: string, fullName: string): Promise
 }> {
   const cfg = await getKYCConfig();
 
-  if (cfg['fable_aml_screening'] !== 'true' || !cfg['fable_kyc_api_url']) {
+  if (cfg['fable_aml_screening'] !== 'true' || !process.env.FABLE_API_KEY) {
     return { cleared: true, provider: 'skipped', reference: '', flags: [] };
   }
 
   try {
-    const response = await fetch(`${cfg['fable_kyc_api_url']}/aml/screen`, {
+    const baseUrl = process.env.FABLE_API_URL || 'https://api.fablefintech.com/v1';
+    const response = await fetch(`${baseUrl}/aml/screen`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.FABLE_API_KEY}`,
@@ -268,7 +280,7 @@ export async function runAMLScreening(userId: string, fullName: string): Promise
 }
 
 // ── KYC WEBHOOK HANDLER ──────────────────────────────────────────────────────
-// Handles async callbacks from Fable after KYC completes.
+
 export async function handleFableWebhook(
   payload: {
     sessionId: string;
@@ -279,19 +291,17 @@ export async function handleFableWebhook(
   },
   signature: string,
 ): Promise<boolean> {
-  // Verify webhook signature
   const secret = process.env.FABLE_WEBHOOK_SECRET;
   if (!secret) {
     console.error('[KYC] FABLE_WEBHOOK_SECRET not set — rejecting webhook');
     return false;
   }
 
-  const crypto = await import('crypto');
-  const expected = crypto.default.createHmac('sha256', secret)
+  const hmac = createHmac('sha256', secret)
     .update(JSON.stringify(payload))
     .digest('hex');
 
-  if (signature !== expected) {
+  if (signature !== hmac) {
     console.error('[KYC] Invalid Fable webhook signature');
     return false;
   }
@@ -329,7 +339,6 @@ async function updateKYCStatus(
   if (side === 'canada') update['canadaVerified'] = verified;
   if (side === 'india')  update['indiaVerified']  = verified;
 
-  // Check if both sides are now verified
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('"canadaVerified", "indiaVerified"')
@@ -347,12 +356,11 @@ async function updateKYCStatus(
 
   await supabaseAdmin.from('profiles').update(update).eq('id', userId);
 
-  // Also update kyc_submissions table for backward compatibility
   await supabaseAdmin.from('kyc_submissions').upsert({
-    user_id:          userId,
-    canada_verified:  canadaVerified,
-    india_verified:   indiaVerified,
-    updated_at:       new Date().toISOString(),
+    user_id:         userId,
+    canada_verified: canadaVerified,
+    india_verified:  indiaVerified,
+    updated_at:      new Date().toISOString(),
   }, { onConflict: 'user_id' });
 }
 
@@ -365,7 +373,7 @@ export async function getKYCStatus(userId: string) {
 
   return {
     kycStatus:      profile?.kycStatus ?? 'pending',
-    kycProvider:    profile?.kycProvider ?? 'flinks_digilocker',
+    kycProvider:    profile?.kycProvider ?? 'setu_digilocker',
     canadaVerified: profile?.canadaVerified ?? false,
     indiaVerified:  profile?.indiaVerified  ?? false,
     kycVerifiedAt:  profile?.kycVerifiedAt  ?? null,

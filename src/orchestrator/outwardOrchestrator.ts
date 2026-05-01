@@ -178,8 +178,8 @@ async function executeViaFable(
       amountINR: Number(transfer.amount_inr),
       nroBankName: (transfer.nro_bank_name ?? transfer.nroBankName ?? 'HDFC Bank') as string,
       nroBranchCity: (transfer.nro_branch_city ?? transfer.nroBranchCity ?? 'Mumbai') as string,
-      fifteenCANumber: (transfer.form145_number ?? transfer.fifteen_ca_number ?? '') as string,
-      fifteenCBNumber: (transfer.form146_number ?? transfer.fifteen_cb_number ?? '') as string,
+      form145Number: (transfer.form145_number ?? transfer.fifteen_ca_number ?? '') as string,
+      form146Number: (transfer.form146_number ?? transfer.fifteen_cb_number ?? '') as string,
       purposeCode: (transfer.purpose_code ?? 'P1301') as string,
       exchangeRate: Number(transfer.exchange_rate ?? 0.0160),
       beneficiaryCAD: {

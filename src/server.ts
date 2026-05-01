@@ -1,8 +1,16 @@
+// CRITICAL: dotenv must load BEFORE any module that reads process.env at
+// import time (lib/supabaseServer.ts does exactly that). The previous code
+// imported routes first, then called dotenv.config() — by then the supabase
+// client had already been created with placeholder env values, and every
+// signup hit either a 503 ("Auth service not configured") or a 500 with no
+// JSON body (network throw on the placeholder URL). The 'dotenv/config' import
+// runs config() before any other import below it executes.
+import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
-import dotenv from 'dotenv';
 import caPortalRoutes from './routes/caPortal';
 import authRoutes from './routes/auth';
 import ratesRoutes from './routes/rates';
@@ -16,23 +24,25 @@ import devToolsRoutes from './routes/devTools';
 import adminRoutes from './routes/admin';
 import kycRoutes from './routes/kyc';
 
-dotenv.config();
-
 // ── Startup env check ─────────────────────────────────────────────────────────
 function printEnvStatus(): void {
-  const checks: { key: string; required: boolean }[] = [
-    { key: 'SUPABASE_URL',              required: true  },
-    { key: 'SUPABASE_SERVICE_ROLE_KEY', required: true  },
-    { key: 'JWT_SECRET',                required: true  },
-    { key: 'CA_JWT_SECRET',             required: true  },
-    { key: 'RESEND_API_KEY',            required: false },
-    { key: 'FABLE_API_KEY',             required: false },
-    { key: 'FLINKS_CUSTOMER_ID',        required: false },
-    { key: 'API_BASE_URL',              required: false },
-    { key: 'FRONTEND_URL',              required: false },
+  const checks: { key: string; required: boolean; note: string }[] = [
+    { key: 'SUPABASE_URL',              required: true,  note: 'Supabase project URL' },
+    { key: 'SUPABASE_SERVICE_ROLE_KEY', required: true,  note: 'Supabase service role — bypasses RLS' },
+    { key: 'JWT_SECRET',                required: true,  note: 'Customer auth signing key' },
+    { key: 'CA_JWT_SECRET',             required: true,  note: 'CA portal signing key' },
+    { key: 'RESEND_API_KEY',            required: false, note: 'Missing → email notifications silently dropped' },
+    { key: 'FABLE_API_KEY',             required: false, note: 'Missing → MockFableAdapter active for all payment rails' },
+    { key: 'FABLE_API_URL',             required: false, note: 'Defaults to https://api.fablefintech.com/v1' },
+    { key: 'FABLE_WEBHOOK_SECRET',      required: false, note: 'Missing → Fable KYC webhooks rejected (POST /kyc/fable/callback returns false)' },
+    { key: 'FLINKS_CUSTOMER_ID',        required: false, note: 'Missing → Flinks widget uses demo token (Canada KYC not verified)' },
+    { key: 'SETU_API_KEY',              required: false, note: 'Missing → SetuAdapter mock mode (India KYC + Reverse Penny Drop unverified)' },
+    { key: 'SETU_CLIENT_ID',            required: false, note: 'Required alongside SETU_API_KEY for DigiLocker requests' },
+    { key: 'API_BASE_URL',              required: false, note: 'Missing → webhook callbacks use http://localhost:3000' },
+    { key: 'FRONTEND_URL',              required: false, note: 'Missing → CORS blocks non-localhost frontend origins' },
   ];
   console.log('\n=== REPAIHUB ENV CHECK ===');
-  for (const { key, required } of checks) {
+  for (const { key, required, note } of checks) {
     const val = process.env[key];
     if (val) {
       console.log(`[OK]   ${key}`);
@@ -40,9 +50,19 @@ function printEnvStatus(): void {
       console.error(`[ERR]  ${key} — REQUIRED but not set`);
       process.exit(1);
     } else {
-      console.log(`[MOCK] ${key} — not set, mock/skip mode active`);
+      console.log(`[MOCK] ${key} — ${note}`);
     }
   }
+
+  // Special warning: SETU_API_KEY controls Reverse Penny Drop — mandatory for prod inward transfers
+  if (!process.env.SETU_API_KEY) {
+    console.warn('\n[WARN] SETU_API_KEY not set:');
+    console.warn('       → Reverse Penny Drop runs in MOCK mode');
+    console.warn('       → Indian bank accounts for inward recipients are NOT verified');
+    console.warn('       → India KYC (DigiLocker) runs in MOCK mode');
+    console.warn('       Set SETU_API_KEY + SETU_CLIENT_ID before accepting live inward transfers.\n');
+  }
+
   console.log('=========================\n');
 }
 
