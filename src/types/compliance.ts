@@ -6,9 +6,15 @@ export type TransferStatus =
   | '15CA_FILED'
   | 'BANK_PROCESSING'
   | 'COMPLETED'
-  | 'FAILED';
+  | 'FAILED'
+  | 'PENDING_REVIEW'
+  // Legacy 3-tier decision statuses (backward compat)
+  | 'pending_ca_approval'
+  | 'processing_with_compliance'
+  | 'processing'
+  | 'failed';
 
-export type FifteenCApart = 'A' | 'B' | 'C' | 'D';
+export type FifteenCApart = 'A' | 'B' | 'C' | 'D' | 'EXEMPT';
 
 export type SourceOfFunds =
   | 'rental_income'
@@ -66,6 +72,10 @@ export interface Transfer {
   priority: 'standard' | 'express';
   createdAt: string;
   updatedAt: string;
+  // Risk engine fields — present for Supabase-sourced transfers
+  risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+  risk_score?: number | null;
+  risk_breakdown?: Record<string, number> | null;
 }
 
 export interface CAUser {

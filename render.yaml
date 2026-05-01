@@ -1,6 +1,7 @@
 services:
+  # ── Dev service — NODE_ENV=development, exposes /dev/* endpoints ─────────────
   - type: web
-    name: repaihub
+    name: repaihub-dev
     env: node
     region: oregon
     plan: free
@@ -8,15 +9,14 @@ services:
     startCommand: node dist-server/server.js
     envVars:
       - key: NODE_ENV
-        value: production
-      # ── Set these in the Render dashboard (Dashboard → Environment) ─────────
+        value: development
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
-      - key: SUPABASE_ANON_KEY      # used by server-side auth routes
+      - key: SUPABASE_ANON_KEY
         sync: false
-      - key: JWT_SECRET             # customer JWT signing secret
+      - key: JWT_SECRET
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
@@ -28,3 +28,53 @@ services:
         value: ca@repaihub.com
       - key: CA_ICAI
         value: "123456"
+      - key: FABLE_API_KEY
+        sync: false
+      - key: FABLE_API_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # ── Production service ────────────────────────────────────────────────────────
+  - type: web
+    name: repaihub
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build && npm run build:server
+    startCommand: node dist-server/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CA_JWT_SECRET
+        sync: false
+      - key: CA_DEFAULT_PASSWORD
+        sync: false
+      - key: CA_EMAIL
+        value: ca@repaihub.com
+      - key: CA_ICAI
+        value: "123456"
+      - key: FABLE_API_KEY
+        sync: false
+      - key: FABLE_API_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

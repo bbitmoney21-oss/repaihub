@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { supabase } from '../lib/supabase'
 
 export type ResidencyStatus = 'citizen' | 'pr' | 'oci' | 'work_permit' | ''
 export type TransferStatus =
@@ -151,7 +150,7 @@ export const useStore = create<AppState>()(
       })),
 
       logout: () => {
-        supabase.auth.signOut()
+        localStorage.removeItem('rh_token')
         set({ isAuthenticated: false, user: null, transfers: [], notifications: [] })
       },
 

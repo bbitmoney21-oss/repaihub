@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { apiUpdatePassword } from '../../lib/api'
 import { Eye, EyeOff, Check } from 'lucide-react'
 
 export default function ResetPassword() {
   const nav = useNavigate()
-  const [ready, setReady]     = useState(false)  // true once Supabase recovery session is active
+  const [ready, setReady]     = useState(false)
   const [pw, setPw]           = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPw, setShowPw]   = useState(false)
@@ -15,7 +14,8 @@ export default function ResetPassword() {
   const [error, setError]     = useState('')
 
   useEffect(() => {
-    // Supabase parses the recovery token from the URL hash and fires PASSWORD_RECOVERY
+    // Supabase parses #access_token=...&type=recovery from the URL hash
+    // and fires PASSWORD_RECOVERY once the session is established.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setReady(true)
@@ -31,7 +31,8 @@ export default function ResetPassword() {
     if (pw !== confirm) { setError('Passwords do not match.'); return }
     setLoading(true)
     try {
-      await apiUpdatePassword(pw)
+      const { error: updateErr } = await supabase.auth.updateUser({ password: pw })
+      if (updateErr) throw updateErr
       setDone(true)
       setTimeout(() => nav('/login'), 3000)
     } catch (err: unknown) {

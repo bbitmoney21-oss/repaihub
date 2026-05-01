@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useStore } from './store/useStore'
-import { supabase, supabaseConfigured } from './lib/supabase'
+import { getToken } from './lib/api'
 import AppLayout from './components/layout/AppLayout'
 
 // Public pages
@@ -14,6 +14,8 @@ import Login          from './pages/auth/Login'
 import Signup         from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword  from './pages/auth/ResetPassword'
+import CaLogin       from './pages/ca/CaLogin'
+import CaDashboard   from './pages/ca/CaDashboard'
 
 // Onboarding
 import ResidencySelect  from './pages/onboarding/ResidencySelect'
@@ -37,23 +39,19 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function RequireKYC({ children }: { children: React.ReactNode }) {
   const { user } = useStore()
-  if (!user?.residencyStatus) return <Navigate to="/onboarding/residency" replace />
-  if (!user.canadaBankVerified) return <Navigate to="/onboarding/canada-bank" replace />
-  if (!user.indiaNROVerified) return <Navigate to="/onboarding/india-nro" replace />
+  const bothBanksVerified = user?.canadaBankVerified && user?.indiaNROVerified
+  // If both KYC steps are done, user completed full onboarding — skip residency gate.
+  // This handles existing users whose residency column wasn't saved yet.
+  if (!bothBanksVerified && !user?.residencyStatus) return <Navigate to="/onboarding/residency" replace />
+  if (!user?.canadaBankVerified) return <Navigate to="/onboarding/canada-bank" replace />
+  if (!user?.indiaNROVerified) return <Navigate to="/onboarding/india-nro" replace />
   return <>{children}</>
 }
 
 function AuthSync() {
   const { isAuthenticated, logout } = useStore()
   useEffect(() => {
-    if (!isAuthenticated || !supabaseConfigured) return
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) logout()
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) logout()
-    })
-    return () => subscription.unsubscribe()
+    if (isAuthenticated && !getToken()) logout()
   }, [isAuthenticated])
   return null
 }
@@ -72,6 +70,8 @@ export default function App() {
         <Route path="/signup"           element={<Signup />} />
         <Route path="/forgot-password"  element={<ForgotPassword />} />
         <Route path="/reset-password"   element={<ResetPassword />} />
+        <Route path="/ca-login"         element={<CaLogin />} />
+        <Route path="/ca-dashboard"     element={<CaDashboard />} />
 
         {/* Onboarding */}
         <Route path="/onboarding/residency"   element={<RequireAuth><ResidencySelect /></RequireAuth>} />
