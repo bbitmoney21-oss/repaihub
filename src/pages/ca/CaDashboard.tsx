@@ -561,14 +561,9 @@ export default function CaDashboard() {
   }, [statusFilter])
 
   const counts = { total: requests.length, needs_action: 0, approved: 0, rejected: 0 }
-  let pendingValueINR = 0
-  let pendingValueCAD = 0
   requests.forEach(r => {
-    if (r.status === 'pending' || r.status === 'under_review') {
-      counts.needs_action++
-      pendingValueINR += r.transfers?.amount_inr ?? 0
-      pendingValueCAD += r.transfers?.amount_cad ?? 0
-    } else if (r.status === 'approved') counts.approved++
+    if (r.status === 'pending' || r.status === 'under_review') counts.needs_action++
+    else if (r.status === 'approved') counts.approved++
     else if (r.status === 'rejected') counts.rejected++
   })
 
@@ -601,18 +596,6 @@ export default function CaDashboard() {
             </div>
           ))}
         </div>
-
-        {/* Value under review */}
-        {counts.needs_action > 0 && (
-          <div style={{ background: 'rgba(243,156,18,0.06)', border: '1px solid rgba(243,156,18,0.2)', borderLeft: '3px solid #F39C12', padding: '0.6rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F39C12' }}>
-              Total value needing CA action
-            </span>
-            <span style={{ fontSize: '0.88rem', color: '#FAF6F0', fontWeight: 600 }}>
-              {fmt(pendingValueINR)} &nbsp;·&nbsp; CAD {pendingValueCAD.toFixed(2)}
-            </span>
-          </div>
-        )}
 
         {/* Filter */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>

@@ -101,18 +101,6 @@ export interface FeeCalculationResult {
   breakdown: string[];
 }
 
-// ── Tiered commission rates by transfer size ──────────────────────────────────
-// Rates are ~70% of Wise/WU typical 2.5–2.8%, decreasing for larger transfers.
-export const FEE_TIERS = [
-  { minINR: 5_000_000, label: '₹50L+',         rateTotal: 1.0, rateRPH: 0.7, ratePartner: 0.3 },
-  { minINR: 2_000_000, label: '₹20L – ₹50L',   rateTotal: 1.4, rateRPH: 1.0, ratePartner: 0.4 },
-  { minINR:         0, label: '₹6L – ₹20L',    rateTotal: 1.8, rateRPH: 1.3, ratePartner: 0.5 },
-] as const;
-
-export function getTierForAmount(amountINR: number) {
-  return FEE_TIERS.find(t => amountINR >= t.minINR) ?? FEE_TIERS[FEE_TIERS.length - 1];
-}
-
 // ── Main calculation ──────────────────────────────────────────────────────────
 
 export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalculationResult> {
@@ -122,15 +110,10 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   // Step 1 — Gross CAD (rate is INR per CAD, so divide)
   const grossAmountCAD = Math.round((amountINR / exchangeRate) * 100) / 100;
 
-  // Step 2 — Tiered commission (larger transfers get a lower rate)
-  const tier = getTierForAmount(amountINR);
-  const effectiveRateTotal   = tier.rateTotal;
-  const effectiveRateRPH     = tier.rateRPH;
-  const effectiveRatePartner = tier.ratePartner;
-
-  const commissionCAD         = Math.round(grossAmountCAD * (effectiveRateTotal   / 100) * 100) / 100;
-  const repaihubCommissionCAD = Math.round(grossAmountCAD * (effectiveRateRPH     / 100) * 100) / 100;
-  const partnerCommissionCAD  = Math.round(grossAmountCAD * (effectiveRatePartner / 100) * 100) / 100;
+  // Step 2 — Commission components
+  const commissionCAD         = Math.round(grossAmountCAD * (cfg.commissionRateTotal   / 100) * 100) / 100;
+  const repaihubCommissionCAD = Math.round(grossAmountCAD * (cfg.commissionRateRPH     / 100) * 100) / 100;
+  const partnerCommissionCAD  = Math.round(grossAmountCAD * (cfg.commissionRatePartner / 100) * 100) / 100;
 
   // Step 3 — Flat fee (waived for first transfer if config says so)
   let flatFeeCAD = cfg.flatFeeCAD;
@@ -198,19 +181,18 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
 
   // Step 8 — Config snapshot (preserves rates at time of transfer; history never changes)
   const feeConfigSnapshot: Record<string, unknown> = {
-    flatFeeCAD:            cfg.flatFeeCAD,
-    commissionRateTotal:   effectiveRateTotal,
-    commissionRateRPH:     effectiveRateRPH,
-    commissionRatePartner: effectiveRatePartner,
-    tierLabel:             tier.label,
-    expressSurchargeCAD:   cfg.expressSurchargeCAD,
-    capturedAt:            new Date().toISOString(),
+    flatFeeCAD:           cfg.flatFeeCAD,
+    commissionRateTotal:  cfg.commissionRateTotal,
+    commissionRateRPH:    cfg.commissionRateRPH,
+    commissionRatePartner: cfg.commissionRatePartner,
+    expressSurchargeCAD:  cfg.expressSurchargeCAD,
+    capturedAt:           new Date().toISOString(),
   };
 
   // Step 9 — Human-readable breakdown for UI display
   const breakdown: string[] = [
     `Transfer amount: ₹${amountINR.toLocaleString('en-IN')} = CAD ${grossAmountCAD.toFixed(2)} gross`,
-    `Commission ${effectiveRateTotal}% (${tier.label} tier): CAD ${commissionCAD.toFixed(2)}`,
+    `Commission ${cfg.commissionRateTotal}%: CAD ${commissionCAD.toFixed(2)}`,
     flatFeeWaived
       ? `Flat fee: CAD 0.00 (waived${isFirstTransfer ? ' — first transfer' : promoDescription ? ` — ${promoDescription}` : ''})`
       : `Flat fee: CAD ${flatFeeCAD.toFixed(2)}`,

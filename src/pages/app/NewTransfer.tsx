@@ -8,14 +8,7 @@ import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } 
 type Step = 1 | 2 | 3 | 4 | 5
 type Direction = 'outward' | 'inward'
 
-// Tiered commission — larger transfers pay less % (same logic as Wise/WU)
-const FEE_TIERS = [
-  { minINR: 5_000_000, rate: 0.010, label: '₹50L+',       pct: '1.0%' },
-  { minINR: 2_000_000, rate: 0.014, label: '₹20L – ₹50L', pct: '1.4%' },
-  { minINR:         0, rate: 0.018, label: '₹6L – ₹20L',  pct: '1.8%' },
-]
-function getTier(amtINR: number) { return FEE_TIERS.find(t => amtINR >= t.minINR) ?? FEE_TIERS[FEE_TIERS.length - 1] }
-
+const COMMISSION_RATE = 0.018   // 1.8% — ~70% of Wise/Western Union typical 2.5–2.8%
 const FEE_FLAT_STD   = 24.99   // standard flat fee CAD
 const FEE_FLAT_EXP   = 49.99   // express flat fee (incl. $25 surcharge)
 const TCS_THRESHOLD_INR = 700_000
@@ -76,8 +69,7 @@ export default function NewTransfer() {
   const tcsAmt        = tcsApplies ? amtINR * 0.05 : 0
   const netINR        = amtINR - tcsAmt
   const grossCAD      = isOutward ? netINR / rate : amt
-  const tier          = getTier(amtINR)
-  const commissionCAD = isOutward ? Math.round(grossCAD * tier.rate * 100) / 100 : 0
+  const commissionCAD = isOutward ? Math.round(grossCAD * COMMISSION_RATE * 100) / 100 : 0
   const totalFees     = commissionCAD + flatFee
   const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
   const receiveINR    = isOutward ? 0 : amt * rate
@@ -296,17 +288,7 @@ export default function NewTransfer() {
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Net amount sent</span><span style={{ color: '#FAF6F0' }}>{formatINR(netINR)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
-                  {/* Tier pricing table */}
-                  <div style={{ background: '#0B1C2C', border: '1px solid rgba(201,150,58,0.15)', padding: '0.65rem 0.75rem', marginBottom: '0.5rem' }}>
-                    <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8BA0B4', marginBottom: '0.4rem' }}>Tiered Commission</div>
-                    {FEE_TIERS.map(t => (
-                      <div key={t.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.15rem 0', color: t.label === tier.label ? '#E8B86D' : '#8BA0B4', fontWeight: t.label === tier.label ? 700 : 400 }}>
-                        <span>{t.label}</span>
-                        <span>{t.pct}{t.label === tier.label ? ' ← your tier' : ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Commission ({tier.pct})</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(commissionCAD)}</span></div>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>1.8% commission</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(commissionCAD)}</span></div>
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{express ? 'Express flat fee' : 'Flat fee'}</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(flatFee)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Total fees</span><span style={{ color: '#8BA0B4', fontWeight: 600 }}>− {formatCAD(totalFees)}</span></div>
@@ -330,8 +312,8 @@ export default function NewTransfer() {
               <label style={S.label}>Transfer Speed</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 {[
-                  { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_FLAT_STD)} flat + ${tier.pct}` },
-                  { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_FLAT_EXP)} flat + ${tier.pct}` },
+                  { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_FLAT_STD)} flat + 1.8%` },
+                  { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_FLAT_EXP)} flat + 1.8%` },
                 ].map(opt => (
                   <div key={String(opt.key)} onClick={() => setExpress(opt.key)}
                     style={{ border: `1px solid ${express === opt.key ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: express === opt.key ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem', cursor: 'pointer' }}>
@@ -439,7 +421,7 @@ export default function NewTransfer() {
               tcsApplies ? ['TCS 5% (refundable)', `− ${formatINR(tcsAmt)}`] : null,
               ['FX Rate', `1 CAD = ₹${rate}`],
               isOutward ? ['Speed', express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)'] : null,
-              isOutward ? [`Commission (${tier.pct} — ${tier.label})`, formatCAD(commissionCAD)] : null,
+              isOutward ? ['Commission (1.8%)', formatCAD(commissionCAD)] : null,
               isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
               (isOutward && purpose) ? ['Purpose', purpose] : null,
             ] as ([string,string]|null)[]).filter(Boolean).map(([k, v]) => (
