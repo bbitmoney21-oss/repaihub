@@ -14,6 +14,7 @@ import { determineAccountRoute } from '../compliance/accountTypeService';
 import { checkFemaLimit, FEMA_MAX_INR } from '../compliance/femaService';
 import { orchestrateOutwardTransfer } from '../orchestrator/outwardOrchestrator';
 import { log } from '../services/auditService';
+import { getRBIRules, getComplianceRequirements, getComplianceSummary, getFYStartDate } from '../config/rbiRules';
 import type { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
 
 const router = Router();
@@ -31,10 +32,55 @@ function isWithinCurrentMonth(isoDate: string): boolean {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
 }
 
+// ── GET /transfers/rate ───────────────────────────────────────────────────────
+router.get('/rate', authMiddleware, (_req: AuthRequest, res: Response) => {
+  const rules = getRBIRules();
+  const direction = (_req.query.direction as string) || 'outward';
+  const isOutward = direction === 'outward';
+  const midmarket = isOutward ? 0.01612 : 62.10;  // TODO: replace with live Fable rate API
+  const spread = isOutward ? midmarket * 0.008 : midmarket * 0.008;
+  res.json({
+    success: true,
+    direction,
+    pair: isOutward ? 'INR/CAD' : 'CAD/INR',
+    midmarket,
+    yourRate: isOutward ? parseFloat((midmarket - spread).toFixed(6)) : parseFloat((midmarket - spread).toFixed(4)),
+    spread: '0.8%',
+    lockDurationSeconds: 1800,
+    timestamp: ts(),
+    rbiRulesVersion: rules.rulesVersion,
+  });
+});
+
+// ── GET /transfers/compliance-info ────────────────────────────────────────────
+router.get('/compliance-info', authMiddleware, (req: AuthRequest, res: Response) => {
+  const amountInr = Number(req.query.amountInr);
+  if (!amountInr || isNaN(amountInr) || amountInr <= 0) {
+    res.status(400).json({ error: 'amountInr query parameter is required and must be positive', timestamp: ts() });
+    return;
+  }
+  const reqs = getComplianceRequirements(amountInr);
+  const summary = getComplianceSummary(amountInr);
+  const rules = getRBIRules();
+  res.json({
+    success: true,
+    amountInr,
+    ...reqs,
+    ...summary,
+    fyStart: getFYStartDate().toISOString().split('T')[0],
+    annualLimitInr: rules.annualLimitInr,
+    timestamp: ts(),
+  });
+});
+
 // ── POST /transfers/initiate ──────────────────────────────────────────────────
 router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response) => {
   const {
-    amountInr,
+    direction = 'outward',
+    amountFrom,
+    fromAccount: _fromAccount,
+    toAccount: _toAccount,
+    amountInr: amountInrRaw,
     accountType = 'NRO',
     exchangeRate,
     purposeCode,
@@ -47,8 +93,12 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     nroBranchCity,
     documents,
     lockId,
-    idempotencyKey,   // Challenge 2 fix — prevents duplicate on retry
+    idempotencyKey,
   } = req.body as {
+    direction?: 'outward' | 'inward';
+    amountFrom?: number;
+    fromAccount?: Record<string, unknown>;  // future use — stored in DB
+    toAccount?: Record<string, unknown>;    // future use — stored in DB
     amountInr?: number;
     accountType?: 'NRO' | 'NRE';
     exchangeRate?: number;
@@ -65,6 +115,70 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     idempotencyKey?: string;
     amountCad?: number; feeCad?: number;
   };
+
+  // ── INWARD TRANSFER (Canada → India) ─────────────────────────────────────
+  // When direction is 'inward', route to inward logic immediately
+  if (direction === 'inward') {
+    const rules = getRBIRules();
+    const amountCadIn = amountFrom ?? 0;
+    if (!amountCadIn || amountCadIn <= 0) {
+      res.status(400).json({ error: 'amountFrom is required for inward transfers', timestamp: ts() });
+      return;
+    }
+    if (!speed) {
+      res.status(400).json({ error: 'speed (standard|express) is required', timestamp: ts() });
+      return;
+    }
+    const fintracReport = amountCadIn >= rules.fintracThresholdCad;
+    const flatFee   = 5;
+    const expressFee = speed === 'express' ? 10 : 0;
+    const exchangeRateInward = 60.91;  // TODO: live Fable rate
+    const amountInrOut = parseFloat(((amountCadIn - flatFee - expressFee) * exchangeRateInward).toFixed(2));
+    const reference = genReference();
+
+    if (!supabaseAdminConfigured) {
+      res.json({
+        success: true,
+        transfer: {
+          id: `demo-in-${Date.now()}`, direction: 'inward', reference, status: 'initiated',
+          amountCad: amountCadIn, amountInr: amountInrOut, flatFee, expressFee,
+          exchangeRate: exchangeRateInward, speed, fintracReport,
+        },
+        fintracReport, timestamp: ts(),
+      });
+      return;
+    }
+
+    const { data: inwardTransfer, error: inwardErr } = await supabaseAdmin
+      .from('inward_transfers')
+      .insert({
+        user_id: req.userId!,
+        amount_cad: amountCadIn,
+        amount_inr: amountInrOut,
+        exchange_rate: exchangeRateInward,
+        flat_fee_cad: flatFee,
+        express_surcharge_cad: expressFee,
+        total_fees_cad: flatFee + expressFee,
+        speed,
+        reference,
+        status: 'initiated',
+        purpose_code: 'INWARD',
+        fintrac_report: fintracReport,
+      })
+      .select()
+      .single();
+
+    if (inwardErr) {
+      res.status(500).json({ error: inwardErr.message, timestamp: ts() });
+      return;
+    }
+    res.status(201).json({ success: true, transfer: inwardTransfer, fintracReport, timestamp: ts() });
+    return;
+  }
+
+  // ── OUTWARD TRANSFER (India → Canada) ────────────────────────────────────
+  // amountInr may come from amountFrom (new direction API) or amountInr (legacy)
+  const amountInr = amountFrom ?? amountInrRaw;
 
   // ── Idempotency check (prevents duplicate on Render wake-up retry) ─────────
   if (idempotencyKey && supabaseAdminConfigured) {
@@ -88,7 +202,14 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // ── Input validation ───────────────────────────────────────────────────────
-  if (!amountInr || !exchangeRate || !purposeCode || !speed) {
+  if (!amountInr || !purposeCode || !speed) {
+    res.status(400).json({
+      error: 'amountInr (or amountFrom), purposeCode, speed are required for outward transfers',
+      timestamp: ts(),
+    });
+    return;
+  }
+  if (!exchangeRate) {
     res.status(400).json({
       error: 'amountInr, exchangeRate, purposeCode, speed are required',
       timestamp: ts(),
@@ -109,6 +230,24 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
   if (exchangeRate <= 0) {
     res.status(400).json({ error: 'exchangeRate must be positive', timestamp: ts() });
+    return;
+  }
+
+  // ── RBI rules validation ───────────────────────────────────────────────────
+  const rbiRules = getRBIRules();
+  if (amountInr > rbiRules.maxSingleTxInr) {
+    res.status(400).json({
+      error: `Exceeds single transfer limit of ₹${rbiRules.maxSingleTxInr.toLocaleString('en-IN')}`,
+      maxSingleTxInr: rbiRules.maxSingleTxInr,
+      timestamp: ts(),
+    });
+    return;
+  }
+  if (!rbiRules.purposeCodesEnabled.includes(purposeCode)) {
+    res.status(400).json({
+      error: `Purpose code ${purposeCode} is not enabled. Allowed: ${rbiRules.purposeCodesEnabled.join(', ')}`,
+      timestamp: ts(),
+    });
     return;
   }
 

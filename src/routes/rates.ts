@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -15,13 +15,15 @@ function getMockRate(): number {
 }
 
 // ── GET /rates/inr-cad ────────────────────────────────────────────────────────
-router.get('/inr-cad', authMiddleware, (req: AuthRequest, res) => {
-  const userId = req.userId!;
-  const locked = lockedRates.get(userId);
+// Public endpoint — no auth required (used for pre-login rate display)
+router.get('/inr-cad', optionalAuthMiddleware, (req: AuthRequest, res) => {
+  const userId = req.userId;
+  const locked = userId ? lockedRates.get(userId) : undefined;
   if (locked && new Date(locked.expiresAt) > new Date()) {
     res.json({
       rate: locked.rate,
       source: 'locked',
+      provider: 'MockFable',
       lockedAt: locked.lockedAt,
       expiresAt: locked.expiresAt,
       timestamp: new Date().toISOString(),
@@ -36,6 +38,7 @@ router.get('/inr-cad', authMiddleware, (req: AuthRequest, res) => {
     customerRate: parseFloat((rate - fee).toFixed(6)),
     spread: fee,
     source: 'mock',
+    provider: 'MockFable',
     note: 'Live rates will be available at launch. Indicative only.',
     timestamp: new Date().toISOString(),
   });

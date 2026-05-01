@@ -50,8 +50,10 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   aadhaar:          'Aadhaar',
   property_deed:    'Property Deed',
   investment_proof: 'Investment Proof',
-  '15ca_pdf':       'Form 15CA',
-  '15cb_pdf':       'Form 15CB',
+  '15ca_pdf':       'Form 145',
+  '15cb_pdf':       'Form 146',
+  '145_pdf':        'Form 145',
+  '146_pdf':        'Form 146',
   other:            'Other',
 }
 
@@ -225,7 +227,7 @@ function ComplianceCard({ request, onDownload }: {
             <StatusBadge status={request.status} />
             {request.fifteen_ca_part && (
               <span style={{ fontSize: '0.72rem', color: '#8BA0B4', background: 'rgba(201,150,58,0.08)', padding: '0.2rem 0.5rem', border: '1px solid rgba(201,150,58,0.2)' }}>
-                15CA Part {request.fifteen_ca_part}
+                Form 145 Part {request.fifteen_ca_part}
               </span>
             )}
           </div>
@@ -257,8 +259,8 @@ function ComplianceCard({ request, onDownload }: {
       {request.status === 'approved' && (
         <div style={{ marginTop: '0.75rem', background: 'rgba(39,174,96,0.06)', border: '1px solid rgba(39,174,96,0.2)', padding: '0.75rem' }}>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#27AE60', marginBottom: '0.4rem' }}>CA Approved</div>
-          {request.fifteen_cb_number && <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>15CB No: <strong>{request.fifteen_cb_number}</strong></div>}
-          {request.fifteen_ca_number && <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>15CA No: <strong>{request.fifteen_ca_number}</strong></div>}
+          {request.fifteen_cb_number && <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>Form 146 No: <strong>{request.fifteen_cb_number}</strong></div>}
+          {request.fifteen_ca_number && <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>Form 145 No: <strong>{request.fifteen_ca_number}</strong></div>}
           {request.ca_remarks && <div style={{ fontSize: '0.82rem', color: '#8BA0B4', marginTop: '0.3rem' }}>{request.ca_remarks}</div>}
         </div>
       )}
@@ -333,7 +335,7 @@ export default function Compliance() {
           Compliance &amp; Document Wallet
         </h1>
         <p style={{ fontSize: '0.88rem', color: '#8BA0B4' }}>
-          Every transfer gets a CA review. Upload your supporting documents here — your CA will review them and upload the signed 15CB/15CA forms.
+          Every outward transfer gets a CA review under IT Act 2025. Upload your supporting documents here — your CA will certify Form 146 and file Form 145 on your behalf.
         </p>
       </div>
 
@@ -376,7 +378,7 @@ export default function Compliance() {
             { step: '1', title: 'Transfer initiated', desc: 'A compliance request is automatically created.' },
             { step: '2', title: 'Upload documents', desc: 'Add bank statement, TDS certificate, or other required docs.' },
             { step: '3', title: 'CA reviews', desc: 'Our CA reviews your transfer and documents within 2–4 hours.' },
-            { step: '4', title: 'PDFs in your wallet', desc: 'Signed 15CB and 15CA forms appear here for download.' },
+            { step: '4', title: 'Forms in your wallet', desc: 'Signed Form 146 and Form 145 appear here for download.' },
           ].map(item => (
             <div key={item.step} style={{ display: 'flex', gap: '0.75rem' }}>
               <div style={{ width: 24, height: 24, background: 'rgba(201,150,58,0.15)', border: '1px solid rgba(201,150,58,0.3)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#C9963A', flexShrink: 0 }}>{item.step}</div>

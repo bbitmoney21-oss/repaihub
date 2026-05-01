@@ -27,17 +27,23 @@ export async function getFeeConfig(): Promise<FeeConfig> {
     return feeConfigCache;
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('fee_config')
-    .select('key, value')
-    .eq('is_active', true);
+  let cfg: Record<string, number> = {};
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('fee_config')
+      .select('key, value')
+      .eq('is_active', true);
 
-  if (error) throw new Error('Failed to load fee configuration: ' + error.message);
-
-  const cfg: Record<string, number> = {};
-  (data ?? []).forEach((row: { key: string; value: unknown }) => {
-    cfg[row.key] = Number(row.value);
-  });
+    if (!error) {
+      (data ?? []).forEach((row: { key: string; value: unknown }) => {
+        cfg[row.key] = Number(row.value);
+      });
+    } else {
+      console.warn('[FeeService] fee_config table unavailable — using defaults:', error.message);
+    }
+  } catch (err) {
+    console.warn('[FeeService] fee_config query failed — using defaults:', err);
+  }
 
   // Fallback defaults match migration 008 seed values
   feeConfigCache = {

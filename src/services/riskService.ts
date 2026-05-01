@@ -345,18 +345,19 @@ export async function calculateRiskScore(input: {
 }
 
 // ── DETERMINE TRANSFER STATUS ────────────────────────────────────────────────
-// Translates risk result + 15CB requirement into a concrete transfer status string.
+// Translates risk result + Form 146 requirement into a concrete transfer status string.
+// Uses IT Act 2025 status names (form146_requested, not 15CB_REQUESTED).
 export function determineTransferStatus(
   risk: RiskResult,
   requires15CB: boolean,
 ): string {
   if (risk.caBlocking) {
     return risk.level === 'HIGH' && requires15CB
-      ? '15CB_REQUESTED'      // Blocked — CA must certify before proceeding
-      : 'PENDING_REVIEW';     // Blocked — general hold for review
+      ? 'form146_requested'   // Blocked — CA must certify (Form 146) before proceeding
+      : 'pending_review';     // Blocked — general hold for review
   }
   if (requires15CB) {
-    return '15CB_REQUESTED';  // Non-blocking — CA reviews in parallel
+    return 'form146_requested'; // Non-blocking — CA reviews in parallel
   }
-  return 'KYC_VERIFIED';      // LOW risk — no CA needed
+  return 'kyc_verified';        // LOW risk — no CA needed, auto-proceeds
 }

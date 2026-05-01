@@ -3,100 +3,135 @@ import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiCreateTransfer } from '../../lib/api'
 import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
-import { Check, AlertCircle, Zap, Clock, ArrowLeft } from 'lucide-react'
+import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } from 'lucide-react'
 
 type Step = 1 | 2 | 3 | 4 | 5
+type Direction = 'outward' | 'inward'
 
 const FEE_STANDARD = 24.99
 const FEE_EXPRESS  = 49.99
-const TCS_THRESHOLD_INR = 700000
+const TCS_THRESHOLD_INR = 700_000
+
+const PURPOSES = [
+  'Repatriation of savings',
+  'Rental income',
+  'Pension / salary',
+  'Property sale proceeds',
+  'Investment returns',
+  'Family maintenance',
+  'Other',
+]
+
+const PURPOSE_CODES: Record<string, string> = {
+  'Repatriation of savings': 'other',
+  'Rental income':           'other',
+  'Pension / salary':        'other',
+  'Property sale proceeds':  'investment',
+  'Investment returns':      'investment',
+  'Family maintenance':      'family_maintenance',
+  'Other':                   'other',
+}
 
 export default function NewTransfer() {
   const { user, fxRate, addTransfer, addNotification } = useStore()
   const nav = useNavigate()
 
-  const [step, setStep]         = useState<Step>(1)
-  const [amountINR, setAmtINR]  = useState('')
-  const [express, setExpress]   = useState(false)
-  const [purpose, setPurpose]   = useState('')
-  const [loading, setLoading]   = useState(false)
-  const [txnRef, setTxnRef]     = useState('')
-  const [progress, setProgress] = useState(0)
+  const [step, setStep]               = useState<Step>(1)
+  const [direction, setDirection]     = useState<Direction>('outward')
+  const [amount, setAmount]           = useState('')
+  const [express, setExpress]         = useState(false)
+  const [purpose, setPurpose]         = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [txnRef, setTxnRef]           = useState('')
+  const [progress, setProgress]       = useState(0)
   const [progressMsg, setProgressMsg] = useState('')
 
-  const amt = parseFloat(amountINR.replace(/,/g, '')) || 0
-  const fee = express ? FEE_EXPRESS : FEE_STANDARD
-  const tcsApplies = amt > TCS_THRESHOLD_INR
-  const tcsAmt = tcsApplies ? amt * 0.05 : 0
-  const netINR = amt - tcsAmt
-  const amtCAD = netINR / fxRate - fee
+  const isOutward = direction === 'outward'
+  const rate      = fxRate || 83
+  const amt       = parseFloat(amount.replace(/,/g, '')) || 0
+
+  const amtINR     = isOutward ? amt : amt * rate
+  const fee        = express ? FEE_EXPRESS : FEE_STANDARD
+  const tcsApplies = isOutward && amtINR > TCS_THRESHOLD_INR
+  const tcsAmt     = tcsApplies ? amtINR * 0.05 : 0
+  const netINR     = amtINR - tcsAmt
+  const amtCAD     = isOutward ? (netINR / rate - fee) : amt
+  const receiveINR = isOutward ? 0 : amt * rate
+
   const limitRemaining = (user?.annualLimitTotal || 83000) - (user?.annualLimitUsed || 0)
-  const exceedsLimit = amt / fxRate > limitRemaining
+  const exceedsLimit   = isOutward && amtINR / rate > limitRemaining
+  const minOk          = isOutward ? amt >= 10000 : amt >= 100
 
-  const PURPOSES = ['Repatriation of savings', 'Rental income', 'Pension/salary', 'Property sale proceeds', 'Investment returns', 'Family maintenance', 'Other']
+  const hasIndiaBank  = !!user?.indiaBank
+  const hasCanadaBank = !!user?.canadaBank
+  const bothBanksOk   = isOutward ? (hasIndiaBank && hasCanadaBank) : (hasCanadaBank && hasIndiaBank)
 
-  const formatInput = (v: string) => {
-    const n = v.replace(/\D/g, '')
-    return n ? parseInt(n).toLocaleString('en-IN') : ''
+  const flipDirection = () => {
+    setDirection(d => d === 'outward' ? 'inward' : 'outward')
+    setAmount('')
   }
 
-  const handleConfirm = async () => {
+  const formatAmountInput = (v: string) => {
+    const n = v.replace(/\D/g, '')
+    return n ? parseInt(n).toLocaleString(isOutward ? 'en-IN' : 'en-CA') : ''
+  }
+
+  async function handleConfirm() {
     setLoading(true)
     const ref = generateRef()
     setTxnRef(ref)
 
-    const steps: [number, string][] = [
-      [15, 'Verifying KYC tokens…'],
-      [30, 'Locking FX rate at ₹' + fxRate + '…'],
-      [50, 'Generating Form 15CA XML…'],
-      [70, 'Filing with IT portal…'],
-      [85, 'Assigning CA for Form 15CB…'],
+    const progressSteps: [number, string][] = isOutward ? [
+      [15,  'Verifying KYC tokens…'],
+      [30,  `Locking FX rate at ₹${rate}…`],
+      [50,  'Generating Form 145 XML…'],
+      [70,  'Filing with IT portal…'],
+      [85,  'Assigning CA for Form 146…'],
+      [100, 'Transfer initiated!'],
+    ] : [
+      [20,  'Verifying FINTRAC compliance…'],
+      [50,  'Processing CAD withdrawal…'],
+      [80,  'Routing to India NRO account…'],
       [100, 'Transfer initiated!'],
     ]
-    for (const [pct, msg] of steps) {
+
+    for (const [pct, msg] of progressSteps) {
       await sleep(600)
       setProgress(pct)
       setProgressMsg(msg)
     }
 
     const now = new Date().toISOString()
-    const purposeMap: Record<string, string> = {
-      'Repatriation of savings': 'other',
-      'Rental income': 'other',
-      'Pension/salary': 'other',
-      'Property sale proceeds': 'investment',
-      'Investment returns': 'investment',
-      'Family maintenance': 'family_maintenance',
-      'Other': 'other',
-    }
     try {
       const transfer = await apiCreateTransfer({
-        amountInr: amt,
-        amountCad: amtCAD,
-        exchangeRate: fxRate,
-        feeCad: fee,
-        purposeCode: purposeMap[purpose] ?? 'other',
+        amountInr:     isOutward ? amt : receiveINR,
+        amountCad:     isOutward ? amtCAD : amt,
+        exchangeRate:  rate,
+        feeCad:        isOutward ? fee : 0,
+        purposeCode:   PURPOSE_CODES[purpose] ?? 'other',
         sourceOfFunds: purpose || 'other',
-        speed: express ? 'express' : 'standard',
-        reference: ref,
+        speed:         express ? 'express' : 'standard',
+        reference:     ref,
+        direction,
       })
       addTransfer(mapDbTransfer(transfer))
-      addNotification({ message: `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA is reviewing Form 15CB.`, type: 'info', timestamp: now })
+      const msg = isOutward
+        ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
+        : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`
+      addNotification({ message: msg, type: 'info', timestamp: now })
     } catch {
-      // Fall back to local-only transfer so the UI still advances
-      const localTransfer = {
-        id: 'TXN-' + Date.now(),
-        date: now,
-        amountINR: amt,
-        amountCAD: amtCAD,
-        rate: fxRate,
-        fee,
-        status: '15CA_FILED' as const,
+      addTransfer({
+        id:        'TXN-' + Date.now(),
+        date:      now,
+        amountINR: isOutward ? amt : receiveINR,
+        amountCAD: isOutward ? amtCAD : amt,
+        rate,
+        fee:       isOutward ? fee : 0,
+        status:    '15CA_FILED',
         express,
         reference: ref,
-        events: [{ status: 'INITIATED' as const, timestamp: now, note: 'Transfer initiated' }],
-      }
-      addTransfer(localTransfer)
+        events:    [{ status: 'INITIATED', timestamp: now, note: 'Transfer initiated' }],
+      })
     }
     setLoading(false)
     setStep(5)
@@ -109,50 +144,115 @@ export default function NewTransfer() {
     row:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', fontSize: '0.9rem' },
   }
 
+  const DirectionToggle = () => (
+    <div style={{ background: '#0B1C2C', border: '1px solid rgba(201,150,58,0.25)', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' as const, color: '#8BA0B4', marginBottom: '0.25rem' }}>From</div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#FAF6F0' }}>{isOutward ? '🇮🇳 India' : '🇨🇦 Canada'}</div>
+        <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{isOutward ? 'NRO Account (INR)' : 'Chequing Account (CAD)'}</div>
+      </div>
+      <button
+        onClick={flipDirection}
+        title="Flip direction"
+        style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(201,150,58,0.15)', border: '1px solid rgba(201,150,58,0.4)', color: '#C9963A', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+      >
+        <ArrowLeftRight size={16} />
+      </button>
+      <div style={{ flex: 1, textAlign: 'right' as const }}>
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' as const, color: '#8BA0B4', marginBottom: '0.25rem' }}>To</div>
+        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#FAF6F0' }}>{isOutward ? '🇨🇦 Canada' : '🇮🇳 India'}</div>
+        <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{isOutward ? 'Chequing Account (CAD)' : 'NRO Account (INR)'}</div>
+      </div>
+    </div>
+  )
+
+  const STEP_LABELS = ['Amount', 'Accounts', 'Review', 'Confirm']
+
   const StepDots = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-      {[1,2,3,4].map(s => (
+      {[1, 2, 3, 4].map(s => (
         <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700,
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700,
             background: step > s ? 'rgba(39,174,96,0.2)' : step === s ? '#C9963A' : 'rgba(201,150,58,0.1)',
-            border: step > s ? '1px solid rgba(39,174,96,0.5)' : step === s ? 'none' : '1px solid rgba(201,150,58,0.2)',
-            color: step > s ? '#27AE60' : step === s ? '#0B1C2C' : '#8BA0B4',
+            border:     step > s ? '1px solid rgba(39,174,96,0.5)' : step === s ? 'none' : '1px solid rgba(201,150,58,0.2)',
+            color:      step > s ? '#27AE60' : step === s ? '#0B1C2C' : '#8BA0B4',
           }}>
             {step > s ? <Check size={12} /> : s}
           </div>
           {s < 4 && <div style={{ width: 30, height: 2, background: step > s ? '#27AE60' : 'rgba(201,150,58,0.2)' }} />}
         </div>
       ))}
+      <div style={{ marginLeft: '0.75rem', fontSize: '0.75rem', color: '#8BA0B4' }}>
+        {STEP_LABELS[(step > 4 ? 4 : step) - 1]}
+      </div>
+    </div>
+  )
+
+  const BankCard = ({ bank, label }: { bank: { name: string; sub: string }; label: string }) => (
+    <div style={{ border: '1px solid #C9963A', background: 'rgba(201,150,58,0.06)', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <Building2 size={20} color="#C9963A" style={{ flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FAF6F0' }}>{bank.name}</div>
+        <div style={{ fontSize: '0.78rem', color: '#8BA0B4' }}>{bank.sub}</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: '0.25rem' }}>
+        <Check size={16} color="#27AE60" />
+        <span style={{ fontSize: '0.65rem', color: '#27AE60' }}>{label}</span>
+      </div>
+    </div>
+  )
+
+  const ConnectPrompt = ({ text, onClick }: { text: string; onClick: () => void }) => (
+    <div style={{ border: '1px dashed rgba(201,150,58,0.3)', padding: '1.25rem', textAlign: 'center' as const }}>
+      <div style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '0.75rem' }}>No account connected</div>
+      <button onClick={onClick} style={{ background: 'transparent', border: '1px solid rgba(201,150,58,0.4)', color: '#C9963A', padding: '0.5rem 1.25rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+        {text}
+      </button>
     </div>
   )
 
   return (
     <div style={S.page}>
+      {/* Header */}
       <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={() => step > 1 ? setStep(s => (s - 1) as Step) : nav('/app/dashboard')}
-          style={{ background: 'none', border: 'none', color: '#8BA0B4', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', padding: 0 }}>
+        <button
+          onClick={() => step > 1 && step < 5 ? setStep(s => (s - 1) as Step) : nav('/app/dashboard')}
+          style={{ background: 'none', border: 'none', color: '#8BA0B4', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', padding: 0 }}
+        >
           <ArrowLeft size={16} /> Back
         </button>
         <div>
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#FFFFFF', lineHeight: 1 }}>New Transfer</h1>
-          <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.2rem' }}>NRO → CAD · Rate: 1 CAD = ₹{fxRate}</p>
+          <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.2rem' }}>Rate: 1 CAD = ₹{rate}</p>
         </div>
       </div>
 
+      {/* Direction toggle — persistent above step dots */}
+      {step < 5 && <DirectionToggle />}
       {step < 5 && <StepDots />}
 
-      {/* STEP 1: Amount */}
+      {/* ── STEP 1: Amount + Speed ── */}
       {step === 1 && (
         <div style={S.card}>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Enter Amount</h2>
-          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Minimum ₹10,000. Annual limit: {formatCAD(limitRemaining)} remaining.</p>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>
+            {isOutward ? `Minimum ₹10,000 · Annual limit: ${formatCAD(limitRemaining)} remaining` : 'Minimum CAD 100'}
+          </p>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={S.label}>Amount to Transfer (INR)</label>
+            <label style={S.label}>{isOutward ? 'Amount to Send (INR)' : 'Amount to Send (CAD)'}</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9963A', fontSize: '1.2rem', fontWeight: 600 }}>₹</span>
-              <input value={amountINR} onChange={e => setAmtINR(formatInput(e.target.value))} placeholder="1,00,000" className="input-field"
-                style={{ display: 'block', paddingLeft: '2.5rem', fontSize: '1.4rem', fontWeight: 600, fontFamily: "'DM Sans'" }} />
+              <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9963A', fontSize: '1.2rem', fontWeight: 600 }}>
+                {isOutward ? '₹' : '$'}
+              </span>
+              <input
+                value={amount}
+                onChange={e => setAmount(formatAmountInput(e.target.value))}
+                placeholder={isOutward ? '1,00,000' : '1,000'}
+                className="input-field"
+                style={{ display: 'block', paddingLeft: '2.5rem', fontSize: '1.4rem', fontWeight: 600, fontFamily: "'DM Sans'" }}
+              />
             </div>
             {exceedsLimit && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', color: '#E74C3C', fontSize: '0.8rem' }}>
@@ -162,118 +262,200 @@ export default function NewTransfer() {
           </div>
 
           {/* Live preview */}
-          {amt >= 10000 && !exceedsLimit && (
+          {minOk && !exceedsLimit && (
             <div style={{ background: '#0B1C2C', border: '1px solid rgba(201,150,58,0.2)', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount (INR)</span><span style={{ color: '#FAF6F0' }}>{formatINR(amt)}</span></div>
-              {tcsApplies && <div style={S.row}><span style={{ color: '#F39C12', fontSize: '0.85rem' }}>TCS 5% (reclaim in ITR)</span><span style={{ color: '#F39C12' }}>− {formatINR(tcsAmt)}</span></div>}
-              <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Net amount sent</span><span style={{ color: '#FAF6F0' }}>{formatINR(netINR)}</span></div>
-              <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
-              <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate (locked)</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{fxRate}</span></div>
-              <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>REPAIHUB fee</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(fee)}</span></div>
-              <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
-              <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (CAD)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatCAD(amtCAD > 0 ? amtCAD : 0)}</span></div>
+              {isOutward ? (
+                <>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount (INR)</span><span style={{ color: '#FAF6F0' }}>{formatINR(amt)}</span></div>
+                  {tcsApplies && <div style={S.row}><span style={{ color: '#F39C12', fontSize: '0.85rem' }}>TCS 5% (reclaim in ITR)</span><span style={{ color: '#F39C12' }}>− {formatINR(tcsAmt)}</span></div>}
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Net amount sent</span><span style={{ color: '#FAF6F0' }}>{formatINR(netINR)}</span></div>
+                  <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>REPAIHUB fee</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(fee)}</span></div>
+                  <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
+                  <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (CAD)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatCAD(amtCAD > 0 ? amtCAD : 0)}</span></div>
+                </>
+              ) : (
+                <>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount (CAD)</span><span style={{ color: '#FAF6F0' }}>{formatCAD(amt)}</span></div>
+                  <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
+                  <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
+                  <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (INR)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatINR(receiveINR)}</span></div>
+                </>
+              )}
             </div>
           )}
 
-          {/* Transfer speed */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={S.label}>Transfer Speed</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              {[
-                { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_STANDARD)} fee`, desc: 'Most transfers' },
-                { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_EXPRESS)} fee`,  desc: 'Priority CA review' },
-              ].map(opt => (
-                <div key={String(opt.key)} onClick={() => setExpress(opt.key)}
-                  style={{ border: `1px solid ${express === opt.key ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: express === opt.key ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: express === opt.key ? '#E8B86D' : '#8BA0B4', marginBottom: '0.4rem' }}>
-                    {opt.icon} <span style={{ fontWeight: 600, fontSize: '0.9rem', color: express === opt.key ? '#FAF6F0' : '#FAF6F0' }}>{opt.title}</span>
+          {/* Speed — outward only */}
+          {isOutward && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={S.label}>Transfer Speed</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                {[
+                  { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_STANDARD)} fee` },
+                  { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_EXPRESS)} fee` },
+                ].map(opt => (
+                  <div key={String(opt.key)} onClick={() => setExpress(opt.key)}
+                    style={{ border: `1px solid ${express === opt.key ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: express === opt.key ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#8BA0B4', marginBottom: '0.4rem' }}>
+                      {opt.icon} <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#FAF6F0' }}>{opt.title}</span>
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 600, color: '#C9963A' }}>{opt.time}</div>
+                    <div style={{ fontSize: '0.78rem', color: '#8BA0B4', marginTop: '0.2rem' }}>{opt.fee}</div>
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 600, color: '#C9963A' }}>{opt.time}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#8BA0B4', marginTop: '0.2rem' }}>{opt.fee} · {opt.desc}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <button onClick={() => setStep(2)} disabled={amt < 10000 || exceedsLimit}
-            style={{ width: '100%', background: amt >= 10000 && !exceedsLimit ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: amt >= 10000 && !exceedsLimit ? 'pointer' : 'not-allowed' }}>
+          <button onClick={() => setStep(2)} disabled={!minOk || exceedsLimit}
+            style={{ width: '100%', background: minOk && !exceedsLimit ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: minOk && !exceedsLimit ? 'pointer' : 'not-allowed' }}>
             Continue →
           </button>
         </div>
       )}
 
-      {/* STEP 2: Purpose */}
+      {/* ── STEP 2: Bank Accounts ── */}
       {step === 2 && (
         <div style={S.card}>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Purpose of Transfer</h2>
-          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Required for Form 15CA filing. Select the nature of funds being repatriated.</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '2rem' }}>
-            {PURPOSES.map(p => (
-              <div key={p} onClick={() => setPurpose(p)}
-                style={{ border: `1px solid ${purpose === p ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: purpose === p ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: 18, height: 18, borderRadius: '50%', border: `1px solid ${purpose === p ? '#C9963A' : 'rgba(201,150,58,0.3)'}`, background: purpose === p ? '#C9963A' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {purpose === p && <Check size={10} color="#0B1C2C" />}
-                </div>
-                <span style={{ fontSize: '0.9rem', color: '#FAF6F0' }}>{p}</span>
-              </div>
-            ))}
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Bank Accounts</h2>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>
+            Select accounts for this transfer. Verified via Flinks (Canada) and DigiLocker (India).
+          </p>
+
+          {/* FROM */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={S.label}>{isOutward ? 'From — India NRO Account' : 'From — Canada Account'}</label>
+            {isOutward
+              ? hasIndiaBank
+                ? <BankCard bank={{ name: user!.indiaBank!.bankName, sub: `${user!.indiaBank!.branch} · NRO Account` }} label="DigiLocker verified" />
+                : <ConnectPrompt text="Connect via DigiLocker →" onClick={() => nav('/onboarding/india-nro')} />
+              : hasCanadaBank
+                ? <BankCard bank={{ name: user!.canadaBank!.institution, sub: `${user!.canadaBank!.accountType} · ${user!.canadaBank!.holderName}` }} label="Flinks verified" />
+                : <ConnectPrompt text="Connect via Flinks →" onClick={() => nav('/onboarding/canada-bank')} />
+            }
           </div>
-          <button onClick={() => setStep(3)} disabled={!purpose}
-            style={{ width: '100%', background: purpose ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: purpose ? 'pointer' : 'not-allowed' }}>
+
+          {/* TO */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={S.label}>{isOutward ? 'To — Canada Account' : 'To — India NRO Account'}</label>
+            {isOutward
+              ? hasCanadaBank
+                ? <BankCard bank={{ name: user!.canadaBank!.institution, sub: `${user!.canadaBank!.accountType} · ${user!.canadaBank!.holderName}` }} label="Flinks verified" />
+                : <ConnectPrompt text="Connect via Flinks →" onClick={() => nav('/onboarding/canada-bank')} />
+              : hasIndiaBank
+                ? <BankCard bank={{ name: user!.indiaBank!.bankName, sub: `${user!.indiaBank!.branch} · NRO Account` }} label="DigiLocker verified" />
+                : <ConnectPrompt text="Connect via DigiLocker →" onClick={() => nav('/onboarding/india-nro')} />
+            }
+          </div>
+
+          <div style={{ fontSize: '0.78rem', color: '#8BA0B4', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+            REPAIHUB never stores your banking credentials. Accounts are verified in real time via Flinks and DigiLocker as required by FINTRAC and RBI.
+          </div>
+
+          {!bothBanksOk && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#F39C12', fontSize: '0.82rem' }}>
+              <AlertCircle size={14} /> Connect both accounts above to continue
+            </div>
+          )}
+
+          <button onClick={() => setStep(3)} disabled={!bothBanksOk}
+            style={{ width: '100%', background: bothBanksOk ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: bothBanksOk ? 'pointer' : 'not-allowed' }}>
             Continue →
           </button>
         </div>
       )}
 
-      {/* STEP 3: Review */}
+      {/* ── STEP 3: Review + Purpose ── */}
       {step === 3 && (
         <div style={S.card}>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Review Transfer</h2>
-          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Please review all details before confirming. The rate will be locked on confirmation.</p>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>
+            {isOutward ? 'Select purpose and review all details.' : 'Review all details before confirming.'}
+          </p>
 
-          <div style={{ background: '#0B1C2C', padding: '1.5rem', marginBottom: '1.5rem' }}>
-            {[
-              ['From', `${user?.indiaBank?.bankName || 'HDFC Bank'} — NRO Account`],
-              ['To', `${user?.canadaBank?.institution || 'TD Canada Trust'} — Chequing`],
-              ['Amount (INR)', formatINR(amt)],
+          {/* Purpose — outward only */}
+          {isOutward && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={S.label}>Purpose (required for Form 145)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {PURPOSES.map(p => (
+                  <div key={p} onClick={() => setPurpose(p)}
+                    style={{ border: `1px solid ${purpose === p ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: purpose === p ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '0.75rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1px solid ${purpose === p ? '#C9963A' : 'rgba(201,150,58,0.3)'}`, background: purpose === p ? '#C9963A' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {purpose === p && <Check size={9} color="#0B1C2C" />}
+                    </div>
+                    <span style={{ fontSize: '0.88rem', color: '#FAF6F0' }}>{p}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Summary */}
+          <div style={{ background: '#0B1C2C', padding: '1.25rem', marginBottom: '1.5rem' }}>
+            {([
+              ['From', isOutward ? user?.indiaBank?.bankName ?? 'India NRO Account'   : user?.canadaBank?.institution ?? 'Canada Account'],
+              ['To',   isOutward ? user?.canadaBank?.institution ?? 'Canada Account'   : user?.indiaBank?.bankName ?? 'India NRO Account'],
+              [isOutward ? 'Amount (INR)' : 'Amount (CAD)', isOutward ? formatINR(amt) : formatCAD(amt)],
               tcsApplies ? ['TCS 5% (refundable)', `− ${formatINR(tcsAmt)}`] : null,
-              ['FX Rate (locked)', `1 CAD = ₹${fxRate}`],
-              ['Speed', express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)'],
-              ['Fee', formatCAD(fee)],
-              ['Purpose', purpose],
-            ].filter(Boolean).map(([k, v]: any) => (
+              ['FX Rate', `1 CAD = ₹${rate}`],
+              isOutward ? ['Speed', express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)'] : null,
+              isOutward ? ['Fee', formatCAD(fee)] : null,
+              (isOutward && purpose) ? ['Purpose', purpose] : null,
+            ] as ([string,string]|null)[]).filter(Boolean).map(([k, v]) => (
               <div key={k} style={{ ...S.row, borderBottom: '1px solid rgba(201,150,58,0.1)', paddingBottom: '0.75rem' }}>
                 <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{k}</span>
-                <span style={{ color: k === 'TCS 5% (refundable)' ? '#F39C12' : '#FAF6F0', fontSize: '0.9rem', fontWeight: 500 }}>{v}</span>
+                <span style={{ color: k === 'TCS 5% (refundable)' ? '#F39C12' : '#FAF6F0', fontSize: '0.88rem', fontWeight: 500 }}>{v}</span>
               </div>
             ))}
             <div style={{ ...S.row, marginTop: '0.5rem', marginBottom: 0, paddingTop: '0.75rem' }}>
-              <span style={{ color: '#E8B86D', fontSize: '1rem', fontWeight: 600 }}>You Receive (CAD)</span>
-              <span style={{ color: '#E8B86D', fontSize: '1.4rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatCAD(amtCAD)}</span>
+              <span style={{ color: '#E8B86D', fontSize: '0.95rem', fontWeight: 600 }}>{isOutward ? 'You receive (CAD)' : 'You receive (INR)'}</span>
+              <span style={{ color: '#E8B86D', fontSize: '1.3rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>
+                {isOutward ? formatCAD(amtCAD > 0 ? amtCAD : 0) : formatINR(receiveINR)}
+              </span>
             </div>
           </div>
 
-          <div style={{ background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-            By confirming, you authorise REPAIHUB to file Form 15CA on your behalf and engage our CA partner to certify Form 15CB. This transfer complies with RBI FEMA regulations.
-          </div>
+          {isOutward && (
+            <div style={{ background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: '#8BA0B4', lineHeight: 1.6 }}>
+              By confirming, you authorise REPAIHUB to file Form 145 on your behalf under IT Act 2025 and engage our CA partner to certify Form 146. This transfer complies with RBI FEMA regulations.
+            </div>
+          )}
 
-          <button onClick={() => setStep(4)}
-            style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            Looks Good — Next →
+          <button onClick={() => setStep(4)} disabled={isOutward && !purpose}
+            style={{ width: '100%', background: isOutward && !purpose ? 'rgba(201,150,58,0.3)' : '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: isOutward && !purpose ? 'not-allowed' : 'pointer' }}>
+            Looks Good — Confirm →
           </button>
         </div>
       )}
 
-      {/* STEP 4: Confirm with biometric simulation */}
+      {/* ── STEP 4: Confirm ── */}
       {step === 4 && (
         <div style={S.card}>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Confirm Transfer</h2>
-          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Confirm {formatCAD(amtCAD)} to your {user?.canadaBank?.institution || 'Canadian bank'} account.</p>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>
+            {isOutward
+              ? `Sending ${formatINR(amt)} from your India NRO account.`
+              : `Sending ${formatCAD(amt)} from your Canadian account.`}
+          </p>
 
           <div style={{ textAlign: 'center', padding: '2rem', background: '#0B1C2C', marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔐</div>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 600, color: '#E8B86D', marginBottom: '0.25rem' }}>{formatCAD(amtCAD)}</div>
-            <div style={{ fontSize: '0.85rem', color: '#8BA0B4' }}>to {user?.canadaBank?.institution}</div>
+            {isOutward ? (
+              <>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#E8B86D' }}>{formatINR(amt)}</div>
+                <div style={{ color: '#C9963A', margin: '0.35rem 0', fontSize: '1.4rem' }}>→</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#E8B86D' }}>{formatCAD(amtCAD > 0 ? amtCAD : 0)}</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#E8B86D' }}>{formatCAD(amt)}</div>
+                <div style={{ color: '#C9963A', margin: '0.35rem 0', fontSize: '1.4rem' }}>→</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#E8B86D' }}>{formatINR(receiveINR)}</div>
+              </>
+            )}
           </div>
 
           {loading ? (
@@ -287,45 +469,70 @@ export default function NewTransfer() {
           ) : (
             <button onClick={handleConfirm}
               style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1.1rem', fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              🔐 Confirm & Send {formatCAD(amtCAD)}
+              🔐 Confirm &amp; Send
             </button>
           )}
         </div>
       )}
 
-      {/* STEP 5: Success */}
+      {/* ── STEP 5: Success ── */}
       {step === 5 && (
         <div style={{ ...S.card, textAlign: 'center', padding: '3rem 2rem' }}>
           <div style={{ width: 72, height: 72, margin: '0 auto 1.5rem', background: 'rgba(39,174,96,0.12)', border: '2px solid rgba(39,174,96,0.4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Check size={32} color="#27AE60" />
           </div>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Transfer Initiated!</h2>
-          <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '0.5rem' }}>Form 15CA has been filed. Our CA is reviewing Form 15CB.</p>
-          <p style={{ fontSize: '0.85rem', color: '#C9963A', marginBottom: '2rem' }}>Reference: {txnRef}</p>
 
-          <div style={{ background: '#0B1C2C', padding: '1.25rem', marginBottom: '2rem', textAlign: 'left' }}>
-            {[
-              ['Amount', `${formatINR(amt)} → ${formatCAD(amtCAD)}`],
-              ['Rate', `1 CAD = ₹${fxRate}`],
-              ['Speed', express ? 'Express: 8–12 hours' : 'Standard: 24–48 hours'],
-              ['Status', '📋 Form 15CA Filed'],
-            ].map(([k, v]) => (
-              <div key={k} style={S.row}>
-                <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{k}</span>
-                <span style={{ color: k === 'Status' ? '#3498DB' : '#FAF6F0', fontSize: '0.88rem', fontWeight: 500 }}>{v}</span>
+          {isOutward ? (
+            <>
+              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '0.5rem' }}>Form 145 has been filed. Our CA is reviewing Form 146.</p>
+              <p style={{ fontSize: '0.85rem', color: '#C9963A', marginBottom: '2rem' }}>Reference: {txnRef}</p>
+              <div style={{ background: '#0B1C2C', padding: '1.25rem', marginBottom: '2rem', textAlign: 'left' }}>
+                {[
+                  ['Amount',  `${formatINR(amt)} → ${formatCAD(amtCAD > 0 ? amtCAD : 0)}`],
+                  ['Rate',    `1 CAD = ₹${rate}`],
+                  ['Speed',   express ? 'Express: 8–12 hours' : 'Standard: 24–48 hours'],
+                  ['Status',  'Form 145 Filed — CA Review Pending'],
+                ].map(([k, v]) => (
+                  <div key={k} style={S.row}>
+                    <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{k}</span>
+                    <span style={{ color: k === 'Status' ? '#3498DB' : '#FAF6F0', fontSize: '0.88rem', fontWeight: 500 }}>{v}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-
-          <p style={{ fontSize: '0.82rem', color: '#8BA0B4', marginBottom: '2rem', lineHeight: 1.6 }}>
-            You'll receive push notifications at every step. Our CA will certify Form 15CB within {express ? '2–4 hours' : '4–8 hours'}. Your bank will process after that.
-          </p>
+              <p style={{ fontSize: '0.82rem', color: '#8BA0B4', marginBottom: '2rem', lineHeight: 1.6 }}>
+                You'll receive notifications at every step. Our CA will certify Form 146 within {express ? '2–4 hours' : '4–8 hours'}. View your compliance documents in the Compliance section.
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '0.5rem' }}>Your inward transfer is being processed.</p>
+              <p style={{ fontSize: '0.85rem', color: '#C9963A', marginBottom: '2rem' }}>Reference: {txnRef}</p>
+              <div style={{ background: '#0B1C2C', padding: '1.25rem', marginBottom: '2rem', textAlign: 'left' }}>
+                {[
+                  ['Amount',  `${formatCAD(amt)} → ${formatINR(receiveINR)}`],
+                  ['Rate',    `1 CAD = ₹${rate}`],
+                  ['Status',  'Processing'],
+                ].map(([k, v]) => (
+                  <div key={k} style={S.row}>
+                    <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{k}</span>
+                    <span style={{ color: k === 'Status' ? '#3498DB' : '#FAF6F0', fontSize: '0.88rem', fontWeight: 500 }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#8BA0B4', marginBottom: '2rem', lineHeight: 1.6 }}>
+                Funds will arrive in your India NRO account within 1–3 business days.
+              </p>
+            </>
+          )}
 
           <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
-            <button onClick={() => nav('/app/transfer')} style={{ background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '0.9rem', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            <button onClick={() => nav('/app/transfer')}
+              style={{ background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '0.9rem', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
               Track Transfer
             </button>
-            <button onClick={() => nav('/app/dashboard')} style={{ background: 'transparent', border: '1px solid rgba(201,150,58,0.3)', color: '#C9963A', padding: '0.85rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => nav('/app/dashboard')}
+              style={{ background: 'transparent', border: '1px solid rgba(201,150,58,0.3)', color: '#C9963A', padding: '0.85rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
               Back to Dashboard
             </button>
           </div>

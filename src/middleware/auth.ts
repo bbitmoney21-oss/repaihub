@@ -6,6 +6,20 @@ export interface AuthRequest extends Request {
   userEmail?: string;
 }
 
+export function optionalAuthMiddleware(req: AuthRequest, _res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    const token = header.slice(7);
+    const secret = process.env.JWT_SECRET || 'repaihub_customer_secret_change_in_production';
+    try {
+      const payload = jwt.verify(token, secret) as { id: string; email: string };
+      req.userId = payload.id;
+      req.userEmail = payload.email;
+    } catch { /* ignore invalid token — treat as unauthenticated */ }
+  }
+  next();
+}
+
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {

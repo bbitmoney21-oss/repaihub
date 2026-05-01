@@ -44,16 +44,20 @@ interface Notification {
 }
 
 const STATUS_MAP: Record<string, TransferStatus> = {
-  initiated:        'INITIATED',
-  kyc_verified:     'KYC_VERIFIED',
-  '15cb_requested': 'KYC_VERIFIED',   // CA portal pending → show as KYC verified in user view
-  '15cb_received':  '15CB_CERTIFIED', // CA certified → show as certified in user view
-  '15ca_filed':     '15CA_FILED',
-  '15cb_certified': '15CB_CERTIFIED',
-  bank_processing:  'BANK_PROCESSING',
-  swift_sent:       'SWIFT_SENT',
-  completed:        'COMPLETED',
-  failed:           'FAILED',
+  initiated:           'INITIATED',
+  kyc_verified:        'KYC_VERIFIED',
+  '15cb_requested':    'KYC_VERIFIED',
+  '15cb_received':     '15CB_CERTIFIED',
+  '15ca_filed':        '15CA_FILED',
+  '15cb_certified':    '15CB_CERTIFIED',
+  // IT Act 2025 names
+  form146_requested:   'KYC_VERIFIED',
+  form145_filed:       '15CA_FILED',
+  form146_certified:   '15CB_CERTIFIED',
+  bank_processing:     'BANK_PROCESSING',
+  swift_sent:          'SWIFT_SENT',
+  completed:           'COMPLETED',
+  failed:              'FAILED',
 }
 
 export interface DbTransfer {
