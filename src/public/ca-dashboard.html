@@ -161,6 +161,19 @@ tr:hover td{background:#FAFAFA}
 .spinner{width:18px;height:18px;border:2px solid #E5E7EB;border-top-color:#0F6E56;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:10px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ── Workflow Steps (CA real-world process guide) ── */
+.workflow-steps{display:flex;flex-direction:column;gap:0;margin-bottom:16px;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden}
+.workflow-step{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #E5E7EB}
+.workflow-step:last-child{border-bottom:none}
+.workflow-step.external{background:#FFFBEB}
+.workflow-step.record{background:#F0FDF4}
+.step-num{width:22px;height:22px;border-radius:50%;background:#0F6E56;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.workflow-step.external .step-num{background:#D97706}
+.step-body{flex:1}
+.step-title{font-size:12px;font-weight:700;color:#111;margin-bottom:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step-desc{font-size:11px;color:#6B7280;line-height:1.5}
+.step-external-tag{background:#FEF3C7;color:#92400E;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:600;letter-spacing:0.04em;flex-shrink:0}
+
 /* ── Risk badges ── */
 .risk-low{background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0}
 .risk-medium{background:#FEF3C7;color:#D97706;border:1px solid #FDE68A}
@@ -390,6 +403,10 @@ const STATUS_LABEL = {
   'FORM146_REQUESTED':          'Form 146 Requested',
   'FORM146_RECEIVED':           'Form 146 Received',
   'FORM145_FILED':              'Form 145 Filed',
+  // Legacy IT Act 1961 codes — display as Form 145/146
+  '15CB_REQUESTED':             'Form 146 Requested',
+  '15CB_RECEIVED':              'Form 146 Received',
+  '15CA_FILED':                 'Form 145 Filed',
   'GATEWAY_RETRY':              'Gateway Retry',
   'pending_ca_approval':        'Pending CA Approval',
   'processing_with_compliance': 'Processing + Compliance',
@@ -828,7 +845,7 @@ function toggleCheck(row) {
 }
 
 function renderActionArea(status, transfer) {
-  // Completed / post-filing states
+  // ── Completed / post-filing states ────────────────────────────────────────
   if (status === 'FORM145_FILED' || status === '15CA_FILED' || status === 'COMPLETED' || status === 'BANK_PROCESSING') {
     const form146Num = transfer?.form146Number || transfer?.fifteenCBNumber;
     const form145Num = transfer?.form145Number || transfer?.fifteenCANumber;
@@ -836,42 +853,87 @@ function renderActionArea(status, transfer) {
       <div class="completed-badge">
         <span class="icon">✅</span>
         <div>
-          <div>Compliance complete</div>
-          ${form146Num ? `<div style="font-size:12px;font-weight:400;margin-top:4px">Form 146: ${h(form146Num)}</div>` : ''}
-          ${form145Num ? `<div style="font-size:12px;font-weight:400">Form 145: ${h(form145Num)}</div>` : ''}
+          <div>Compliance complete — all forms recorded</div>
+          ${form146Num ? `<div style="font-size:12px;font-weight:400;margin-top:4px">Form 146 Ref: ${h(form146Num)}</div>` : ''}
+          ${form145Num ? `<div style="font-size:12px;font-weight:400">Form 145 Ack: ${h(form145Num)}</div>` : ''}
         </div>
       </div>`;
   }
 
-  // Form 146 received — now need to file Form 145 on IT portal
+  // ── Form 146 recorded — now record Form 145 ack ───────────────────────────
   if (status === 'FORM146_RECEIVED' || status === '15CB_RECEIVED') {
     return `
       <div class="action-box">
-        <div style="font-size:13px;color:#374151;margin-bottom:14px">Form 146 has been certified. File Form 145 on the Income Tax portal (incometax.gov.in → e-File → Income Tax Forms → Form 145) and enter the acknowledgement number below.</div>
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:12px 14px;font-size:12px;color:#92400E;margin-bottom:14px">
+          <strong>Form 146 reference recorded.</strong> Complete the step below, then record the Form 145 acknowledgement number.
+        </div>
+        <div class="workflow-steps">
+          <div class="workflow-step external">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <div class="step-title">File Form 145 on the Income Tax Portal <span class="step-external-tag">External — incometax.gov.in</span></div>
+              <div class="step-desc">Go to <strong>incometax.gov.in → e-File → Income Tax Forms → Form 145</strong>. Use remittance details from Section 3 above. Submit and copy the acknowledgement number shown.</div>
+            </div>
+          </div>
+          <div class="workflow-step record">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <div class="step-title">Record Form 145 Acknowledgement Number Here</div>
+              <div class="step-desc">REPAIHUB stores this reference for compliance audit — it is not generated here.</div>
+            </div>
+          </div>
+        </div>
         <div id="file-error" class="err-banner"></div>
-        <label class="field-label">Form 145 Acknowledgement Number</label>
+        <label class="field-label">Form 145 Acknowledgement Number <span style="color:#DC2626">*</span></label>
         <input id="ca-number" type="text" placeholder="e.g. F145-2026-04-190K-1234">
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleForm145Filed()">Mark Form 145 Filed →</button>
+          <button class="btn btn-primary" onclick="handleForm145Filed()">Record Form 145 Ack &amp; Complete →</button>
         </div>
       </div>`;
   }
 
-  // Form 146 requested (standard NRO workflow)
+  // ── Shared workflow guide (used for all cases that need Form 146 from CA software) ──
+  const workflowGuide = `
+    <div class="workflow-steps">
+      <div class="workflow-step external">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Create Form 146 in Your CA Software <span class="step-external-tag">External — Winman / Gen / Taxmann / ICAI</span></div>
+          <div class="step-desc">Open your CA firm software. Use the WISEMAN data fields in <strong>Section 5</strong> above (click <em>Download Form 146 Data (.txt)</em> for a pre-filled export). Generate and digitally sign Form 146 in your software. Copy the certificate number it assigns.</div>
+        </div>
+      </div>
+      <div class="workflow-step external">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">File Form 145 on Income Tax Portal <span class="step-external-tag">External — incometax.gov.in</span></div>
+          <div class="step-desc">Go to <strong>incometax.gov.in → e-File → Income Tax Forms → Form 145</strong>. Attach your Form 146 reference. Submit and note the Form 145 acknowledgement number for the next step.</div>
+        </div>
+      </div>
+      <div class="workflow-step record">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Record the Form 146 Certificate Number Here</div>
+          <div class="step-desc">Enter the certificate number assigned by your CA software below. REPAIHUB records this reference — it does not generate or issue Form 146. The Form 145 acknowledgement is recorded in the following step.</div>
+        </div>
+      </div>
+    </div>`;
+
+  // ── Form 146 requested — standard NRO workflow ───────────────────────────
   if (status === 'FORM146_REQUESTED' || status === '15CB_REQUESTED' || status === 'KYC_VERIFIED') {
     return `
       <div class="action-box">
         <div id="approve-error" class="err-banner"></div>
-        <label class="field-label">Form 146 Certificate Number</label>
+        ${workflowGuide}
+        <label class="field-label">Form 146 Certificate Number <span style="color:#DC2626">*</span> <span style="font-size:10px;font-weight:400;color:#6B7280">(from your CA software)</span></label>
         <input id="cb-number" type="text" placeholder="e.g. F146-2026-04-190K-5678">
-        <label class="field-label">CA Remarks (minimum 20 characters)</label>
+        <label class="field-label">CA Remarks <span style="color:#DC2626">*</span> <span style="font-size:10px;font-weight:400;color:#6B7280">(min. 20 characters)</span></label>
         <textarea id="ca-remarks" rows="3" placeholder="Verified source of funds against Form 26AS. TDS confirmed under Section 397(3)(d). DTAA relief assessed under Article 23..."></textarea>
         <label class="confirm-check">
           <input type="checkbox" id="confirm-check">
-          I confirm I have verified the above details on WISEMAN and Form 26AS, and I take professional responsibility for this Form 146 certification under IT Act 2025.
+          I confirm I have completed Form 146 in my CA software and filed Form 145 on the Income Tax portal. I take professional responsibility for this certification under IT Act 2025.
         </label>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleApprove()">Certify Form 146 ✓</button>
+          <button class="btn btn-primary" onclick="handleApprove()">Record Form 146 Reference &amp; Approve ✓</button>
           <button class="btn btn-danger" onclick="showRejectForm()">Reject ✗</button>
         </div>
         <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
@@ -885,23 +947,23 @@ function renderActionArea(status, transfer) {
       </div>`;
   }
 
-  // ── 3-tier decision engine statuses ───────────────────────────────────────
-
+  // ── 3-tier: HIGH RISK — transfer blocked ─────────────────────────────────
   if (status === 'pending_ca_approval') {
     return `
       <div class="action-box">
-        <div class="warn-banner" style="display:block">⚠ HIGH RISK — This transfer is <strong>blocked</strong>. The customer cannot proceed until you certify Form 146 (IT Act 2025, Section 397(3)(d)) and approve. Review the risk assessment in Section 0 before certifying.</div>
+        <div class="warn-banner" style="display:block">⚠ HIGH RISK — This transfer is <strong>blocked</strong>. The customer cannot proceed until you complete all steps below. Review the risk assessment (Section 0) and the pre-certification checklist (Section 6) before proceeding.</div>
         <div id="approve-error" class="err-banner"></div>
-        <label class="field-label">Form 146 Certificate Number</label>
+        ${workflowGuide}
+        <label class="field-label">Form 146 Certificate Number <span style="color:#DC2626">*</span> <span style="font-size:10px;font-weight:400;color:#6B7280">(from your CA software — REPAIHUB records this reference)</span></label>
         <input id="cb-number" type="text" placeholder="e.g. F146-2026-04-190K-5678">
-        <label class="field-label">CA Remarks (minimum 20 characters)</label>
+        <label class="field-label">CA Remarks <span style="color:#DC2626">*</span> <span style="font-size:10px;font-weight:400;color:#6B7280">(min. 20 characters)</span></label>
         <textarea id="ca-remarks" rows="3" placeholder="Reviewed high-risk indicators. Source of funds verified against Form 26AS. DTAA relief assessed under Article 23 per Section 397(3)(d)…"></textarea>
         <label class="confirm-check">
           <input type="checkbox" id="confirm-check">
-          I have reviewed the risk assessment, verified source of funds on WISEMAN/Form 26AS, and take professional responsibility for approving this high-risk transfer under IT Act 2025.
+          I have reviewed the risk assessment, completed Form 146 in my CA software, filed Form 145 on the Income Tax portal, and take professional responsibility for approving this high-risk transfer under IT Act 2025.
         </label>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleApprove()">Approve &amp; Certify Form 146 ✓</button>
+          <button class="btn btn-primary" onclick="handleApprove()">Record Form 146 Reference &amp; Approve ✓</button>
           <button class="btn btn-danger" onclick="showRejectForm()">Reject Transfer ✗</button>
         </div>
         <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
@@ -915,6 +977,7 @@ function renderActionArea(status, transfer) {
       </div>`;
   }
 
+  // ── 3-tier: MEDIUM RISK — transfer already processing ────────────────────
   if (status === 'processing_with_compliance') {
     return `
       <div class="action-box">
@@ -922,16 +985,17 @@ function renderActionArea(status, transfer) {
           ℹ MEDIUM RISK — Transfer is already processing. Your Form 146 certification is required for compliance records under IT Act 2025 but does not block the customer.
         </div>
         <div id="approve-error" class="err-banner"></div>
-        <label class="field-label">Form 146 Certificate Number</label>
+        ${workflowGuide}
+        <label class="field-label">Form 146 Certificate Number <span style="color:#DC2626">*</span> <span style="font-size:10px;font-weight:400;color:#6B7280">(from your CA software — REPAIHUB records this reference)</span></label>
         <input id="cb-number" type="text" placeholder="e.g. F146-2026-04-190K-5678">
-        <label class="field-label">CA Remarks (minimum 20 characters)</label>
+        <label class="field-label">CA Remarks <span style="color:#DC2626">*</span> <span style="font-size:10px;font-weight:400;color:#6B7280">(min. 20 characters)</span></label>
         <textarea id="ca-remarks" rows="3" placeholder="Reviewed source of funds. TDS verified against Form 26AS under Section 397(3)(d). DTAA relief assessed under Article 23…"></textarea>
         <label class="confirm-check">
           <input type="checkbox" id="confirm-check">
-          I confirm verification and take professional responsibility for this Form 146 certification under IT Act 2025.
+          I confirm I have completed Form 146 in my CA software, filed Form 145 on the Income Tax portal, and take professional responsibility for this certification under IT Act 2025.
         </label>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="handleApprove()">Certify Form 146 ✓</button>
+          <button class="btn btn-primary" onclick="handleApprove()">Record Form 146 Reference &amp; Certify ✓</button>
           <button class="btn btn-danger" onclick="showRejectForm()">Flag Compliance Issue ✗</button>
         </div>
         <div id="reject-form" style="display:none;margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px">
@@ -945,6 +1009,7 @@ function renderActionArea(status, transfer) {
       </div>`;
   }
 
+  // ── 3-tier: LOW RISK — auto-processed / failed ────────────────────────────
   if (status === 'processing' || status === 'failed') {
     const isProcessing = status === 'processing';
     return `
