@@ -66,6 +66,10 @@ export function clearComplianceCache(): void {
   docLabelsCachedAt       = 0;
 }
 
+// NOTE: Under India Income Tax Act 2025 (effective 1 Apr 2026):
+// Form 15CA is now Form 145 | Form 15CB is now Form 146
+// Section 195 is now Section 397(3)(d)
+
 // ── Public interface ──────────────────────────────────────────────────────────
 
 export interface ComplianceInput {
@@ -75,12 +79,16 @@ export interface ComplianceInput {
 }
 
 export interface ComplianceResult {
-  requires15CA: boolean;
-  requires15CB: boolean;
+  requiresForm145: boolean;     // formerly requires15CA
+  requiresForm146: boolean;     // formerly requires15CB
   requiresCA: boolean;          // true if ANY CA action is needed
   missingDocuments: Array<{ name: string; label: string }>;
   documentStatus: 'COMPLETE' | 'PARTIAL' | 'MISSING' | 'NOT_REQUIRED';
-  fifteenCAPart: 'A' | 'C';    // 'A' for < ₹5L, 'C' for >= ₹5L
+  form145Part: 'A' | 'C';      // formerly fifteenCAPart — 'A' for < ₹5L, 'C' for >= ₹5L
+  // Backward-compat aliases — remove after full migration
+  requires15CA?: boolean;
+  requires15CB?: boolean;
+  fifteenCAPart?: 'A' | 'C';
 }
 
 // ── Main compliance evaluation ────────────────────────────────────────────────
@@ -100,9 +108,13 @@ export async function evaluateCompliance(input: ComplianceInput): Promise<Compli
   });
 
   // Default to most conservative if no rule found
-  const requires15CA = applicableRule?.requires_15ca ?? (input.amountINR >= 500_000);
-  const requires15CB = applicableRule?.requires_15cb ?? (input.amountINR >= 500_000);
-  const fifteenCAPart: 'A' | 'C' = input.amountINR < 500_000 ? 'A' : 'C';
+  const requiresForm145 = applicableRule?.requires_15ca ?? (input.amountINR >= 500_000);
+  const requiresForm146 = applicableRule?.requires_15cb ?? (input.amountINR >= 500_000);
+  const form145Part: 'A' | 'C' = input.amountINR < 500_000 ? 'A' : 'C';
+  // Backward-compat aliases
+  const requires15CA = requiresForm145;
+  const requires15CB = requiresForm146;
+  const fifteenCAPart = form145Part;
 
   // Check document completeness for this source
   const required = docLabels.filter(
@@ -123,14 +135,18 @@ export async function evaluateCompliance(input: ComplianceInput): Promise<Compli
     documentStatus = 'MISSING';
   }
 
-  const requiresCA = requires15CA || requires15CB;
+  const requiresCA = requiresForm145 || requiresForm146;
 
   return {
-    requires15CA,
-    requires15CB,
+    requiresForm145,
+    requiresForm146,
     requiresCA,
     missingDocuments: missing.map(d => ({ name: d.document_name, label: d.doc_label })),
     documentStatus,
+    form145Part,
+    // Backward-compat aliases
+    requires15CA,
+    requires15CB,
     fifteenCAPart,
   };
 }
@@ -144,8 +160,8 @@ export async function saveComplianceCheck(
   await supabaseAdmin.from('compliance_checks').insert({
     transfer_id:        transferId,
     requires_ca:        result.requiresCA,
-    requires_15ca:      result.requires15CA,
-    requires_15cb:      result.requires15CB,
+    requires_15ca:      result.requiresForm145,
+    requires_15cb:      result.requiresForm146,
     missing_documents:  result.missingDocuments.map(d => d.name),
     status:             result.documentStatus,
   });
@@ -170,7 +186,7 @@ export function applyDecisionEngine(
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH',
   complianceResult: ComplianceResult,
 ): TransferDecision {
-  const { requiresCA, requires15CA } = complianceResult;
+  const { requiresCA, requiresForm145 } = complianceResult;
 
   if (riskLevel === 'HIGH') {
     return {
@@ -197,7 +213,7 @@ export function applyDecisionEngine(
   }
 
   // LOW risk
-  if (!requires15CA) {
+  if (!requiresForm145) {
     // Small amount, no CA needed at all
     return {
       transferStatus:    'processing',
@@ -210,7 +226,7 @@ export function applyDecisionEngine(
     };
   }
 
-  // LOW risk but large amount — 15CA/15CB still required, CA files async (non-blocking)
+  // LOW risk but large amount — Form 145/146 still required, CA files async (non-blocking)
   return {
     transferStatus:    'processing',
     caRequired:        true,
@@ -218,6 +234,6 @@ export function applyDecisionEngine(
     complianceStatus:  'PENDING_REVIEW',
     customerMessage:
       'Your transfer is being processed. Our CA partner will file the required ' +
-      '15CA/15CB forms — this does not delay your transfer.',
+      'Form 145/146 documents — this does not delay your transfer.',
   };
 }

@@ -1,3 +1,8 @@
+// NOTE: Under India Income Tax Act 2025 (effective 1 Apr 2026):
+// Form 15CA is now Form 145 | Form 15CB is now Form 146
+// Section 195 is now Section 397(3)(d)
+// File on: incometax.gov.in → e-File → Income Tax Forms → Form 146
+
 import { Router, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -14,11 +19,10 @@ import { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
 import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 import { orchestrateAfterCAApproval } from '../orchestrator/outwardOrchestrator';
 import { buildWisemanFields } from '../compliance/fifteenCBService';
+import { withRetry } from '../services/retryService';
 
 const BUCKET = 'wallet-docs';
-
 const router = Router();
-
 const ts = () => new Date().toISOString();
 
 // ── Human-readable labels ─────────────────────────────────────────────────────
@@ -87,28 +91,35 @@ router.get('/transfers', caAuthMiddleware, async (req: CARequest, res: Response)
 });
 
 // ── GET /ca/transfers/pending ─────────────────────────────────────────────────
-// Must be declared before /transfers/:id to avoid "pending" being treated as an id
+// CHALLENGE 5 FIX: CA only sees what requires their action.
+// Split into two queues: BLOCKED (caBlocking=true) and PARALLEL (caBlocking=false).
+// Never shows: LOW risk, NRE, inward, completed transfers.
 router.get('/transfers/pending', caAuthMiddleware, async (_req: CARequest, res: Response) => {
-  const pending = await getPendingTransfers();
+  const allPending = await getPendingTransfers();
 
-  const enriched = pending.map(t => {
+  // Filter: only transfers where Form 146 is required AND status = FORM146_REQUESTED
+  const caQueue = allPending.filter(t => {
+    // Skip NRE (form146Required=false, form145Part=EXEMPT)
+    if (t.form145Part === 'EXEMPT') return false;
+    // Skip LOW risk auto-approvals (form146Required=false)
+    if (!t.form146Required) return false;
+    // Only show FORM146_REQUESTED status
+    if (t.status !== 'FORM146_REQUESTED') return false;
+    return true;
+  });
+
+  const enriched = caQueue.map(t => {
     const tRaw = t as unknown as Record<string, unknown>;
     const customerModel = tRaw['customer_model'] as string ?? 'p2p';
     const accountType   = tRaw['account_type'] as string ?? 'NRO';
     const nroBankName   = tRaw['nro_bank_name'] as string ?? t.nroBankName ?? 'Unknown';
     const nroBranchCity = tRaw['nro_branch_city'] as string ?? t.nroBranchCity ?? 'Unknown';
     const tdsRate       = t.tdsDeducted ? 0.30 : 0;
+    const caBlocking    = (tRaw['ca_blocking'] as boolean) ?? false;
 
-    const customerModelLabel =
-      customerModel === 'citizen_nre' ? 'Citizen — NRE Account (EXEMPT)' :
-      customerModel === 'citizen_nro' ? 'Citizen — NRO Account' :
-      'P2P — NRO Account';
-
-    const accountTypeLabel = `${accountType} (${nroBankName}, ${nroBranchCity})`;
-
-    const fifteenCAPartLabel = t.fifteenCAPart === 'EXEMPT'
-      ? 'EXEMPT — NRE account, no 15CA/15CB required'
-      : `Part ${t.fifteenCAPart} — CA certification required`;
+    const form145PartLabel = t.form145Part === 'EXEMPT'
+      ? 'EXEMPT — NRE account, no Form 145/146 required'
+      : `Part ${t.form145Part} — Form 146 certification required (IT Act 2025)`;
 
     const wiseman_fields = buildWisemanFields(
       t.panLast4 ?? 'N/A',
@@ -122,15 +133,30 @@ router.get('/transfers/pending', caAuthMiddleware, async (_req: CARequest, res: 
 
     return {
       ...t,
-      customerModelLabel,
-      accountTypeLabel,
-      fifteenCAPartLabel,
+      customerModelLabel: customerModel === 'citizen_nre' ? 'Citizen — NRE Account (EXEMPT)' :
+        customerModel === 'citizen_nro' ? 'Citizen — NRO Account' : 'P2P — NRO Account',
+      accountTypeLabel: `${accountType} (${nroBankName}, ${nroBranchCity})`,
+      form145PartLabel,
+      caBlocking,
       wiseman_fields,
       fableNote: 'Banking rails operated by Fable Fintech. FINTRAC filed by Fable for ≥ CAD 10K.',
     };
   });
 
+  // Split into two queues
+  const blocked  = enriched.filter(t => t.caBlocking);   // HIGH risk — BLOCKS transfer
+  const parallel = enriched.filter(t => !t.caBlocking);  // MEDIUM risk — transfer proceeds in parallel
+
+  // Sort: oldest first (most urgent)
+  blocked.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  parallel.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
   res.json({
+    blocked,
+    parallel,
+    blockedCount:  blocked.length,
+    parallelCount: parallel.length,
+    // Backward-compat: merged list for old dashboard code
     transfers: enriched,
     count: enriched.length,
     fableAttribution: 'Transfer execution via Fable Fintech (AD Cat-I bank + SWIFT). REPAIHUB handles compliance.',
@@ -159,19 +185,20 @@ router.get('/transfers/:id/form', caAuthMiddleware, async (req: CARequest, res: 
   const created = new Date(transfer.createdAt);
   const slaHours = transfer.priority === 'express' ? 4 : 24;
   const deadlineMs = created.getTime() + slaHours * 3600000;
-  const deadline = new Date(deadlineMs);
   const slaHoursRemaining = Math.max(0, (deadlineMs - Date.now()) / 3600000);
-
   const primaryTdsRate = transfer.sourceBreakdown[0]?.tdsRate ?? 0.30;
 
   const form = {
     formMeta: {
       generatedAt: ts(),
       transferId: transfer.id,
-      fifteenCAPart: transfer.fifteenCAPart,
-      fifteenCBRequired: transfer.fifteenCBRequired,
-      filingDeadline: deadline.toISOString(),
+      // IT Act 2025 form names
+      form145Part: transfer.form145Part,
+      form146Required: transfer.form146Required,
+      filingDeadline: new Date(deadlineMs).toISOString(),
       slaHoursRemaining: parseFloat(slaHoursRemaining.toFixed(2)),
+      taxActVersion: '2025',
+      note: 'Form 15CB renamed to Form 146, Form 15CA renamed to Form 145 under IT Act 2025',
     },
 
     remitterDetails: {
@@ -215,11 +242,13 @@ router.get('/transfers/:id/form', caAuthMiddleware, async (req: CARequest, res: 
       taxableUnderITA: true,
       applicableDTAA: 'India-Canada DTAA — 1996',
       dtaaArticle: 'Article 23 — Other Income',
+      // IT Act 2025: Section 397(3)(d) replaces Section 195
+      tdsSection: '397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]',
       withholdingTaxRate: transfer.tdsDeducted ? `${(primaryTdsRate * 100).toFixed(0)}%` : '0%',
       tdsVerificationRequired: true,
     },
 
-    fifteenCBChecklist: {
+    form146Checklist: {
       sourceOfFundsVerified: false,
       tdsVerifiedIn26AS: false,
       dtaaReliefAssessed: false,
@@ -239,7 +268,8 @@ router.get('/transfers/:id/form', caAuthMiddleware, async (req: CARequest, res: 
       bank_name: transfer.adBankName,
       purpose_code: transfer.purposeCode,
       tds_amount: formatINR(transfer.tdsAmountINR),
-      tds_section: '195',
+      // IT Act 2025: Section 397(3)(d) replaces Section 195
+      tds_section: '397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]',
       rate_of_tds: transfer.tdsDeducted ? `${(primaryTdsRate * 100).toFixed(0)}%` : '0%',
       dtaa_applicable: 'Yes — India-Canada DTAA 1996',
       dtaa_article: 'Article 23 — Other Income',
@@ -252,18 +282,87 @@ router.get('/transfers/:id/form', caAuthMiddleware, async (req: CARequest, res: 
   res.json({ form, timestamp: ts() });
 });
 
+// ── GET /ca/transfers/:id/wiseman-export ──────────────────────────────────────
+// Returns pre-formatted WISEMAN data for Form 146 preparation.
+// Frontend uses this to generate the downloadable .txt file.
+router.get('/transfers/:id/wiseman-export', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const transfer = await getTransferById(req.params.id as string);
+  if (!transfer) {
+    res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
+    return;
+  }
+
+  const primaryTdsRate = transfer.sourceBreakdown[0]?.tdsRate ?? 0.30;
+  const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+  const lines = [
+    '================================',
+    'REPAIHUB — Form 146 Data Export',
+    `Transfer ID: ${transfer.id}`,
+    `Reference: ${(transfer as Record<string, unknown>)['reference'] ?? 'N/A'}`,
+    `Generated: ${now} IST`,
+    '================================',
+    `ASSESSEE_NAME: ${transfer.customerName}`,
+    `ASSESSEE_PAN: ****${transfer.panLast4}`,
+    `NATURE_OF_REMITTANCE: ${SOURCE_LABELS[transfer.sourceOfFunds] || transfer.sourceOfFunds}`,
+    `AMOUNT_INR: ₹${transfer.amountINR.toLocaleString('en-IN')}`,
+    `AMOUNT_FOREIGN_CURRENCY: CAD ${transfer.amountCAD.toFixed(2)}`,
+    `CURRENCY_CODE: CAD`,
+    `COUNTRY_OF_REMITTANCE: Canada`,
+    `AD_BANK: ${transfer.adBankName} (via Fable Fintech)`,
+    `PURPOSE_CODE: ${transfer.purposeCode}`,
+    `TDS_SECTION: 397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]`,
+    `TDS_RATE: ${transfer.tdsDeducted ? `${(primaryTdsRate * 100).toFixed(0)}%` : '0%'}`,
+    `TDS_AMOUNT_INR: ₹${transfer.tdsAmountINR.toLocaleString('en-IN')}`,
+    `TDS_CERTIFICATE_REF: ${transfer.tdsReference || 'N/A'}`,
+    `DTAA_APPLICABLE: Yes`,
+    `DTAA_ARTICLE: Article 23 — India-Canada DTAA 1996`,
+    `FINANCIAL_YEAR: ${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${String(new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()).slice(-2)}`,
+    `FORM_145_PART: Part ${transfer.form145Part}`,
+    `CUMULATIVE_TRANSFERS_FY: ₹${transfer.financialYearCumulativeINR.toLocaleString('en-IN')}`,
+    '================================',
+    'CA CHECKLIST:',
+    '[ ] Form 26AS downloaded and verified',
+    '[ ] TDS certificate checked against Form 26AS',
+    '[ ] DTAA applicability confirmed (Article 23 — India-Canada DTAA 1996)',
+    '[ ] Source of funds documents reviewed',
+    '[ ] Remittance amount matches bank statement',
+    '[ ] FEMA compliance confirmed (USD 1M annual limit)',
+    '================================',
+    'ENTER AFTER FILING ON INCOMETAX.GOV.IN:',
+    'Form 146 Ack Number: _________________________',
+    'Filed on IT Portal (date): ___________________',
+    `CA Name: ${req.caUser?.name || '____________________________________'}`,
+    `ICAI Membership Number: ${req.caUser?.icaiMembership || '_____________________'}`,
+    '================================',
+    'After filing, enter the Form 146 Ack Number',
+    'in the REPAIHUB CA Portal and click CERTIFY.',
+    '================================',
+  ];
+
+  res.json({
+    exportText: lines.join('\n'),
+    transferId: transfer.id,
+    customerName: transfer.customerName,
+    timestamp: ts(),
+  });
+});
+
 // ── POST /ca/transfers/:id/approve ────────────────────────────────────────────
+// CA certifies Form 146 — marks transfer as FORM146_RECEIVED and triggers Fable.
+// CHALLENGE 4 FIX: Fetches fresh exchange rate at CA approval time.
 router.post('/transfers/:id/approve', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { cbNumber, remarks } = req.body as { cbNumber?: string; remarks?: string };
   if (!cbNumber || !remarks || remarks.length < 20) {
     res.status(400).json({
-      error: 'cbNumber and remarks (minimum 20 characters) are required',
+      error: 'cbNumber (Form 146 Ack number) and remarks (minimum 20 characters) are required',
       timestamp: ts(),
     });
     return;
   }
-  const updated = await updateTransferStatus(req.params.id as string, '15CB_RECEIVED', {
-    fifteenCBNumber: cbNumber,
+
+  const updated = await updateTransferStatus(req.params.id as string, 'FORM146_RECEIVED', {
+    form146Number: cbNumber,
     caRemarks: remarks,
     caApprovedAt: ts(),
     caApprovedBy: req.caUser?.name || 'CA',
@@ -273,17 +372,20 @@ router.post('/transfers/:id/approve', caAuthMiddleware, async (req: CARequest, r
     return;
   }
 
-  // Trigger Fable execution now that CA has certified 15CB
-  // [ORANGE] Fable will debit the customer's Indian bank via AD bank and SWIFT
+  // Challenge 4: Refresh rate at CA certification time — orchestrateAfterCAApproval
+  // fetches fresh rate from Fable before building the execution instruction.
   setImmediate(() => {
-    orchestrateAfterCAApproval(req.params.id as string).catch(err =>
-      console.error('[CA-PORTAL] orchestrateAfterCAApproval failed (non-critical):', err));
+    withRetry(
+      () => orchestrateAfterCAApproval(req.params.id as string),
+      { label: 'orchestrateAfterCAApproval', maxAttempts: 3 },
+    ).catch(err =>
+      console.error('[CA-PORTAL] orchestrateAfterCAApproval failed after retries:', err));
   });
 
   res.json({
     transfer: updated,
-    message: '15CB certified successfully. Fable will now execute transfer via AD bank.',
-    note: 'SWIFT execution handled by Fable Fintech. REPAIHUB will receive webhook on completion.',
+    message: 'Form 146 certified successfully. Fable will now execute transfer via AD bank.',
+    note: 'Rate refreshed at CA approval time (IT Act 2025 compliance). SWIFT execution via Fable Fintech.',
     timestamp: ts(),
   });
 });
@@ -307,25 +409,25 @@ router.post('/transfers/:id/reject', caAuthMiddleware, async (req: CARequest, re
   res.json({ transfer: updated, message: 'Transfer rejected', timestamp: ts() });
 });
 
-// ── POST /ca/transfers/:id/15ca-filed ─────────────────────────────────────────
-router.post('/transfers/:id/15ca-filed', caAuthMiddleware, async (req: CARequest, res: Response) => {
+// ── POST /ca/transfers/:id/form145-filed ─────────────────────────────────────
+// CA records Form 145 acknowledgement number after filing on IT portal.
+router.post('/transfers/:id/form145-filed', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { caNumber } = req.body as { caNumber?: string };
   if (!caNumber || caNumber.trim().length === 0) {
-    res.status(400).json({ error: 'caNumber is required', timestamp: ts() });
+    res.status(400).json({ error: 'caNumber (Form 145 Ack number) is required', timestamp: ts() });
     return;
   }
-  const updated = await updateTransferStatus(req.params.id as string, '15CA_FILED', {
-    fifteenCANumber: caNumber,
+  const updated = await updateTransferStatus(req.params.id as string, 'FORM145_FILED', {
+    form145Number: caNumber,
   });
   if (!updated) {
     res.status(404).json({ error: 'Transfer not found', timestamp: ts() });
     return;
   }
-  res.json({ transfer: updated, message: '15CA marked as filed', timestamp: ts() });
+  res.json({ transfer: updated, message: 'Form 145 marked as filed (IT Act 2025)', timestamp: ts() });
 });
 
 // ── GET /ca/compliance ────────────────────────────────────────────────────────
-// List all compliance requests (CA sees all). Filterable by status.
 router.get('/compliance', caAuthMiddleware, async (req: CARequest, res: Response) => {
   if (!supabaseAdminConfigured) {
     res.json({ requests: [], count: 0, timestamp: ts() });
@@ -402,12 +504,12 @@ router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, 
   const { data, error } = await supabaseAdmin
     .from('compliance_requests')
     .update({
-      status:           'approved',
-      fifteen_cb_number: cbNumber,
-      ca_remarks:       remarks,
-      ca_reviewed_by:   req.caUser?.name || 'CA',
-      ca_reviewed_at:   ts(),
-      ...(fifteen_ca_part ? { fifteen_ca_part } : {}),
+      status:            'approved',
+      fifteen_cb_number: cbNumber,   // old column name
+      ca_remarks:        remarks,
+      ca_reviewed_by:    req.caUser?.name || 'CA',
+      ca_reviewed_at:    ts(),
+      ...(fifteen_ca_part ? { fifteen_ca_part, form145_part: fifteen_ca_part } : {}),
     })
     .eq('id', req.params.id)
     .select()
@@ -418,7 +520,7 @@ router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, 
     return;
   }
 
-  res.json({ request: data, message: '15CB certified — compliance request approved', timestamp: ts() });
+  res.json({ request: data, message: 'Form 146 certified — compliance request approved (IT Act 2025)', timestamp: ts() });
 });
 
 // ── POST /ca/compliance/:id/reject ────────────────────────────────────────────
@@ -455,7 +557,6 @@ router.post('/compliance/:id/reject', caAuthMiddleware, async (req: CARequest, r
 });
 
 // ── POST /ca/compliance/:id/upload-pdf-url ────────────────────────────────────
-// CA requests a signed upload URL to upload 15CB/15CA PDF into the user's wallet.
 router.post('/compliance/:id/upload-pdf-url', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { fileName, mimeType, docType } = req.body as {
     fileName?: string; mimeType?: string; docType?: string;
@@ -465,8 +566,10 @@ router.post('/compliance/:id/upload-pdf-url', caAuthMiddleware, async (req: CARe
     res.status(400).json({ error: 'fileName and docType are required', timestamp: ts() });
     return;
   }
-  if (!['15ca_pdf', '15cb_pdf'].includes(docType)) {
-    res.status(400).json({ error: 'docType must be 15ca_pdf or 15cb_pdf', timestamp: ts() });
+  // Accept both old (15ca_pdf/15cb_pdf) and new (form145_pdf/form146_pdf) doc types
+  const validDocTypes = ['15ca_pdf', '15cb_pdf', 'form145_pdf', 'form146_pdf'];
+  if (!validDocTypes.includes(docType)) {
+    res.status(400).json({ error: `docType must be one of: ${validDocTypes.join(', ')}`, timestamp: ts() });
     return;
   }
 
@@ -500,22 +603,12 @@ router.post('/compliance/:id/upload-pdf-url', caAuthMiddleware, async (req: CARe
     return;
   }
 
-  res.json({
-    tokenId,
-    storagePath,
-    signedUrl: urlData.signedUrl,
-    userId: request.user_id,
-    transferId: request.transfer_id,
-    timestamp: ts(),
-  });
+  res.json({ tokenId, storagePath, signedUrl: urlData.signedUrl, userId: request.user_id, transferId: request.transfer_id, timestamp: ts() });
 });
 
 // ── POST /ca/compliance/:id/confirm-pdf ──────────────────────────────────────
-// CA confirms upload of 15CB/15CA PDF — saves to user's wallet as 'ca' upload.
 router.post('/compliance/:id/confirm-pdf', caAuthMiddleware, async (req: CARequest, res: Response) => {
-  const {
-    tokenId, storagePath, fileName, mimeType, fileSizeBytes, docType, docLabel,
-  } = req.body as {
+  const { tokenId, storagePath, fileName, mimeType, fileSizeBytes, docType, docLabel } = req.body as {
     tokenId?: string; storagePath?: string; fileName?: string;
     mimeType?: string; fileSizeBytes?: number; docType?: string; docLabel?: string;
   };
@@ -565,11 +658,12 @@ router.post('/compliance/:id/confirm-pdf', caAuthMiddleware, async (req: CAReque
   res.status(201).json({ document: data, message: 'PDF uploaded to user wallet', timestamp: ts() });
 });
 
-// ── POST /ca/compliance/:id/file-15ca ─────────────────────────────────────────
-router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest, res: Response) => {
+// ── POST /ca/compliance/:id/file-form145 ──────────────────────────────────────
+// CA records Form 145 Ack Number after filing on IT portal.
+router.post('/compliance/:id/file-form145', caAuthMiddleware, async (req: CARequest, res: Response) => {
   const { caNumber } = req.body as { caNumber?: string };
   if (!caNumber || caNumber.trim().length === 0) {
-    res.status(400).json({ error: 'caNumber is required', timestamp: ts() });
+    res.status(400).json({ error: 'caNumber (Form 145 Ack number) is required', timestamp: ts() });
     return;
   }
 
@@ -590,11 +684,36 @@ router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest
     return;
   }
 
-  res.json({ request: data, message: '15CA number recorded', timestamp: ts() });
+  res.json({ request: data, message: 'Form 145 Ack number recorded (IT Act 2025)', timestamp: ts() });
+});
+
+// Backward-compat alias — old endpoint name
+router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  req.url = req.url.replace('file-15ca', 'file-form145');
+  // Re-dispatch — handled by the route above inline
+  const { caNumber } = req.body as { caNumber?: string };
+  if (!caNumber || caNumber.trim().length === 0) {
+    res.status(400).json({ error: 'caNumber is required', timestamp: ts() });
+    return;
+  }
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+  const { data, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .update({ fifteen_ca_number: caNumber.trim() })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+  if (error || !data) {
+    res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
+    return;
+  }
+  res.json({ request: data, message: 'Form 145 Ack number recorded', timestamp: ts() });
 });
 
 // ── GET /ca/compliance/:id/wallet-doc/:tokenId/url ────────────────────────────
-// CA can generate a signed download URL for any document in a compliance request.
 router.get('/compliance/:id/wallet-doc/:tokenId/url', caAuthMiddleware, async (req: CARequest, res: Response) => {
   if (!supabaseAdminConfigured) {
     res.status(503).json({ error: 'Storage not configured', timestamp: ts() });
@@ -649,8 +768,14 @@ router.get('/stats', caAuthMiddleware, async (_req: CARequest, res: Response) =>
     })
     .reduce((sum, t) => sum + t.amountINR, 0);
 
+  const blockedCount = pending.filter(t => {
+    const tRaw = t as unknown as Record<string, unknown>;
+    return t.form146Required && t.status === 'FORM146_REQUESTED' && tRaw['ca_blocking'] === true;
+  }).length;
+
   res.json({
     pendingCount: pending.length,
+    blockedCount,
     approvedToday,
     expressCount,
     monthlyVolumeINR,

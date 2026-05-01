@@ -43,8 +43,8 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
   let accountDecision = {
     customerModel: (transfer.customer_model ?? 'p2p') as string,
     accountType: accountType as 'NRO' | 'NRE',
-    requires15CACB: false,
-    fifteenCAPart: 'C' as 'A' | 'C' | 'EXEMPT',
+    requiresForm145146: false,
+    form145Part: 'C' as 'A' | 'C' | 'EXEMPT',
     description: '',
   };
 
@@ -53,13 +53,15 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
 
     await supabaseAdmin.from('transfers').update({
       customer_model: accountDecision.customerModel,
-      fifteen_ca_part: accountDecision.fifteenCAPart,
+      // Write to both old and new column names during migration 016 window
+      form145_part: accountDecision.form145Part,
+      fifteen_ca_part: accountDecision.form145Part,
     }).eq('id', transferId);
 
     console.log(`[GREY] ACCOUNT_TYPE_DETERMINED — ${accountDecision.description}`);
     void log('ACCOUNT_TYPE_DETERMINED', 'system', {
       transferId,
-      metadata: { customerModel: accountDecision.customerModel, part: accountDecision.fifteenCAPart },
+      metadata: { customerModel: accountDecision.customerModel, part: accountDecision.form145Part },
     });
   } catch (err) {
     console.error('[GREY] Account type determination failed (continuing with defaults):', err);
@@ -87,7 +89,7 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
   // STEP 4 — Routing decision (5 paths)
 
   // PATH A — NRE account: skip CA, execute immediately
-  if (accountDecision.accountType === 'NRE' || accountDecision.fifteenCAPart === 'EXEMPT') {
+  if (accountDecision.accountType === 'NRE' || accountDecision.form145Part === 'EXEMPT') {
     await supabaseAdmin.from('transfers').update({ status: 'processing' }).eq('id', transferId);
     console.log('[GREY] NRE_ROUTE — skipping CA workflow, executing via Fable');
     void log('NRE_ROUTE', 'system', { transferId });
@@ -96,7 +98,7 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
   }
 
   // PATH B — NRO + Part A (below ₹5L cumulative, low risk, no blocking)
-  if (accountDecision.fifteenCAPart === 'A' && !risk.caBlocking) {
+  if (accountDecision.form145Part === 'A' && !risk.caBlocking) {
     await supabaseAdmin.from('transfers').update({ status: 'processing' }).eq('id', transferId);
     console.log('[GREY] PART_A_AUTO_APPROVED — no CA required');
     void log('PART_A_AUTO_APPROVED', 'system', { transferId });
@@ -115,13 +117,13 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
   // PATH C — NRO + Part C + HIGH risk: BLOCKING — await CA approval
   if (risk.level === 'HIGH' && risk.caBlocking) {
     await supabaseAdmin.from('transfers').update({
-      status: '15cb_requested',
+      status: 'form146_requested',
       ca_required: true,
       ca_blocking: true,
     }).eq('id', transferId);
     // Notify CAs (non-blocking)
     void notifyCAPortal(transferId, transfer, accountDecision, 'blocking');
-    console.log('[GREY] CA_WEBHOOK_FIRED — BLOCKING — awaiting CA certification');
+    console.log('[GREY] CA_WEBHOOK_FIRED — BLOCKING — awaiting Form 146 certification');
     void log('CA_WEBHOOK_FIRED', 'system', {
       transferId,
       metadata: { blocking: true, level: risk.level, reason: risk.reason },
@@ -131,15 +133,15 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
   }
 
   // PATH D — NRO + Part C + MEDIUM risk: Non-blocking, CA reviews in parallel
-  if (accountDecision.fifteenCAPart === 'C' && risk.caRequired && !risk.caBlocking) {
+  if (accountDecision.form145Part === 'C' && risk.caRequired && !risk.caBlocking) {
     await supabaseAdmin.from('transfers').update({
-      status: '15cb_requested',
+      status: 'form146_requested',
       ca_required: true,
       ca_blocking: false,
     }).eq('id', transferId);
     // Notify CAs in background — non-blocking
     void notifyCAPortal(transferId, transfer, accountDecision, 'parallel');
-    console.log('[GREY] CA_WEBHOOK_FIRED_PARALLEL — transfer continuing in parallel');
+    console.log('[GREY] CA_WEBHOOK_FIRED_PARALLEL — Form 146 review in parallel, transfer proceeding');
     void log('CA_WEBHOOK_FIRED_PARALLEL', 'system', { transferId });
 
     await supabaseAdmin.from('transfers').update({ status: 'processing_with_compliance' }).eq('id', transferId);
@@ -157,7 +159,7 @@ export async function orchestrateOutwardTransfer(transferId: string): Promise<vo
 async function executeViaFable(
   transferId: string,
   transfer: Record<string, unknown>,
-  accountDecision: { customerModel: string; accountType: 'NRO' | 'NRE'; fifteenCAPart: string },
+  accountDecision: { customerModel: string; accountType: 'NRO' | 'NRE'; form145Part: string },
 ): Promise<void> {
   try {
     const adapter = await getOutwardAdapter();
@@ -176,8 +178,8 @@ async function executeViaFable(
       amountINR: Number(transfer.amount_inr),
       nroBankName: (transfer.nro_bank_name ?? transfer.nroBankName ?? 'HDFC Bank') as string,
       nroBranchCity: (transfer.nro_branch_city ?? transfer.nroBranchCity ?? 'Mumbai') as string,
-      fifteenCANumber: (transfer.fifteen_ca_number ?? '') as string,
-      fifteenCBNumber: (transfer.fifteen_cb_number ?? '') as string,
+      fifteenCANumber: (transfer.form145_number ?? transfer.fifteen_ca_number ?? '') as string,
+      fifteenCBNumber: (transfer.form146_number ?? transfer.fifteen_cb_number ?? '') as string,
       purposeCode: (transfer.purpose_code ?? 'P1301') as string,
       exchangeRate: Number(transfer.exchange_rate ?? 0.0160),
       beneficiaryCAD: {
@@ -233,16 +235,15 @@ async function executeViaFable(
 async function notifyCAPortal(
   transferId: string,
   transfer: Record<string, unknown>,
-  accountDecision: { customerModel: string; fifteenCAPart: string },
+  accountDecision: { customerModel: string; form145Part: string },
   mode: 'blocking' | 'parallel',
 ): Promise<void> {
   // In production this would also email/push-notify the CA partner
-  // For now: log to transfer_events so the CA portal picks it up
   void supabaseAdmin.from('transfer_events').insert({
     transfer_id: transferId,
     user_id: transfer.user_id,
-    status: '15cb_requested',
-    note: `[GREEN] CA certification required (${mode}). Model: ${accountDecision.customerModel}, 15CA Part ${accountDecision.fifteenCAPart}. Awaiting CA action.`,
+    status: 'form146_requested',
+    note: `[GREEN] Form 146 certification required (${mode}). Model: ${accountDecision.customerModel}, Form 145 Part ${accountDecision.form145Part}. Awaiting CA action.`,
   });
 }
 
@@ -325,7 +326,7 @@ export async function orchestrateAfterCAApproval(transferId: string): Promise<vo
   const accountDecision = {
     customerModel,
     accountType: accountType as 'NRO' | 'NRE',
-    fifteenCAPart: (transfer.fifteen_ca_part ?? 'C') as string,
+    form145Part: (transfer.form145_part ?? transfer.fifteen_ca_part ?? 'C') as string,
   };
 
   console.log(`[GREY] CA_APPROVED — ${transferId} — executing via Fable`);
