@@ -14,8 +14,39 @@ import complianceRoutes from './routes/compliance';
 import webhooksRoutes from './routes/webhooks';
 import devToolsRoutes from './routes/devTools';
 import adminRoutes from './routes/admin';
+import kycRoutes from './routes/kyc';
 
 dotenv.config();
+
+// ── Startup env check ─────────────────────────────────────────────────────────
+function printEnvStatus(): void {
+  const checks: { key: string; required: boolean }[] = [
+    { key: 'SUPABASE_URL',              required: true  },
+    { key: 'SUPABASE_SERVICE_ROLE_KEY', required: true  },
+    { key: 'JWT_SECRET',                required: true  },
+    { key: 'CA_JWT_SECRET',             required: true  },
+    { key: 'RESEND_API_KEY',            required: false },
+    { key: 'FABLE_API_KEY',             required: false },
+    { key: 'FLINKS_CUSTOMER_ID',        required: false },
+    { key: 'API_BASE_URL',              required: false },
+    { key: 'FRONTEND_URL',              required: false },
+  ];
+  console.log('\n=== REPAIHUB ENV CHECK ===');
+  for (const { key, required } of checks) {
+    const val = process.env[key];
+    if (val) {
+      console.log(`[OK]   ${key}`);
+    } else if (required) {
+      console.error(`[ERR]  ${key} — REQUIRED but not set`);
+      process.exit(1);
+    } else {
+      console.log(`[MOCK] ${key} — not set, mock/skip mode active`);
+    }
+  }
+  console.log('=========================\n');
+}
+
+printEnvStatus();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -24,6 +55,7 @@ app.use(cors({
   origin: function (origin, callback) {
     const allowed = [
       'http://localhost:3000',
+      'http://localhost:3001',
       'http://localhost:8081',
       'http://localhost:19006',
       'https://repaihub.com',
@@ -47,7 +79,7 @@ app.use(express.static(path.resolve('src/public')));
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'OK', app: 'REPAIHUB API', version: '1.0.0' });
+  res.json({ status: 'OK', app: 'REPAIHUB API', version: '1.0.0', env: process.env.NODE_ENV });
 });
 
 // ── Customer API routes ───────────────────────────────────────────────────────
@@ -58,6 +90,7 @@ app.use('/inward', inwardTransfersRoutes);
 app.use('/users', usersRoutes);
 app.use('/wallet', walletRoutes);
 app.use('/compliance', complianceRoutes);
+app.use('/kyc', kycRoutes);
 
 // ── Webhook receivers ─────────────────────────────────────────────────────────
 app.use('/webhooks', webhooksRoutes);
@@ -68,8 +101,7 @@ app.use('/ca', caPortalRoutes);
 // ── Admin routes (CA JWT protected) ──────────────────────────────────────────
 app.use('/admin', adminRoutes);
 
-// ── Dev tools (development only) ──────────────────────────────────────────────
-// Dev tools always mounted but every endpoint checks NODE_ENV internally
+// ── Dev tools (development only) ─────────────────────────────────────────────
 app.use('/dev', devToolsRoutes);
 
 // Redirect bare /ca to the dashboard HTML
@@ -90,7 +122,7 @@ if (fs.existsSync(distPath)) {
 
 app.listen(PORT, () => {
   console.log(`REPAIHUB API → http://localhost:${PORT}/health`);
-  console.log(`CA Portal    → http://localhost:${PORT}/ca-dashboard.html`)
+  console.log(`CA Portal    → http://localhost:${PORT}/ca-dashboard.html`);
   console.log(`Customer     → http://localhost:${PORT}/customer-dashboard.html`);
   if (fs.existsSync(distPath)) {
     console.log(`React App    → http://localhost:${PORT}/`);

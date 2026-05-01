@@ -46,6 +46,43 @@ function emailHtml(name: string, resetUrl: string): string {
   `;
 }
 
+// ── Profile creation helper — resilient, logs on failure ─────────────────────
+// Tries full insert first; if it fails due to missing columns, retries with
+// only the minimal core columns that every profiles table has.
+async function ensureProfile(
+  userId: string,
+  email: string,
+  name: string,
+  phone: string | null,
+  passwordHash: string,
+  referredByCode: string | null,
+): Promise<void> {
+  const { error: fullErr } = await supabaseAdmin.from('profiles').upsert({
+    id:               userId,
+    email,
+    full_name:        name,
+    phone:            phone ?? null,
+    password_hash:    passwordHash,
+    referred_by_code: referredByCode,
+  }, { onConflict: 'id' });
+
+  if (!fullErr) return;
+
+  // Full insert failed — retry with only the columns present in all schema versions
+  console.error('[Auth] Full profile upsert failed (retrying minimal):', fullErr.message);
+  const { error: minErr } = await supabaseAdmin.from('profiles').upsert({
+    id:        userId,
+    email,
+    full_name: name,
+    phone:     phone ?? null,
+  }, { onConflict: 'id' });
+
+  if (minErr) {
+    console.error('[CRITICAL] Profile creation failed completely for user', userId, ':', minErr.message);
+    // Auth user exists — they can log in, and login safety net will repair the profile
+  }
+}
+
 // ── POST /auth/register ───────────────────────────────────────────────────────
 router.post('/register', async (req: Request, res: Response) => {
   const { email, password, name, phone, referredByCode } = req.body as {
@@ -76,7 +113,7 @@ router.post('/register', async (req: Request, res: Response) => {
   if (authError) {
     const msg = authError.message?.toLowerCase() ?? '';
     if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
-      res.status(409).json({ error: 'Email already registered', timestamp: ts() });
+      res.status(409).json({ error: 'A user with this email address has already been registered', timestamp: ts() });
     } else {
       res.status(400).json({ error: authError.message, timestamp: ts() });
     }
@@ -91,14 +128,8 @@ router.post('/register', async (req: Request, res: Response) => {
   const passwordHash = await bcrypt.hash(password, 12);
   const userId = authData.user.id;
 
-  await supabaseAdmin.from('profiles').upsert({
-    id: userId,
-    email,
-    full_name: name,
-    phone: phone ?? null,
-    password_hash: passwordHash,
-    referred_by_code: referredByCode?.toUpperCase() ?? null,
-  }, { onConflict: 'id' });
+  // CRITICAL: create profile record — resilient helper logs on failure but never blocks registration
+  await ensureProfile(userId, email, name, phone ?? null, passwordHash, referredByCode?.toUpperCase() ?? null);
 
   // Generate referral code + record referral relationship (never blocks registration)
   let myReferralCode: string | null = null;
@@ -139,15 +170,32 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
 
-  const { data: profile, error: profileError } = await supabaseAdmin
+  let profile = (await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('email', email)
-    .maybeSingle();
+    .maybeSingle()).data;
 
-  if (profileError || !profile) {
-    res.status(401).json({ error: 'Invalid email or password', timestamp: ts() });
-    return;
+  // Safety net: profile record missing — auth user may exist (e.g. registration profile insert failed)
+  if (!profile) {
+    const { data: signInData, error: signInCheck } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+    if (!signInCheck && signInData?.user) {
+      const authUser = signInData.user;
+      console.log('[Auth] Repairing missing profile for user:', authUser.id);
+      const hash = await bcrypt.hash(password, 12);
+      const { data: repaired } = await supabaseAdmin.from('profiles').upsert({
+        id:            authUser.id,
+        email,
+        full_name:     (authUser.user_metadata?.full_name as string | undefined) ?? '',
+        phone:         (authUser.user_metadata?.phone as string | undefined) ?? null,
+        password_hash: hash,
+      }, { onConflict: 'id' }).select().single();
+      profile = repaired;
+    }
+    if (!profile) {
+      res.status(401).json({ error: 'Invalid email or password', timestamp: ts() });
+      return;
+    }
   }
 
   // Account lockout check
@@ -169,7 +217,7 @@ router.post('/login', async (req: Request, res: Response) => {
       const { error: signInErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
       if (!signInErr) {
         authenticated = true;
-        // Re-sync bcrypt hash with new password
+        // Re-sync bcrypt hash
         const hash = await bcrypt.hash(password, 12);
         await supabaseAdmin.from('profiles').update({ password_hash: hash }).eq('email', email);
       }
@@ -266,7 +314,6 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
   if (linkError || !linkData?.properties?.action_link) {
     console.error('[Auth] generateLink failed:', linkError?.message);
-    // Last-resort fallback: Supabase native email
     await supabaseAdmin.auth.resetPasswordForEmail(email, {
       redirectTo: `${FRONTEND_URL()}/reset-password`,
     }).catch((e: unknown) => console.error('[Auth] resetPasswordForEmail failed:', e));
@@ -288,11 +335,11 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       html: emailHtml(profile.full_name ?? 'there', actionLink),
     });
 
-    if (!sendError) return; // Resend worked — done
+    if (!sendError) return;
     console.log('[Resend] Send failed, falling back to Supabase SMTP:', sendError.message);
   }
 
-  // Fallback: Supabase native SMTP (always works, from noreply@mail.supabase.io)
+  // Fallback: Supabase native SMTP
   await supabaseAdmin.auth.resetPasswordForEmail(email, {
     redirectTo: `${FRONTEND_URL()}/reset-password`,
   }).catch((e: unknown) => console.error('[Auth] Supabase SMTP fallback failed:', e));
