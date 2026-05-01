@@ -436,21 +436,26 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   void saveRiskAssessment(transfer.id, riskResult).catch(() => {});
   void saveComplianceCheck(transfer.id, complianceResult).catch(() => {});
 
-  void supabaseAdmin.from('transfer_events').insert({
+  supabaseAdmin.from('transfer_events').insert({
     transfer_id: transfer.id,
     user_id:     userId,
     status:      initialStatus,
     note:        `TRANSFER_INITIATED — accountType: ${accountType} | model: ${accountTypeDecision.customerModel} | Form 145 Part ${form145Part} | Risk: ${riskResult.level}`,
+  }).then(({ error: evErr }) => {
+    if (evErr) console.error('[transfer_events] Insert failed:', evErr.message);
   });
 
-  void supabaseAdmin.from('compliance_requests').insert({
+  // compliance_requests: use only columns guaranteed to exist in the table
+  // form145_part / form146_required are aliases not yet added — use fifteen_ca_part / fifteen_cb_required
+  supabaseAdmin.from('compliance_requests').insert({
     transfer_id:         transfer.id,
     user_id:             userId,
     status:              riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved',
     fifteen_ca_part:     form145Part,
-    form145_part:        form145Part,
     fifteen_cb_required: complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
-    form146_required:    complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+  }).then(({ error: crErr }) => {
+    if (crErr) console.error('[compliance_request] Insert failed:', crErr.message, '— transfer:', transfer.id);
+    else console.log('[compliance_request] Created for transfer:', transfer.id, '| Form 146 required:', complianceResult.requiresForm146);
   });
 
   // ── Step 8: Financial side-effects ────────────────────────────────────────
