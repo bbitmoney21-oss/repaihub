@@ -10,15 +10,23 @@ services:
     envVars:
       - key: NODE_ENV
         value: development
+
+      # ── Supabase ──────────────────────────────────────────────────────────────
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
+
+      # ── Auth ──────────────────────────────────────────────────────────────────
       - key: JWT_SECRET
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: JWT_REFRESH_SECRET
         sync: false
       - key: CA_JWT_SECRET
         sync: false
@@ -28,16 +36,54 @@ services:
         value: ca@repaihub.com
       - key: CA_ICAI
         value: "123456"
-      - key: FABLE_API_KEY
-        sync: false
-      - key: FABLE_API_URL
-        sync: false
+
+      # ── Email (Resend) ────────────────────────────────────────────────────────
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
         sync: false
+
+      # ── Payment / KYC providers ───────────────────────────────────────────────
+      - key: FABLE_API_KEY
+        sync: false
+      - key: FABLE_API_URL
+        sync: false
+      - key: FABLE_WEBHOOK_SECRET
+        sync: false
+      - key: FLINKS_CUSTOMER_ID
+        sync: false
+      - key: SETU_API_KEY
+        sync: false
+      - key: SETU_CLIENT_ID
+        sync: false
+
+      # ── URLs ─────────────────────────────────────────────────────────────────
       - key: FRONTEND_URL
         sync: false
+      - key: API_BASE_URL
+        sync: false
+
+      # ── RBI / FEMA compliance thresholds (IT Act 2025) ───────────────────────
+      - key: COMPLIANCE_RULES_VERSION
+        value: "2026-04-01"
+      - key: RBI_ANNUAL_LIMIT_INR
+        value: "83000000"
+      - key: RBI_FORM145_THRESHOLD_INR
+        value: "50000"
+      - key: RBI_FORM146_THRESHOLD_INR
+        value: "500000"
+      - key: RBI_MAX_SINGLE_TX_INR
+        value: "8300000"
+      - key: RBI_FAST_TRACK_MAX_INR
+        value: "50000"
+      - key: RBI_FINTRAC_THRESHOLD_CAD
+        value: "10000"
+      - key: RBI_TCS_THRESHOLD_INR
+        value: "700000"
+      - key: RBI_FY_START_MONTH
+        value: "3"
+      - key: RBI_PURPOSE_CODES_ENABLED
+        value: "P0101,P0102,P0103,P1004,P0301"
 
   # ── Production service ────────────────────────────────────────────────────────
   - type: web
@@ -50,15 +96,23 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+
+      # ── Supabase ──────────────────────────────────────────────────────────────
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
+
+      # ── Auth ──────────────────────────────────────────────────────────────────
       - key: JWT_SECRET
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: JWT_REFRESH_SECRET
         sync: false
       - key: CA_JWT_SECRET
         sync: false
@@ -68,13 +122,51 @@ services:
         value: ca@repaihub.com
       - key: CA_ICAI
         value: "123456"
-      - key: FABLE_API_KEY
-        sync: false
-      - key: FABLE_API_URL
-        sync: false
+
+      # ── Email (Resend) ────────────────────────────────────────────────────────
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
         sync: false
+
+      # ── Payment / KYC providers ───────────────────────────────────────────────
+      - key: FABLE_API_KEY
+        sync: false
+      - key: FABLE_API_URL
+        sync: false
+      - key: FABLE_WEBHOOK_SECRET
+        sync: false
+      - key: FLINKS_CUSTOMER_ID
+        sync: false
+      - key: SETU_API_KEY
+        sync: false
+      - key: SETU_CLIENT_ID
+        sync: false
+
+      # ── URLs ─────────────────────────────────────────────────────────────────
       - key: FRONTEND_URL
         sync: false
+      - key: API_BASE_URL
+        sync: false
+
+      # ── RBI / FEMA compliance thresholds (IT Act 2025) ───────────────────────
+      - key: COMPLIANCE_RULES_VERSION
+        value: "2026-04-01"
+      - key: RBI_ANNUAL_LIMIT_INR
+        value: "83000000"
+      - key: RBI_FORM145_THRESHOLD_INR
+        value: "50000"
+      - key: RBI_FORM146_THRESHOLD_INR
+        value: "500000"
+      - key: RBI_MAX_SINGLE_TX_INR
+        value: "8300000"
+      - key: RBI_FAST_TRACK_MAX_INR
+        value: "50000"
+      - key: RBI_FINTRAC_THRESHOLD_CAD
+        value: "10000"
+      - key: RBI_TCS_THRESHOLD_INR
+        value: "700000"
+      - key: RBI_FY_START_MONTH
+        value: "3"
+      - key: RBI_PURPOSE_CODES_ENABLED
+        value: "P0101,P0102,P0103,P1004,P0301"

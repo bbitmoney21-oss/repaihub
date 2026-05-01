@@ -143,6 +143,7 @@ export async function apiCreateTransfer(params: {
   sourceOfFunds: string;
   speed: 'standard' | 'express';
   reference?: string;
+  direction?: 'outward' | 'inward';
 }) {
   const res = await apiFetch('/transfers/initiate', {
     method: 'POST',
@@ -154,6 +155,7 @@ export async function apiCreateTransfer(params: {
       purposeCode: params.purposeCode,
       sourceOfFunds: params.sourceOfFunds,
       speed: params.speed,
+      direction: params.direction ?? 'outward',
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));
