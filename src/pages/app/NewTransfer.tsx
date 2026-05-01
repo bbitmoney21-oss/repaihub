@@ -22,13 +22,25 @@ const PURPOSES = [
   'Other',
 ]
 
+// RBI purpose codes — must match RBIPurposeCode type and RBI_PURPOSE_CODES_ENABLED env
 const PURPOSE_CODES: Record<string, string> = {
+  'Repatriation of savings': 'P1301',
+  'Rental income':           'P1301',
+  'Pension / salary':        'P1301',
+  'Property sale proceeds':  'P1301',
+  'Investment returns':      'P0001',
+  'Family maintenance':      'P1101',
+  'Other':                   'P1301',
+}
+
+// SourceOfFunds type values — must match SourceOfFunds union in types/compliance.ts
+const SOURCE_OF_FUNDS: Record<string, string> = {
   'Repatriation of savings': 'other',
-  'Rental income':           'other',
-  'Pension / salary':        'other',
-  'Property sale proceeds':  'investment',
-  'Investment returns':      'investment',
-  'Family maintenance':      'family_maintenance',
+  'Rental income':           'rental_income',
+  'Pension / salary':        'pension',
+  'Property sale proceeds':  'property_sale',
+  'Investment returns':      'matured_investment',
+  'Family maintenance':      'other',
   'Other':                   'other',
 }
 
@@ -106,10 +118,11 @@ export default function NewTransfer() {
       const transfer = await apiCreateTransfer({
         amountInr:     isOutward ? amt : receiveINR,
         amountCad:     isOutward ? amtCAD : amt,
+        amountFrom:    isOutward ? amt : amt,   // INR for outward, CAD for inward
         exchangeRate:  rate,
         feeCad:        isOutward ? fee : 0,
-        purposeCode:   PURPOSE_CODES[purpose] ?? 'other',
-        sourceOfFunds: purpose || 'other',
+        purposeCode:   isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301',
+        sourceOfFunds: isOutward ? (SOURCE_OF_FUNDS[purpose] ?? 'other') : 'other',
         speed:         express ? 'express' : 'standard',
         reference:     ref,
         direction,

@@ -137,6 +137,7 @@ export async function apiGetTransfers() {
 export async function apiCreateTransfer(params: {
   amountInr: number;
   amountCad: number;
+  amountFrom?: number;
   exchangeRate: number;
   feeCad: number;
   purposeCode: string;
@@ -148,14 +149,15 @@ export async function apiCreateTransfer(params: {
   const res = await apiFetch('/transfers/initiate', {
     method: 'POST',
     body: JSON.stringify({
-      amountInr: params.amountInr,
-      amountCad: params.amountCad,
-      exchangeRate: params.exchangeRate,
-      feeCad: params.feeCad,
-      purposeCode: params.purposeCode,
+      amountInr:     params.amountInr,
+      amountCad:     params.amountCad,
+      amountFrom:    params.amountFrom,
+      exchangeRate:  params.exchangeRate,
+      feeCad:        params.feeCad,
+      purposeCode:   params.purposeCode,
       sourceOfFunds: params.sourceOfFunds,
-      speed: params.speed,
-      direction: params.direction ?? 'outward',
+      speed:         params.speed,
+      direction:     params.direction ?? 'outward',
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));
