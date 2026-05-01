@@ -299,7 +299,7 @@ router.get('/transfers/:id/wiseman-export', caAuthMiddleware, async (req: CARequ
     '================================',
     'REPAIHUB — Form 146 Data Export',
     `Transfer ID: ${transfer.id}`,
-    `Reference: ${(transfer as Record<string, unknown>)['reference'] ?? 'N/A'}`,
+    `Reference: ${(transfer as unknown as Record<string, unknown>)['reference'] ?? 'N/A'}`,
     `Generated: ${now} IST`,
     '================================',
     `ASSESSEE_NAME: ${transfer.customerName}`,

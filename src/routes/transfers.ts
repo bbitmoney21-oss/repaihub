@@ -408,15 +408,32 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res: Response) =
   res.json({ transfers: data ?? [], count: (data ?? []).length, timestamp: ts() });
 });
 
-// ── GET /transfers/fema-status ────────────────────────────────────────────────
-router.get('/fema-status', authMiddleware, async (req: AuthRequest, res: Response) => {
+// ── GET /transfers/fema-limit (alias: /fema-status) ──────────────────────────
+async function handleFemaLimit(req: AuthRequest, res: Response) {
   if (!supabaseAdminConfigured) {
-    res.json({ usedINR: 0, remainingINR: FEMA_MAX_INR, maxINR: FEMA_MAX_INR, timestamp: ts() });
+    res.json({ usedINR: 0, remainingINR: FEMA_MAX_INR, maxINR: FEMA_MAX_INR, maxYearlyLimitINR: FEMA_MAX_INR, timestamp: ts() });
     return;
   }
   const fema = await checkFemaLimit(req.userId!, 0);
-  res.json({ usedINR: fema.usedINR, remainingINR: fema.remainingINR, maxINR: fema.maxINR, fyResetDate: fema.fyResetDate, timestamp: ts() });
-});
+  const fyStart = new Date().getMonth() >= 3
+    ? `${new Date().getFullYear()}-04-01`
+    : `${new Date().getFullYear() - 1}-04-01`;
+  const fyEnd = new Date().getMonth() >= 3
+    ? `${new Date().getFullYear() + 1}-03-31`
+    : `${new Date().getFullYear()}-03-31`;
+  res.json({
+    maxYearlyLimitINR: FEMA_MAX_INR,
+    usedThisYearINR:   fema.usedINR,
+    remainingINR:      fema.remainingINR,
+    maxINR:            fema.maxINR,
+    fyResetDate:       fema.fyResetDate,
+    fyStart,
+    fyEnd,
+    timestamp: ts(),
+  });
+}
+router.get('/fema-limit', authMiddleware, handleFemaLimit);
+router.get('/fema-status', authMiddleware, handleFemaLimit);
 
 // ── GET /transfers/:id/status ─────────────────────────────────────────────────
 router.get('/:id/status', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -551,7 +568,7 @@ router.post('/:id/cancel', authMiddleware, async (req: AuthRequest, res: Respons
     return;
   }
 
-  void log('TRANSFER_CANCELLED', 'customer', { transferId: req.params.id, metadata: { reason } });
+  void log('TRANSFER_CANCELLED', 'customer', { transferId: String(req.params.id), metadata: { reason } });
   void supabaseAdmin.from('transfer_events').insert({
     transfer_id: req.params.id,
     user_id:     req.userId!,

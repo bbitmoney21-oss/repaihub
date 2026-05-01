@@ -138,6 +138,17 @@ router.post('/kyc/india', authMiddleware, async (req: AuthRequest, res: Response
     { onConflict: 'user_id' },
   );
 
+  // Mark signup as fully complete now that all four steps are done.
+  // Migration 014 adds the column; if it hasn't been applied yet we just log
+  // and continue — the rest of the flow doesn't depend on this flag.
+  const { error: completeErr } = await supabaseAdmin
+    .from('profiles')
+    .update({ signup_complete: true })
+    .eq('id', userId);
+  if (completeErr) {
+    console.warn('[Users] signup_complete update skipped (apply migration 014):', completeErr.message);
+  }
+
   res.json({ message: 'India KYC submitted', timestamp: ts() });
 });
 
