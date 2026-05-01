@@ -85,73 +85,102 @@ async function ensureProfile(
 
 // ── POST /auth/register ───────────────────────────────────────────────────────
 router.post('/register', async (req: Request, res: Response) => {
-  const { email, password, name, phone, referredByCode } = req.body as {
-    email?: string; password?: string; name?: string; phone?: string; referredByCode?: string;
-  };
-
-  if (!email || !password || !name) {
-    res.status(400).json({ error: 'email, password, and name are required', timestamp: ts() });
-    return;
-  }
-  if (password.length < 8) {
-    res.status(400).json({ error: 'Password must be at least 8 characters', timestamp: ts() });
-    return;
-  }
-
-  if (!supabaseAdminConfigured) {
-    res.status(503).json({ error: 'Auth service not configured', timestamp: ts() });
-    return;
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: name, phone: phone ?? null },
-  });
-
-  if (authError) {
-    const msg = authError.message?.toLowerCase() ?? '';
-    if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
-      res.status(409).json({ error: 'A user with this email address has already been registered', timestamp: ts() });
-    } else {
-      res.status(400).json({ error: authError.message, timestamp: ts() });
-    }
-    return;
-  }
-
-  if (!authData.user) {
-    res.status(500).json({ error: 'Registration failed', timestamp: ts() });
-    return;
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  const userId = authData.user.id;
-
-  // CRITICAL: create profile record — resilient helper logs on failure but never blocks registration
-  await ensureProfile(userId, email, name, phone ?? null, passwordHash, referredByCode?.toUpperCase() ?? null);
-
-  // Generate referral code + record referral relationship (never blocks registration)
-  let myReferralCode: string | null = null;
   try {
-    myReferralCode = await createReferralCode(userId, name);
-    if (referredByCode) {
-      await recordReferralSignup(userId, referredByCode);
-    }
-  } catch (err) {
-    console.error('[Auth] Referral setup failed (non-critical):', err);
-  }
+    const { email, password, name, phone, referredByCode } = req.body as {
+      email?: string; password?: string; name?: string; phone?: string; referredByCode?: string;
+    };
 
-  const token = issueToken(userId, email);
-  res.status(201).json({
-    token,
-    user: { id: userId, email, name, phone: phone ?? null, myReferralCode },
-    timestamp: ts(),
-  });
+    if (!email || !password || !name) {
+      res.status(400).json({ error: 'email, password, and name are required', timestamp: ts() });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters', timestamp: ts() });
+      return;
+    }
+
+    if (!supabaseAdminConfigured) {
+      res.status(503).json({ error: 'Auth service not configured', timestamp: ts() });
+      return;
+    }
+
+    let authData: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.createUser>>['data'];
+    let authError: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.createUser>>['error'];
+
+    try {
+      const result = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: name, phone: phone ?? null },
+      });
+      authData = result.data;
+      authError = result.error;
+    } catch (createErr: unknown) {
+      console.error('[Auth] createUser threw unexpectedly:', createErr);
+      const msg = String((createErr as { message?: string })?.message ?? createErr).toLowerCase();
+      if (msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')) {
+        res.status(409).json({ error: 'A user with this email address has already been registered', timestamp: ts() });
+      } else {
+        res.status(500).json({ error: 'Registration service error. Please try again.', timestamp: ts() });
+      }
+      return;
+    }
+
+    if (authError) {
+      const status = (authError as unknown as { status?: number }).status ?? 0;
+      const msg = authError.message?.toLowerCase() ?? '';
+      if (
+        status === 422 ||
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('user already') ||
+        msg.includes('email address has already')
+      ) {
+        res.status(409).json({ error: 'A user with this email address has already been registered', timestamp: ts() });
+      } else {
+        res.status(400).json({ error: authError.message, timestamp: ts() });
+      }
+      return;
+    }
+
+    if (!authData?.user) {
+      res.status(500).json({ error: 'Registration failed — no user returned', timestamp: ts() });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const userId = authData.user.id;
+
+    // CRITICAL: create profile record — resilient helper logs on failure but never blocks registration
+    await ensureProfile(userId, email, name, phone ?? null, passwordHash, referredByCode?.toUpperCase() ?? null);
+
+    // Generate referral code + record referral relationship (never blocks registration)
+    let myReferralCode: string | null = null;
+    try {
+      myReferralCode = await createReferralCode(userId, name);
+      if (referredByCode) {
+        await recordReferralSignup(userId, referredByCode);
+      }
+    } catch (err) {
+      console.error('[Auth] Referral setup failed (non-critical):', err);
+    }
+
+    const token = issueToken(userId, email);
+    res.status(201).json({
+      token,
+      user: { id: userId, email, name, phone: phone ?? null, myReferralCode },
+      timestamp: ts(),
+    });
+  } catch (err: unknown) {
+    console.error('[Auth] Unhandled registration error:', err);
+    res.status(500).json({ error: 'Registration failed. Please try again.', timestamp: ts() });
+  }
 });
 
 // ── POST /auth/login ──────────────────────────────────────────────────────────
 router.post('/login', async (req: Request, res: Response) => {
+  try {
   const { email, password } = req.body as { email?: string; password?: string };
 
   if (!email || !password) {
@@ -279,6 +308,10 @@ router.post('/login', async (req: Request, res: Response) => {
     },
     timestamp: ts(),
   });
+  } catch (err: unknown) {
+    console.error('[Auth] Unhandled login error:', err);
+    res.status(500).json({ error: 'Login failed. Please try again.', timestamp: ts() });
+  }
 });
 
 // ── POST /auth/forgot-password ────────────────────────────────────────────────
