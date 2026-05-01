@@ -8,10 +8,13 @@ import { Plus, ChevronRight, Search } from 'lucide-react'
 export default function Transfers() {
   const { transfers, setTransfers, isAuthenticated } = useStore()
   const nav = useNavigate()
+  const [apiError, setApiError] = useState('')
 
   useEffect(() => {
     if (!isAuthenticated) return
-    apiGetTransfers().then(ts => setTransfers(ts.map(mapDbTransfer))).catch(() => {})
+    apiGetTransfers()
+      .then(ts => setTransfers(ts.map(mapDbTransfer)))
+      .catch(e => setApiError(e.message || 'Failed to load transfers'))
   }, [isAuthenticated])
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [search, setSearch] = useState('')
@@ -62,6 +65,12 @@ export default function Transfers() {
             className="input-field" style={{ display: 'block', paddingLeft: '2.2rem', width: 200, fontSize: '0.85rem' }} />
         </div>
       </div>
+
+      {apiError && (
+        <div style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)', padding: '1rem 1.25rem', marginBottom: '1.5rem', color: '#E74C3C', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          ⚠ {apiError}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#132233', border: '1px solid rgba(201,150,58,0.2)' }}>

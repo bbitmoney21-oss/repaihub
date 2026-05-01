@@ -36,10 +36,12 @@ export const getRBIRules = () => ({
   // Indian financial year start month (3 = April, zero-indexed)
   fyStartMonth: Number(process.env.RBI_FY_START_MONTH ?? 3),
 
-  // Enabled RBI purpose codes (comma-separated)
+  // Enabled RBI purpose codes for NRO outward transfers
+  // P1301 = NRO repatriation | P1302 = NRE repatriation
+  // P0001 = Investment abroad | S0001 = Services | P1101 = Family maintenance
   purposeCodesEnabled: (
     process.env.RBI_PURPOSE_CODES_ENABLED ??
-    'P0101,P0102,P0103,P1004,P0301'
+    'P1301,P1302,P0001,S0001,P1101'
   ).split(',').map(c => c.trim()),
 
   // Date of last RBI rule update — shown in app and audit logs
