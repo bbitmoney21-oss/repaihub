@@ -372,6 +372,29 @@ router.post('/transfers/:id/approve', caAuthMiddleware, async (req: CARequest, r
     return;
   }
 
+  // Notify customer that Form 146 is certified (non-blocking)
+  if (supabaseAdminConfigured) {
+    void (async () => {
+      try {
+        const { data: xfer } = await supabaseAdmin.from('transfers').select('user_id, amount_inr, amount_cad').eq('id', req.params.id).single();
+        if (xfer) {
+          const { data: profile } = await supabaseAdmin.from('profiles').select('email, full_name').eq('id', xfer.user_id).single();
+          if (profile) {
+            const { notifyTransferStatusChange } = await import('../services/notifications.js');
+            await notifyTransferStatusChange({
+              customerEmail: profile.email ?? '',
+              customerName:  profile.full_name ?? 'Customer',
+              transferId:    req.params.id as string,
+              amountINR:     Number(xfer.amount_inr ?? 0),
+              amountCAD:     Number(xfer.amount_cad ?? 0),
+              status:        'form146_received',
+            });
+          }
+        }
+      } catch { /* non-critical */ }
+    })();
+  }
+
   // Challenge 4: Refresh rate at CA certification time — orchestrateAfterCAApproval
   // fetches fresh rate from Fable before building the execution instruction.
   setImmediate(() => {

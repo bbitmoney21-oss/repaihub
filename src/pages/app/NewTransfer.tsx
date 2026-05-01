@@ -8,8 +8,9 @@ import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } 
 type Step = 1 | 2 | 3 | 4 | 5
 type Direction = 'outward' | 'inward'
 
-const FEE_STANDARD = 24.99
-const FEE_EXPRESS  = 49.99
+const COMMISSION_RATE = 0.018   // 1.8% — ~70% of Wise/Western Union typical 2.5–2.8%
+const FEE_FLAT_STD   = 24.99   // standard flat fee CAD
+const FEE_FLAT_EXP   = 49.99   // express flat fee (incl. $25 surcharge)
 const TCS_THRESHOLD_INR = 700_000
 
 const PURPOSES = [
@@ -62,13 +63,16 @@ export default function NewTransfer() {
   const rate      = fxRate || 83
   const amt       = parseFloat(amount.replace(/,/g, '')) || 0
 
-  const amtINR     = isOutward ? amt : amt * rate
-  const fee        = express ? FEE_EXPRESS : FEE_STANDARD
-  const tcsApplies = isOutward && amtINR > TCS_THRESHOLD_INR
-  const tcsAmt     = tcsApplies ? amtINR * 0.05 : 0
-  const netINR     = amtINR - tcsAmt
-  const amtCAD     = isOutward ? (netINR / rate - fee) : amt
-  const receiveINR = isOutward ? 0 : amt * rate
+  const amtINR        = isOutward ? amt : amt * rate
+  const flatFee       = express ? FEE_FLAT_EXP : FEE_FLAT_STD
+  const tcsApplies    = isOutward && amtINR > TCS_THRESHOLD_INR
+  const tcsAmt        = tcsApplies ? amtINR * 0.05 : 0
+  const netINR        = amtINR - tcsAmt
+  const grossCAD      = isOutward ? netINR / rate : amt
+  const commissionCAD = isOutward ? Math.round(grossCAD * COMMISSION_RATE * 100) / 100 : 0
+  const totalFees     = commissionCAD + flatFee
+  const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
+  const receiveINR    = isOutward ? 0 : amt * rate
 
   const limitRemaining = (user?.annualLimitTotal || 83000) - (user?.annualLimitUsed || 0)
   const exceedsLimit   = isOutward && amtINR / rate > limitRemaining
@@ -284,8 +288,10 @@ export default function NewTransfer() {
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Net amount sent</span><span style={{ color: '#FAF6F0' }}>{formatINR(netINR)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
-                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>REPAIHUB fee</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(fee)}</span></div>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>1.8% commission</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(commissionCAD)}</span></div>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{express ? 'Express flat fee' : 'Flat fee'}</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(flatFee)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Total fees</span><span style={{ color: '#8BA0B4', fontWeight: 600 }}>− {formatCAD(totalFees)}</span></div>
                   <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (CAD)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatCAD(amtCAD > 0 ? amtCAD : 0)}</span></div>
                 </>
               ) : (
@@ -306,8 +312,8 @@ export default function NewTransfer() {
               <label style={S.label}>Transfer Speed</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 {[
-                  { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_STANDARD)} fee` },
-                  { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_EXPRESS)} fee` },
+                  { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_FLAT_STD)} flat + 1.8%` },
+                  { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_FLAT_EXP)} flat + 1.8%` },
                 ].map(opt => (
                   <div key={String(opt.key)} onClick={() => setExpress(opt.key)}
                     style={{ border: `1px solid ${express === opt.key ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: express === opt.key ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem', cursor: 'pointer' }}>
@@ -415,7 +421,8 @@ export default function NewTransfer() {
               tcsApplies ? ['TCS 5% (refundable)', `− ${formatINR(tcsAmt)}`] : null,
               ['FX Rate', `1 CAD = ₹${rate}`],
               isOutward ? ['Speed', express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)'] : null,
-              isOutward ? ['Fee', formatCAD(fee)] : null,
+              isOutward ? ['Commission (1.8%)', formatCAD(commissionCAD)] : null,
+              isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
               (isOutward && purpose) ? ['Purpose', purpose] : null,
             ] as ([string,string]|null)[]).filter(Boolean).map(([k, v]) => (
               <div key={k} style={{ ...S.row, borderBottom: '1px solid rgba(201,150,58,0.1)', paddingBottom: '0.75rem' }}>
