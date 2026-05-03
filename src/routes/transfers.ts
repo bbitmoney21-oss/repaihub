@@ -201,10 +201,16 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
     const fintracReport = amountCadIn >= rules.fintracThresholdCad;
-    const flatFee   = 5;
-    const expressFee = speed === 'express' ? 10 : 0;
+    // Inward fee model: profit comes from FX spread, not from explicit fees.
+    // Charge \$1.99 ONLY when amount < \$500. Above \$500 fee is \$0.
+    // Express vs Standard does NOT change the fee — speed is purely a delivery
+    // option and the surcharge has been removed.
+    const SMALL_TXN_FEE_CAD = 1.99;
+    const FREE_THRESHOLD_CAD = 500;
+    const flatFee = amountCadIn < FREE_THRESHOLD_CAD ? SMALL_TXN_FEE_CAD : 0;
+    const expressFee = 0;
     const exchangeRateInward = 60.91;  // TODO: live Fable rate
-    const amountInrOut = parseFloat(((amountCadIn - flatFee - expressFee) * exchangeRateInward).toFixed(2));
+    const amountInrOut = parseFloat(((amountCadIn - flatFee) * exchangeRateInward).toFixed(2));
     const reference = genReference();
 
     if (!supabaseAdminConfigured) {
