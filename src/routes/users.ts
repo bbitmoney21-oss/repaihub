@@ -19,22 +19,33 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
   }
 
   const userId = req.userId!;
-  const [profileRes, kycRes, canadaRes, indiaRes] = await Promise.all([
-    supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
-    supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
-    supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-  ]);
 
-  res.json({
-    profile: profileRes.data,
-    kyc: kycRes.data,
-    canadaBank: canadaRes.data,
-    indiaAccount: indiaRes.data,
-    timestamp: ts(),
-  });
+  try {
+    const [profileRes, kycRes, canadaRes, indiaRes] = await Promise.all([
+      supabaseAdmin.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+      supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+
+    if (profileRes.error) {
+      console.error('[GET /users/profile] Profile query error:', profileRes.error.message);
+    }
+
+    res.json({
+      profile: profileRes.data ?? null,
+      kyc: kycRes.data ?? null,
+      canadaBank: canadaRes.data ?? null,
+      indiaAccount: indiaRes.data ?? null,
+      timestamp: ts(),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to load profile';
+    console.error('[GET /users/profile] Unhandled error:', msg);
+    res.status(500).json({ error: msg, timestamp: ts() });
+  }
 });
 
 // ── PUT /users/profile ────────────────────────────────────────────────────────
@@ -44,30 +55,37 @@ router.put('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
     return;
   }
 
-  const allowed = ['full_name', 'phone', 'residency'];
-  const updates: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in req.body) updates[key] = req.body[key];
+  try {
+    const allowed = ['full_name', 'phone', 'residency', 'residency_type'];
+    const updates: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (key in req.body) updates[key] = (req.body as Record<string, unknown>)[key];
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update', timestamp: ts() });
+      return;
+    }
+
+    updates.updated_at = ts();
+
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(updates)
+      .eq('id', req.userId!);
+
+    if (error) {
+      console.error('[PUT /users/profile] Update error:', error.message);
+      res.status(500).json({ error: error.message, timestamp: ts() });
+      return;
+    }
+
+    res.json({ message: 'Profile updated', timestamp: ts() });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to update profile';
+    console.error('[PUT /users/profile] Unhandled error:', msg);
+    res.status(500).json({ error: msg, timestamp: ts() });
   }
-
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: 'No valid fields to update', timestamp: ts() });
-    return;
-  }
-
-  updates.updated_at = ts();
-
-  const { error } = await supabaseAdmin
-    .from('profiles')
-    .update(updates)
-    .eq('id', req.userId!);
-
-  if (error) {
-    res.status(500).json({ error: error.message, timestamp: ts() });
-    return;
-  }
-
-  res.json({ message: 'Profile updated', timestamp: ts() });
 });
 
 // ── POST /users/kyc/canada ────────────────────────────────────────────────────
