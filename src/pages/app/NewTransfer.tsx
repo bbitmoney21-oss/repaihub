@@ -17,8 +17,12 @@ type Step = 1 | 2 | 3 | 4 | 5
 type Direction = 'outward' | 'inward'
 
 const COMMISSION_RATE = 0.018   // 1.8% — ~70% of Wise/Western Union typical 2.5–2.8%
-const FEE_FLAT_STD   = 24.99   // standard flat fee CAD
-const FEE_FLAT_EXP   = 49.99   // express flat fee (incl. $25 surcharge)
+const FEE_FLAT_STD   = 24.99   // outward standard flat fee CAD
+const FEE_FLAT_EXP   = 49.99   // outward express flat fee (incl. $25 surcharge)
+// Inward fees match backend src/routes/transfers.ts (~line 204):
+//   flat $5, express adds $10 surcharge
+const FEE_INWARD_FLAT_STD = 5
+const FEE_INWARD_EXP_SURCHARGE = 10
 const TCS_THRESHOLD_INR = 700_000
 
 const PURPOSES = [
@@ -118,7 +122,10 @@ export default function NewTransfer() {
   const commissionCAD = isOutward ? Math.round(grossCAD * COMMISSION_RATE * 100) / 100 : 0
   const totalFees     = commissionCAD + flatFee
   const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
-  const receiveINR    = isOutward ? 0 : amt * rate
+  const inwardFlatFee = !isOutward ? FEE_INWARD_FLAT_STD : 0
+  const inwardExpFee  = (!isOutward && express) ? FEE_INWARD_EXP_SURCHARGE : 0
+  const inwardNetCAD  = !isOutward ? Math.max(0, amt - inwardFlatFee - inwardExpFee) : 0
+  const receiveINR    = isOutward ? 0 : inwardNetCAD * rate
 
   const limitRemaining = (user?.annualLimitTotal || 83000) - (user?.annualLimitUsed || 0)
   const exceedsLimit   = isOutward && amtINR / rate > limitRemaining
@@ -398,27 +405,61 @@ export default function NewTransfer() {
             </div>
           )}
 
-          {/* Speed — outward only */}
-          {isOutward && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={S.label}>Transfer Speed</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                {[
-                  { key: false, icon: <Clock size={16} />, title: 'Standard', time: '24–48 Hours', fee: `${formatCAD(FEE_FLAT_STD)} flat + 1.8%` },
-                  { key: true,  icon: <Zap size={16} />,   title: 'Express',  time: '8–12 Hours',  fee: `${formatCAD(FEE_FLAT_EXP)} flat + 1.8%` },
-                ].map(opt => (
-                  <div key={String(opt.key)} onClick={() => setExpress(opt.key)}
-                    style={{ border: `1px solid ${express === opt.key ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: express === opt.key ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem', cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#8BA0B4', marginBottom: '0.4rem' }}>
+          {/* Speed selector — both directions.
+              Backend honours `speed` for outward (real fee service) and inward
+              ($5 flat + $10 express surcharge in src/routes/transfers.ts). */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={S.label}>Transfer Speed</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {[
+                {
+                  key: false,
+                  icon: <Clock size={16} />,
+                  title: 'Standard',
+                  time: isOutward ? '24–48 Hours' : '1–2 Days',
+                  fee: isOutward
+                    ? `${formatCAD(FEE_FLAT_STD)} flat + 1.8%`
+                    : `${formatCAD(FEE_INWARD_FLAT_STD)} flat`,
+                },
+                {
+                  key: true,
+                  icon: <Zap size={16} />,
+                  title: 'Express',
+                  time: isOutward ? '8–12 Hours' : '4–8 Hours',
+                  fee: isOutward
+                    ? `${formatCAD(FEE_FLAT_EXP)} flat + 1.8%`
+                    : `${formatCAD(FEE_INWARD_FLAT_STD)} flat + ${formatCAD(FEE_INWARD_EXP_SURCHARGE)} express`,
+                },
+              ].map(opt => {
+                const selected = express === opt.key
+                return (
+                  <div
+                    key={String(opt.key)}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selected}
+                    onClick={() => setExpress(opt.key)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpress(opt.key) } }}
+                    style={{
+                      border: `2px solid ${selected ? '#C9963A' : 'rgba(201,150,58,0.25)'}`,
+                      background: selected ? 'rgba(201,150,58,0.18)' : '#0B1C2C',
+                      boxShadow: selected ? '0 0 0 1px rgba(201,150,58,0.35) inset' : 'none',
+                      padding: '1rem',
+                      cursor: 'pointer',
+                      transition: 'border-color 120ms ease, background 120ms ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: selected ? '#FAF6F0' : '#8BA0B4', marginBottom: '0.4rem' }}>
                       {opt.icon} <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#FAF6F0' }}>{opt.title}</span>
+                      {selected && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', color: '#C9963A', textTransform: 'uppercase' }}>Selected</span>}
                     </div>
                     <div style={{ fontSize: '1rem', fontWeight: 600, color: '#C9963A' }}>{opt.time}</div>
                     <div style={{ fontSize: '0.78rem', color: '#8BA0B4', marginTop: '0.2rem' }}>{opt.fee}</div>
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
-          )}
+          </div>
 
           <button onClick={() => setStep(2)} disabled={!minOk || exceedsLimit}
             style={{ width: '100%', background: minOk && !exceedsLimit ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: minOk && !exceedsLimit ? 'pointer' : 'not-allowed' }}>
@@ -512,9 +553,16 @@ export default function NewTransfer() {
               [isOutward ? 'Amount (INR)' : 'Amount (CAD)', isOutward ? formatINR(amt) : formatCAD(amt)],
               tcsApplies ? ['TCS 5% (refundable)', `− ${formatINR(tcsAmt)}`] : null,
               ['FX Rate', `1 CAD = ₹${rate}`],
-              isOutward ? ['Speed', express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)'] : null,
+              [
+                'Speed',
+                isOutward
+                  ? (express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)')
+                  : (express ? 'Express (4–8 hrs)' : 'Standard (1–2 days)'),
+              ],
               isOutward ? ['Commission (1.8%)', formatCAD(commissionCAD)] : null,
               isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
+              !isOutward ? ['Flat fee', formatCAD(FEE_INWARD_FLAT_STD)] : null,
+              (!isOutward && express) ? ['Express surcharge', formatCAD(FEE_INWARD_EXP_SURCHARGE)] : null,
               (isOutward && purpose) ? ['Purpose', purpose] : null,
             ] as ([string,string]|null)[]).filter(Boolean).map(([k, v]) => (
               <div key={k} style={{ ...S.row, borderBottom: '1px solid rgba(201,150,58,0.1)', paddingBottom: '0.75rem' }}>
@@ -617,7 +665,12 @@ export default function NewTransfer() {
                 {[
                   ['Amount',  `${formatINR(amt)} → ${formatCAD(amtCAD > 0 ? amtCAD : 0)}`],
                   ['Rate',    `1 CAD = ₹${rate}`],
-                  ['Speed',   express ? 'Express: 8–12 hours' : 'Standard: 24–48 hours'],
+                  [
+                    'Speed',
+                    isOutward
+                      ? (express ? 'Express: 8–12 hours' : 'Standard: 24–48 hours')
+                      : (express ? 'Express: 4–8 hours' : 'Standard: 1–2 days'),
+                  ],
                   ['Status',  'Form 145 Filed — CA Review Pending'],
                 ].map(([k, v]) => (
                   <div key={k} style={S.row}>
