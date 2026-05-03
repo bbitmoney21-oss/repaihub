@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { apiSubmitCanadaKYC } from '../../lib/api'
 
@@ -12,6 +12,8 @@ type Step = 'intro' | 'connect' | 'verifying' | 'done'
 export default function CanadaBank() {
   const { completeCanadaKYC } = useStore()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo')
   const [step, setStep] = useState<Step>('intro')
   const [bank, setBank] = useState('')
   const [holder, setHolder] = useState('')
@@ -53,14 +55,11 @@ export default function CanadaBank() {
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.6rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Repaihub</span>
         </div>
 
-        {/* Progress bar */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
-          {['Account', 'Residency', 'Canada KYC', 'India KYC'].map((step, i) => (
-            <div key={step} style={{ flex: 1 }}>
-              <div style={{ height: 3, background: i <= 2 ? '#C9963A' : 'rgba(201,150,58,0.2)', borderRadius: 2, marginBottom: '0.3rem' }} />
-              <span style={{ fontSize: '0.6rem', color: i <= 2 ? '#C9963A' : '#8BA0B4', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{step}</span>
-            </div>
-          ))}
+        {/* Context label */}
+        <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A' }}>
+            {returnTo ? 'Transfer Setup — Step 1 of 2' : 'Account Setup'}
+          </span>
         </div>
 
         <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '2.5rem' }}>
@@ -73,7 +72,7 @@ export default function CanadaBank() {
                 </div>
                 <div>
                   <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#FFFFFF', lineHeight: 1.1 }}>Canadian Bank Verification</h1>
-                  <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.25rem' }}>Step 3 of 4 — Powered by Flinks</p>
+                  <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.25rem' }}>Powered by Flinks</p>
                 </div>
               </div>
               <p style={{ fontSize: '0.9rem', color: '#8BA0B4', lineHeight: 1.7, marginBottom: '2rem' }}>
@@ -172,9 +171,9 @@ export default function CanadaBank() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => nav('/onboarding/india-nro')}
+              <button onClick={() => nav(returnTo ?? '/onboarding/india-nro')}
                 style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                Continue — Indian NRO Account →
+                {returnTo ? 'Back to Transfer →' : 'Continue — Indian NRO Account →'}
               </button>
             </div>
           )}

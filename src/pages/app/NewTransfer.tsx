@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiCreateTransfer, apiUpdateProfile } from '../../lib/api'
@@ -53,6 +53,8 @@ const SOURCE_OF_FUNDS: Record<string, string> = {
   'Other':                   'other',
 }
 
+const DRAFT_KEY = 'rh_transfer_draft'
+
 export default function NewTransfer() {
   const { user, fxRate, addTransfer, addNotification, setResidency } = useStore()
   const nav = useNavigate()
@@ -80,6 +82,27 @@ export default function NewTransfer() {
   const [txnRef, setTxnRef]           = useState('')
   const [progress, setProgress]       = useState(0)
   const [progressMsg, setProgressMsg] = useState('')
+
+  // Restore draft state after returning from bank connection pages
+  useEffect(() => {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (!raw) return
+    try {
+      const draft = JSON.parse(raw) as { amount: string; express: boolean; purpose: string; direction: Direction; step: Step }
+      sessionStorage.removeItem(DRAFT_KEY)
+      setAmount(draft.amount)
+      setExpress(draft.express)
+      setPurpose(draft.purpose)
+      setDirection(draft.direction)
+      setStep(draft.step)
+    } catch { sessionStorage.removeItem(DRAFT_KEY) }
+  }, [])
+
+  // Navigate to bank connection page — saves current form state so we return to step 2
+  function connectBank(path: string) {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ amount, express, purpose, direction, step: 2 as Step }))
+    nav(`${path}?returnTo=/app/new-transfer`)
+  }
 
   const isOutward = direction === 'outward'
   const rate      = fxRate || 83
@@ -411,10 +434,10 @@ export default function NewTransfer() {
             {isOutward
               ? hasIndiaBank
                 ? <BankCard bank={{ name: user!.indiaBank!.bankName, sub: `${user!.indiaBank!.branch} · NRO Account` }} label="DigiLocker verified" />
-                : <ConnectPrompt text="Connect via DigiLocker →" onClick={() => nav('/onboarding/india-nro')} />
+                : <ConnectPrompt text="Connect via DigiLocker →" onClick={() => connectBank('/onboarding/india-nro')} />
               : hasCanadaBank
                 ? <BankCard bank={{ name: user!.canadaBank!.institution, sub: `${user!.canadaBank!.accountType} · ${user!.canadaBank!.holderName}` }} label="Flinks verified" />
-                : <ConnectPrompt text="Connect via Flinks →" onClick={() => nav('/onboarding/canada-bank')} />
+                : <ConnectPrompt text="Connect via Flinks →" onClick={() => connectBank('/onboarding/canada-bank')} />
             }
           </div>
 
@@ -424,10 +447,10 @@ export default function NewTransfer() {
             {isOutward
               ? hasCanadaBank
                 ? <BankCard bank={{ name: user!.canadaBank!.institution, sub: `${user!.canadaBank!.accountType} · ${user!.canadaBank!.holderName}` }} label="Flinks verified" />
-                : <ConnectPrompt text="Connect via Flinks →" onClick={() => nav('/onboarding/canada-bank')} />
+                : <ConnectPrompt text="Connect via Flinks →" onClick={() => connectBank('/onboarding/canada-bank')} />
               : hasIndiaBank
                 ? <BankCard bank={{ name: user!.indiaBank!.bankName, sub: `${user!.indiaBank!.branch} · NRO Account` }} label="DigiLocker verified" />
-                : <ConnectPrompt text="Connect via DigiLocker →" onClick={() => nav('/onboarding/india-nro')} />
+                : <ConnectPrompt text="Connect via DigiLocker →" onClick={() => connectBank('/onboarding/india-nro')} />
             }
           </div>
 

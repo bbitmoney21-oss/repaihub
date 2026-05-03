@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { apiSubmitIndiaKYC } from '../../lib/api'
 import { Shield, Check, Loader } from 'lucide-react'
@@ -12,6 +12,8 @@ type Step = 'intro' | 'form' | 'digilocker' | 'verifying' | 'done'
 export default function IndiaNRO() {
   const { completeIndiaKYC } = useStore()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo')
   const [step, setStep] = useState<Step>('intro')
   const [bank, setBank] = useState('')
   const [branch, setBranch] = useState('')
@@ -56,13 +58,11 @@ export default function IndiaNRO() {
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.6rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Repaihub</span>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
-          {['Account', 'Residency', 'Canada KYC', 'India KYC'].map((s) => (
-            <div key={s} style={{ flex: 1 }}>
-              <div style={{ height: 3, background: '#C9963A', borderRadius: 2, marginBottom: '0.3rem' }} />
-              <span style={{ fontSize: '0.6rem', color: '#C9963A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s}</span>
-            </div>
-          ))}
+        {/* Context label */}
+        <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A' }}>
+            {returnTo ? 'Transfer Setup — Step 2 of 2' : 'Account Setup'}
+          </span>
         </div>
 
         <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '2.5rem' }}>
@@ -75,7 +75,7 @@ export default function IndiaNRO() {
                 </div>
                 <div>
                   <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#FFFFFF', lineHeight: 1.1 }}>Indian NRO Account</h1>
-                  <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.25rem' }}>Step 4 of 4 — DigiLocker + PAN Verification</p>
+                  <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.25rem' }}>DigiLocker + PAN Verification</p>
                 </div>
               </div>
               <p style={{ fontSize: '0.9rem', color: '#8BA0B4', lineHeight: 1.7, marginBottom: '2rem' }}>
@@ -191,9 +191,9 @@ export default function IndiaNRO() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => nav('/onboarding/complete')}
+              <button onClick={() => nav(returnTo ?? '/onboarding/complete')}
                 style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                Complete Setup →
+                {returnTo ? 'Back to Transfer →' : 'Complete Setup →'}
               </button>
             </div>
           )}
