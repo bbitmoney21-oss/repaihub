@@ -702,24 +702,79 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
 });
 
 // ── GET /transfers/history ────────────────────────────────────────────────────
+//
+// Returns a UNIFIED list of the user's outward (transfers table) AND inward
+// (inward_transfers table) transfers, sorted newest-first.  Each row gets a
+// `direction` field ('outward' | 'inward') so the UI can render correctly.
+//
+// Uses Promise.allSettled so a transient error on one source doesn't 500 the
+// whole list — degrades to whichever side responded.
 router.get('/history', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!supabaseAdminConfigured) {
     res.json({ transfers: [], count: 0, timestamp: ts() });
     return;
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('transfers')
-    .select('*')
-    .eq('user_id', req.userId!)
-    .order('created_at', { ascending: false });
+  const userId = req.userId!;
+  const settled = await Promise.allSettled([
+    supabaseAdmin.from('transfers').select('*').eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+    supabaseAdmin.from('inward_transfers').select('*').eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+  ]);
 
-  if (error) {
-    res.status(500).json({ error: error.message, timestamp: ts() });
-    return;
+  type Row = Record<string, unknown> & { id: string; created_at: string };
+  const rows: Row[] = [];
+  const debug: Array<{ source: string; status: string; count?: number; error?: string }> = [];
+
+  // Outward transfers
+  const outwardR = settled[0];
+  if (outwardR.status === 'fulfilled') {
+    const v = outwardR.value as { data: Row[] | null; error: { message: string } | null };
+    if (v.error) {
+      console.error('[GET /transfers/history] outward query error:', v.error.message);
+      debug.push({ source: 'outward', status: 'error', error: v.error.message });
+    } else {
+      const list = (v.data ?? []).map(r => ({ ...r, direction: 'outward' as const }));
+      rows.push(...list);
+      debug.push({ source: 'outward', status: 'ok', count: list.length });
+    }
+  } else {
+    const reason = outwardR.reason instanceof Error ? outwardR.reason.message : String(outwardR.reason);
+    console.error('[GET /transfers/history] outward threw:', reason);
+    debug.push({ source: 'outward', status: 'rejected', error: reason });
   }
 
-  res.json({ transfers: data ?? [], count: (data ?? []).length, timestamp: ts() });
+  // Inward transfers — column names overlap (amount_cad, amount_inr, exchange_rate,
+  // status, speed, reference, created_at, fee_cad, etc) so the row maps directly.
+  // We tag direction: 'inward' so the frontend can render correctly.
+  const inwardR = settled[1];
+  if (inwardR.status === 'fulfilled') {
+    const v = inwardR.value as { data: Row[] | null; error: { message: string } | null };
+    if (v.error) {
+      console.error('[GET /transfers/history] inward query error:', v.error.message);
+      debug.push({ source: 'inward', status: 'error', error: v.error.message });
+    } else {
+      const list = (v.data ?? []).map(r => ({ ...r, direction: 'inward' as const }));
+      rows.push(...list);
+      debug.push({ source: 'inward', status: 'ok', count: list.length });
+    }
+  } else {
+    const reason = inwardR.reason instanceof Error ? inwardR.reason.message : String(inwardR.reason);
+    console.error('[GET /transfers/history] inward threw:', reason);
+    debug.push({ source: 'inward', status: 'rejected', error: reason });
+  }
+
+  // Sort merged list newest first
+  rows.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.json({
+    transfers: rows,
+    count: rows.length,
+    timestamp: ts(),
+    ...(isDev ? { debug } : {}),
+  });
 });
 
 // ── GET /transfers/fema-limit (alias: /fema-status) ──────────────────────────

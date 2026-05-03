@@ -126,12 +126,24 @@ export default function Dashboard() {
                   onMouseEnter={e => (e.currentTarget.style.background = '#132233')}
                   onMouseLeave={e => (e.currentTarget.style.background = '#0B1C2C')}>
                   <div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 500, color: '#FAF6F0', marginBottom: '0.2rem' }}>{t.id}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#FAF6F0' }}>{t.id}</span>
+                      {t.direction === 'inward' ? (
+                        <span style={{ fontSize: '0.6rem', background: 'rgba(39,174,96,0.15)', color: '#27AE60', padding: '0.1rem 0.35rem', borderRadius: 2, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>↙ In</span>
+                      ) : (
+                        <span style={{ fontSize: '0.6rem', background: 'rgba(232,184,109,0.15)', color: '#E8B86D', padding: '0.1rem 0.35rem', borderRadius: 2, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>↗ Out</span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{formatDateShort(t.date)}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FAF6F0' }}>{formatCAD(t.amountCAD)}</div>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: statusColor[t.status] }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FAF6F0' }}>
+                      {t.direction === 'inward' ? formatCAD(t.amountCAD) : formatINR(t.amountINR)}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#8BA0B4', marginTop: '0.1rem' }}>
+                      → {t.direction === 'inward' ? formatINR(t.amountINR) : formatCAD(t.amountCAD)}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: statusColor[t.status], marginTop: '0.15rem' }}>
                       {statusLabel[t.status]}
                     </div>
                   </div>
