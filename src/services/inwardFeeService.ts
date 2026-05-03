@@ -78,49 +78,58 @@ export interface InwardFeeResult {
 }
 
 // ── Main calculation ─────────────────────────────────────────────────────────
+//
+// PRODUCT RULE (May 2026):
+//   Inward profit comes from the FX spread, not from explicit fees.
+//   We charge a $1.99 small-transfer fee ONLY when amountCAD < $500.
+//   Above $500: no fee at all.
+//   Express vs Standard does NOT change the price (no surcharge).
+//   Commission is zero — the FX spread is the sole revenue line.
+//
+// The legacy `inward_fee_config` row in Supabase is still loaded (we keep
+// it for limit values like daily/monthly/min/max transfer caps), but its
+// flatFee/commission/expressSurcharge fields are intentionally ignored for
+// fee math. This keeps fees deterministic regardless of how that table
+// drifted historically.
 export async function calculateInwardFees(input: InwardFeeInput): Promise<InwardFeeResult> {
   const cfg = await getInwardFeeConfig();
   const { amountCAD, exchangeRate, speed, isFirstTransfer } = input;
+  void speed;  // intentionally not used — express has no price impact
 
-  // Gross INR = CAD amount / (CAD per INR rate)
+  const SMALL_TXN_FEE_CAD = 1.99;
+  const FREE_THRESHOLD_CAD = 500;
+
   const grossAmountINR = Math.round((amountCAD / exchangeRate) * 100) / 100;
 
-  // Commission on CAD amount
-  const commissionCAD = Math.round(amountCAD * (cfg.commissionRateTotal / 100) * 100) / 100;
-
-  // Flat fee (waived for first inward transfer)
-  let flatFeeCAD = cfg.flatFeeCAD;
+  // Single small-transfer fee, waived above the threshold OR on first transfer
+  let flatFeeCAD = amountCAD < FREE_THRESHOLD_CAD ? SMALL_TXN_FEE_CAD : 0;
   let flatFeeWaived = false;
   if (isFirstTransfer && cfg.firstTransferFlatFeeWaived) {
     flatFeeCAD = 0;
     flatFeeWaived = true;
   }
 
-  // Express surcharge
-  const expressSurchargeCAD = speed === 'express' ? cfg.expressSurchargeCAD : 0;
+  const commissionCAD = 0;
+  const expressSurchargeCAD = 0;
+  const totalFeesCAD = Math.round(flatFeeCAD * 100) / 100;
 
-  // Total fees
-  const totalFeesCAD = Math.round((commissionCAD + flatFeeCAD + expressSurchargeCAD) * 100) / 100;
-
-  // Net INR = (CAD - fees) / rate
   const netCAD = Math.max(0, amountCAD - totalFeesCAD);
   const netAmountINR = Math.round((netCAD / exchangeRate) * 100) / 100;
 
   const feeConfigSnapshot: Record<string, unknown> = {
-    flatFeeCAD:          cfg.flatFeeCAD,
-    commissionRateTotal: cfg.commissionRateTotal,
-    expressSurchargeCAD: cfg.expressSurchargeCAD,
-    capturedAt:          new Date().toISOString(),
+    model: 'inward_v2_small_txn_only',
+    smallTxnFeeCAD:    SMALL_TXN_FEE_CAD,
+    freeThresholdCAD:  FREE_THRESHOLD_CAD,
+    capturedAt:        new Date().toISOString(),
   };
 
   const breakdown: string[] = [
     `Transfer amount: CAD ${amountCAD.toFixed(2)} = ₹${grossAmountINR.toLocaleString('en-IN')} gross`,
-    `Commission ${cfg.commissionRateTotal}%: CAD ${commissionCAD.toFixed(2)}`,
     flatFeeWaived
-      ? `Flat fee: CAD 0.00 (waived — first inward transfer)`
-      : `Flat fee: CAD ${flatFeeCAD.toFixed(2)}`,
-    ...(expressSurchargeCAD > 0 ? [`Express surcharge: CAD ${expressSurchargeCAD.toFixed(2)}`] : []),
-    `Total fees: CAD ${totalFeesCAD.toFixed(2)}`,
+      ? `Fee: CAD 0.00 (waived — first inward transfer)`
+      : amountCAD < FREE_THRESHOLD_CAD
+        ? `Small-transfer fee: CAD ${flatFeeCAD.toFixed(2)} (amount under CAD ${FREE_THRESHOLD_CAD})`
+        : `Fee: CAD 0.00 (no fee for transfers of CAD ${FREE_THRESHOLD_CAD}+)`,
     `Recipient receives: ₹${netAmountINR.toLocaleString('en-IN')}`,
   ];
 

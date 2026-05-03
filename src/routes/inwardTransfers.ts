@@ -50,15 +50,15 @@ router.get('/rates', async (req, res) => {
     expressFeeCAD = feeConfig.expressFeeCAD;
     totalFeesCAD = feeConfig.totalFeesCAD;
   } else {
-    // Safe fallback using inward_fee_config defaults
-    const { getInwardFeeConfig } = await import('../services/inwardFeeService');
-    const cfg = await getInwardFeeConfig().catch(() => null);
-    const baseFlatFee = cfg?.flatFeeCAD ?? 1.99;
-    flatFeeWaived = speed === 'standard' && amountCAD >= (cfg?.maxTransferCAD ?? 500);
-    flatFeeCAD = flatFeeWaived ? 0 : baseFlatFee;
-    flatFeeWaivedReason = flatFeeWaived ? `Economy transfers of CAD ${cfg?.maxTransferCAD ?? 500}+ have no flat fee` : '';
-    expressFeeCAD = speed === 'express' ? (cfg?.expressSurchargeCAD ?? 1.99) : 0;
-    totalFeesCAD = flatFeeCAD + expressFeeCAD;
+    // Inward fee model: \$1.99 only if amount < \$500. Above \$500: no fee.
+    // Express vs Standard does NOT change the price.
+    const FREE_THRESHOLD_CAD = 500;
+    const SMALL_TXN_FEE_CAD = 1.99;
+    flatFeeWaived = amountCAD >= FREE_THRESHOLD_CAD;
+    flatFeeCAD = flatFeeWaived ? 0 : SMALL_TXN_FEE_CAD;
+    flatFeeWaivedReason = flatFeeWaived ? `No fee for transfers of CAD ${FREE_THRESHOLD_CAD}+` : '';
+    expressFeeCAD = 0;
+    totalFeesCAD = flatFeeCAD;
   }
 
   const netCAD = amountCAD - totalFeesCAD;

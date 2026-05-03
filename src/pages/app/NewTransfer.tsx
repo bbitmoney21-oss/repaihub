@@ -18,11 +18,12 @@ type Direction = 'outward' | 'inward'
 
 const COMMISSION_RATE = 0.018   // 1.8% — ~70% of Wise/Western Union typical 2.5–2.8%
 const FEE_FLAT_STD   = 24.99   // outward standard flat fee CAD
-const FEE_FLAT_EXP   = 49.99   // outward express flat fee (incl. $25 surcharge)
-// Inward fees match backend src/routes/transfers.ts (~line 204):
-//   flat $5, express adds $10 surcharge
-const FEE_INWARD_FLAT_STD = 5
-const FEE_INWARD_EXP_SURCHARGE = 10
+const FEE_FLAT_EXP   = 49.99   // outward express flat fee (incl. \$25 surcharge)
+// Inward fee model: profit comes from FX spread, not from explicit fees.
+// We charge a small-transfer fee of \$1.99 when the CAD amount is below \$500.
+// Above \$500: no fee at all. Express vs Standard does NOT change the price.
+const FEE_INWARD_SMALL_TXN     = 1.99
+const FEE_INWARD_FREE_THRESHOLD = 500
 const TCS_THRESHOLD_INR = 700_000
 
 const PURPOSES = [
@@ -122,9 +123,9 @@ export default function NewTransfer() {
   const commissionCAD = isOutward ? Math.round(grossCAD * COMMISSION_RATE * 100) / 100 : 0
   const totalFees     = commissionCAD + flatFee
   const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
-  const inwardFlatFee = !isOutward ? FEE_INWARD_FLAT_STD : 0
-  const inwardExpFee  = (!isOutward && express) ? FEE_INWARD_EXP_SURCHARGE : 0
-  const inwardNetCAD  = !isOutward ? Math.max(0, amt - inwardFlatFee - inwardExpFee) : 0
+  // Inward fee: \$1.99 only if amount < \$500, else \$0. No express surcharge.
+  const inwardFee     = !isOutward && amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD ? FEE_INWARD_SMALL_TXN : 0
+  const inwardNetCAD  = !isOutward ? Math.max(0, amt - inwardFee) : 0
   const receiveINR    = isOutward ? 0 : inwardNetCAD * rate
 
   const limitRemaining = (user?.annualLimitTotal || 83000) - (user?.annualLimitUsed || 0)
@@ -419,7 +420,9 @@ export default function NewTransfer() {
                   time: isOutward ? '24–48 Hours' : '1–2 Days',
                   fee: isOutward
                     ? `${formatCAD(FEE_FLAT_STD)} flat + 1.8%`
-                    : `${formatCAD(FEE_INWARD_FLAT_STD)} flat`,
+                    : (amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD
+                        ? `${formatCAD(FEE_INWARD_SMALL_TXN)} (under ${formatCAD(FEE_INWARD_FREE_THRESHOLD)})`
+                        : 'No fee'),
                 },
                 {
                   key: true,
@@ -428,7 +431,9 @@ export default function NewTransfer() {
                   time: isOutward ? '8–12 Hours' : '4–8 Hours',
                   fee: isOutward
                     ? `${formatCAD(FEE_FLAT_EXP)} flat + 1.8%`
-                    : `${formatCAD(FEE_INWARD_FLAT_STD)} flat + ${formatCAD(FEE_INWARD_EXP_SURCHARGE)} express`,
+                    : (amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD
+                        ? `${formatCAD(FEE_INWARD_SMALL_TXN)} (under ${formatCAD(FEE_INWARD_FREE_THRESHOLD)})`
+                        : 'No fee'),
                 },
               ].map(opt => {
                 const selected = express === opt.key
@@ -561,8 +566,8 @@ export default function NewTransfer() {
               ],
               isOutward ? ['Commission (1.8%)', formatCAD(commissionCAD)] : null,
               isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
-              !isOutward ? ['Flat fee', formatCAD(FEE_INWARD_FLAT_STD)] : null,
-              (!isOutward && express) ? ['Express surcharge', formatCAD(FEE_INWARD_EXP_SURCHARGE)] : null,
+              (!isOutward && inwardFee > 0) ? ['Small-transfer fee', formatCAD(inwardFee)] : null,
+              (!isOutward && inwardFee === 0) ? ['Fee', 'No fee'] : null,
               (isOutward && purpose) ? ['Purpose', purpose] : null,
             ] as ([string,string]|null)[]).filter(Boolean).map(([k, v]) => (
               <div key={k} style={{ ...S.row, borderBottom: '1px solid rgba(201,150,58,0.1)', paddingBottom: '0.75rem' }}>
