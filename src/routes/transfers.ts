@@ -142,6 +142,8 @@ router.get('/compliance', authMiddleware, async (req: AuthRequest, res: Response
 
 // ── POST /transfers/initiate ──────────────────────────────────────────────────
 router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+  // ─── all logic wrapped — Express 4.x does not catch async throws automatically
   const {
     direction = 'outward',
     amountFrom,
@@ -648,6 +650,13 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     reference,
     timestamp: ts(),
   });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Internal server error';
+    console.error('[POST /transfers/initiate] Unhandled error:', msg, err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: msg, timestamp: ts() });
+    }
+  }
 });
 
 // ── GET /transfers/history ────────────────────────────────────────────────────
