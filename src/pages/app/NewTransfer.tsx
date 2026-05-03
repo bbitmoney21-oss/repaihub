@@ -82,6 +82,7 @@ export default function NewTransfer() {
   const [txnRef, setTxnRef]           = useState('')
   const [progress, setProgress]       = useState(0)
   const [progressMsg, setProgressMsg] = useState('')
+  const [transferError, setTransferError] = useState<string | null>(null)
 
   // Restore draft state after returning from bank connection pages
   useEffect(() => {
@@ -139,36 +140,12 @@ export default function NewTransfer() {
 
   async function handleConfirm() {
     setLoading(true)
+    setTransferError(null)
     const ref = generateRef()
     setTxnRef(ref)
 
-    const progressSteps: [number, string][] = isOutward ? [
-      [15,  'Verifying KYC tokens…'],
-      [30,  `Locking FX rate at ₹${rate}…`],
-      [50,  'Generating Form 145 XML…'],
-      [70,  'Filing with IT portal…'],
-      [85,  'Assigning CA for Form 146…'],
-      [100, 'Transfer initiated!'],
-    ] : [
-      [20,  'Verifying FINTRAC compliance…'],
-      [50,  'Processing CAD withdrawal…'],
-      [80,  'Routing to India NRO account…'],
-      [100, 'Transfer initiated!'],
-    ]
-
-    for (const [pct, msg] of progressSteps) {
-      await sleep(600)
-      setProgress(pct)
-      setProgressMsg(msg)
-    }
-
-    // Animation complete — unblock UX immediately; API call runs in background
-    setLoading(false)
-    setStep(5)
-    setTimeout(() => nav('/app/dashboard'), 2500)
-
-    const now = new Date().toISOString()
-    apiCreateTransfer({
+    // Start the real API call immediately — runs concurrently with the animation
+    const apiPromise = apiCreateTransfer({
       amountInr:     isOutward ? amt : receiveINR,
       amountCad:     isOutward ? amtCAD : amt,
       amountFrom:    isOutward ? amt : amt,
@@ -179,26 +156,54 @@ export default function NewTransfer() {
       speed:         express ? 'express' : 'standard',
       reference:     ref,
       direction,
-    }).then(transfer => {
-      addTransfer(mapDbTransfer(transfer))
-      const notifMsg = isOutward
-        ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
-        : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`
-      addNotification({ message: notifMsg, type: 'info', timestamp: now })
-    }).catch(() => {
-      addTransfer({
-        id:        'TXN-' + Date.now(),
-        date:      now,
-        amountINR: isOutward ? amt : receiveINR,
-        amountCAD: isOutward ? amtCAD : amt,
-        rate,
-        fee:       isOutward ? totalFees : 0,
-        status:    '15CA_FILED',
-        express,
-        reference: ref,
-        events:    [{ status: 'INITIATED', timestamp: now, note: 'Transfer initiated' }],
-      })
     })
+
+    // Animate progress while the API call runs in parallel
+    const animationSteps: [number, string][] = isOutward ? [
+      [15,  'Verifying KYC tokens…'],
+      [35,  `Locking FX rate at ₹${rate}…`],
+      [55,  'Generating Form 145 XML…'],
+      [75,  'Filing with IT portal…'],
+      [88,  'Assigning CA for Form 146…'],
+    ] : [
+      [25,  'Verifying FINTRAC compliance…'],
+      [55,  'Processing CAD withdrawal…'],
+      [80,  'Routing to India NRO account…'],
+    ]
+
+    for (const [pct, msg] of animationSteps) {
+      await sleep(600)
+      setProgress(pct)
+      setProgressMsg(msg)
+    }
+
+    // Animation done — now wait for the real API result
+    setProgressMsg('Confirming with server…')
+
+    const now = new Date().toISOString()
+    try {
+      const transfer = await apiPromise
+      // Real success — transfer is in the database
+      setProgress(100)
+      setProgressMsg('Transfer initiated!')
+      await sleep(400)
+      addTransfer(mapDbTransfer(transfer))
+      addNotification({
+        message: isOutward
+          ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
+          : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`,
+        type: 'info',
+        timestamp: now,
+      })
+      setLoading(false)
+      setStep(5)
+      setTimeout(() => nav('/app/dashboard'), 2500)
+    } catch (err: unknown) {
+      // Real failure — tell the user, do NOT fake success
+      const msg = err instanceof Error ? err.message : 'Transfer failed. Please try again.'
+      setTransferError(msg)
+      setLoading(false)
+    }
   }
 
   const S = {
@@ -572,6 +577,20 @@ export default function NewTransfer() {
                 <div style={{ height: '100%', background: '#C9963A', width: `${progress}%`, transition: 'width 0.5s ease' }} />
               </div>
               <span style={{ fontSize: '0.78rem', color: '#8BA0B4' }}>{progress}%</span>
+            </div>
+          ) : transferError ? (
+            <div>
+              <div style={{ background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.4)', padding: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <AlertCircle size={18} color="#E74C3C" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#E74C3C', marginBottom: '0.25rem' }}>Transfer Failed</div>
+                  <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>{transferError}</div>
+                </div>
+              </div>
+              <button onClick={handleConfirm}
+                style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1.1rem', fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Retry →
+              </button>
             </div>
           ) : (
             <button onClick={handleConfirm}
