@@ -123,6 +123,12 @@ app.get('/health', (_req, res) => {
     rbiRulesVersion:      process.env.COMPLIANCE_RULES_VERSION ?? '2026-04-01',
     form145ThresholdInr:  Number(process.env.RBI_FORM145_THRESHOLD_INR ?? 50_000),
     form146ThresholdInr:  Number(process.env.RBI_FORM146_THRESHOLD_INR ?? 500_000),
+    caQueueEnabled:       true,
+    form145AutoPart:      'A (below ₹5L cumulative FY) | C (above ₹5L cumulative FY or property sale)',
+    form146Required:      'When single transfer or cumulative FY total > ₹5L, or purposeCode = P1004',
+    udinRequired:         true,
+    panCollectionEnabled: true,
+    itActVersion:         '2025',
     timestamp: new Date().toISOString(),
   });
 });

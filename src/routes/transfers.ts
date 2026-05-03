@@ -32,6 +32,32 @@ function isWithinCurrentMonth(isoDate: string): boolean {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
 }
 
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+// Source-of-funds → required supporting doc type + suggested purpose code
+const SOURCE_OF_FUNDS_MAP: Record<string, { purposeCode: string; docType: string; label: string }> = {
+  rental_income:       { purposeCode: 'P1301', docType: 'bank_statement',  label: 'Rental Income' },
+  pension_income:      { purposeCode: 'P1101', docType: 'bank_statement',  label: 'Pension Income' },
+  dividend_income:     { purposeCode: 'P0001', docType: 'investment_proof', label: 'Dividend Income' },
+  property_sale:       { purposeCode: 'P1301', docType: 'property_deed',   label: 'Property Sale Proceeds' },
+  bank_interest:       { purposeCode: 'P1301', docType: 'bank_statement',  label: 'Bank Interest' },
+  accumulated_savings: { purposeCode: 'P1301', docType: 'bank_statement',  label: 'Accumulated Savings' },
+  business_income:     { purposeCode: 'S0001', docType: 'bank_statement',  label: 'Business Income' },
+};
+
+// Query cumulative FY outward transfer total for a user (completed + in-flight, excluding this transfer)
+async function getFYOutwardTotal(userId: string): Promise<number> {
+  const fyStart = getFYStartDate().toISOString();
+  const { data } = await supabaseAdmin
+    .from('transfers')
+    .select('amount_inr')
+    .eq('user_id', userId)
+    .neq('status', 'cancelled')
+    .neq('status', 'failed')
+    .gte('created_at', fyStart);
+  return (data ?? []).reduce((sum, t) => sum + Number(t.amount_inr ?? 0), 0);
+}
+
 // ── GET /transfers/rate ───────────────────────────────────────────────────────
 router.get('/rate', authMiddleware, (_req: AuthRequest, res: Response) => {
   const rules = getRBIRules();
@@ -73,6 +99,47 @@ router.get('/compliance-info', authMiddleware, (req: AuthRequest, res: Response)
   });
 });
 
+// ── GET /transfers/compliance ─────────────────────────────────────────────────
+// Returns full compliance determination for a given amount + purpose code,
+// including cumulative FY tracking for the authenticated user.
+router.get('/compliance', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const amountInr = Number(req.query.amountInr);
+  const purposeCode = (req.query.purposeCode as string) || undefined;
+  if (!amountInr || isNaN(amountInr) || amountInr <= 0) {
+    res.status(400).json({ error: 'amountInr query parameter is required and must be positive', timestamp: ts() });
+    return;
+  }
+
+  let fyOutwardTotalInr = amountInr;
+  if (supabaseAdminConfigured) {
+    const existing = await getFYOutwardTotal(req.userId!);
+    fyOutwardTotalInr = existing + amountInr;
+  }
+
+  const reqs = getComplianceRequirements(amountInr, { purposeCode, fyOutwardTotalInr });
+  const summary = getComplianceSummary(amountInr);
+  const rules = getRBIRules();
+  const sofInfo = purposeCode ? null : null;
+  void sofInfo;
+
+  res.json({
+    success: true,
+    amountInr,
+    purposeCode: purposeCode ?? null,
+    ...reqs,
+    ...summary,
+    fyTracking: {
+      fyStart: getFYStartDate().toISOString().split('T')[0],
+      fyOutwardTotalInr,
+      annualLimitInr: rules.annualLimitInr,
+      remainingAnnualLimitInr: Math.max(0, rules.annualLimitInr - fyOutwardTotalInr),
+    },
+    caQueueEnabled: true,
+    udinRequired: reqs.requiresForm146,
+    timestamp: ts(),
+  });
+});
+
 // ── POST /transfers/initiate ──────────────────────────────────────────────────
 router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response) => {
   const {
@@ -94,6 +161,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     documents,
     lockId,
     idempotencyKey,
+    panNumber,
   } = req.body as {
     direction?: 'outward' | 'inward';
     amountFrom?: number;
@@ -113,6 +181,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     documents?: string[];
     lockId?: string;
     idempotencyKey?: string;
+    panNumber?: string;
     amountCad?: number; feeCad?: number;
   };
 
@@ -224,6 +293,10 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     res.status(400).json({ error: 'accountType must be NRO or NRE', timestamp: ts() });
     return;
   }
+  if (panNumber && !PAN_REGEX.test(panNumber.toUpperCase())) {
+    res.status(400).json({ error: 'Invalid PAN format. Expected: AAAAA9999A (5 letters, 4 digits, 1 letter)', timestamp: ts() });
+    return;
+  }
   if (amountInr < 1_000) {
     res.status(400).json({ error: 'Minimum transfer amount is ₹1,000', timestamp: ts() });
     return;
@@ -306,9 +379,8 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   const [historyRes, kycRes, profileRes, residencyRes] = await Promise.all([
     supabaseAdmin
       .from('transfers')
-      .select('id, amount_inr, created_at')
+      .select('id, amount_inr, created_at, status')
       .eq('user_id', userId)
-      .eq('status', 'completed')
       .order('created_at', { ascending: false }),
     supabaseAdmin
       .from('kyc_submissions')
@@ -327,12 +399,40 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       .maybeSingle(),
   ]);
 
-  const pastTransfers      = historyRes.data ?? [];
+  const allTransfers       = historyRes.data ?? [];
+  const pastTransfers      = allTransfers.filter(t => (t as Record<string,unknown>).status === 'completed');
   const isFirstTransfer    = pastTransfers.length === 0;
   const transferCount      = pastTransfers.length;
   const monthlyCount       = pastTransfers.filter(t => isWithinCurrentMonth(t.created_at as string)).length;
   const avgAmountINR       = transferCount > 0
     ? pastTransfers.reduce((s, t) => s + Number(t.amount_inr), 0) / transferCount : 0;
+
+  // Cumulative FY outward total (non-failed/cancelled, including this transfer)
+  const fyStart            = getFYStartDate();
+  const fyExistingTotal    = allTransfers
+    .filter(t => {
+      const s = String((t as Record<string,unknown>).status ?? '');
+      return s !== 'cancelled' && s !== 'failed' && new Date(t.created_at as string) >= fyStart;
+    })
+    .reduce((sum, t) => sum + Number(t.amount_inr ?? 0), 0);
+  const fyOutwardTotalInr  = fyExistingTotal + amountInr;
+
+  // PAN: save to profile if provided and not already stored
+  if (panNumber && supabaseAdminConfigured) {
+    const pan = panNumber.toUpperCase();
+    void supabaseAdmin
+      .from('profiles')
+      .update({ pan_number: pan })
+      .eq('id', userId)
+      .is('pan_number', null)
+      .then(({ error: panErr }) => {
+        if (panErr) console.warn('[PAN] Could not save PAN to profile:', panErr.message);
+      });
+  }
+
+  // Source-of-funds doc type lookup
+  const sofKey    = (sourceOfFunds as string) ?? 'other';
+  const sofInfo   = SOURCE_OF_FUNDS_MAP[sofKey] ?? null;
   const isKYCVerified      = (kycRes.data?.canada_verified ?? false) && (kycRes.data?.india_verified ?? false);
   const docsProvided       = documents ?? [];
   const tdsDeductedBool    = tdsDeducted ?? false;
@@ -356,14 +456,20 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     avgTransferAmountINR: avgAmountINR, isKYCVerified,
   });
 
-  // ── Step 4: Compliance evaluation ─────────────────────────────────────────
+  // ── Step 4: Compliance evaluation (with FY-aware Part determination) ──────
   const complianceResult = await evaluateCompliance({
     amountINR: amountInr, sourceOfFunds: (sourceOfFunds ?? 'other') as SourceOfFunds, documents: docsProvided,
   });
 
+  // Override form145Part with FY-aware result from rbiRules
+  const fyCompliance = getComplianceRequirements(amountInr, { purposeCode, fyOutwardTotalInr });
+
   // ── Step 5: Decision engine ────────────────────────────────────────────────
-  const decision     = applyDecisionEngine(riskResult.level, complianceResult);
-  const form145Part  = accountTypeDecision.form145Part;
+  const decision = applyDecisionEngine(riskResult.level, complianceResult);
+  // Use FY-aware Part (escalates to C when cumulative FY > ₹5L or property sale)
+  const form145Part = accountTypeDecision.accountType === 'NRE'
+    ? accountTypeDecision.form145Part
+    : fyCompliance.form145Part;
   const reference    = genReference();
 
   const initialStatus = accountTypeDecision.accountType === 'NRE'
@@ -516,9 +622,22 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     compliance: {
       requiresCA:      complianceResult.requiresCA,
       requiresForm145: complianceResult.requiresForm145,
-      requiresForm146: complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+      requiresForm146: fyCompliance.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+      form145Part,
+      isPropertySale:  fyCompliance.isPropertySale,
       documentStatus:  complianceResult.documentStatus,
+      udinRequired:    fyCompliance.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
     },
+    fyTracking: {
+      fyStart:                 fyStart.toISOString().split('T')[0],
+      fyExistingTotalInr:      fyExistingTotal,
+      fyOutwardTotalInr,
+      form145Part,
+      escalatedDueToFYTotal:   fyOutwardTotalInr > 500_000 && amountInr <= 500_000,
+    },
+    sourceOfFunds: sofInfo
+      ? { docType: sofInfo.docType, label: sofInfo.label, purposeCode: sofInfo.purposeCode }
+      : null,
     decision: {
       status:  initialStatus,
       message: accountTypeDecision.accountType === 'NRE'

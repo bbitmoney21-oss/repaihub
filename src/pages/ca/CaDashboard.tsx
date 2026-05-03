@@ -128,9 +128,12 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+const UDIN_REGEX = /^\d{18}$/
+
 // ── Approve modal ─────────────────────────────────────────────────────────────
 function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void; onDone: () => void }) {
   const [cbNumber, setCbNumber] = useState('')
+  const [udin, setUdin] = useState('')
   const [remarks, setRemarks] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -138,6 +141,10 @@ function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void
   async function submit() {
     if (!cbNumber || cbNumber.trim().length < 5) {
       setError('Form 146 acknowledgement number is required (as received from incometax.gov.in).')
+      return
+    }
+    if (udin && !UDIN_REGEX.test(udin.trim())) {
+      setError('UDIN must be exactly 18 digits as issued by the ICAI portal.')
       return
     }
     if (remarks.length < 10) {
@@ -149,7 +156,7 @@ function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void
     try {
       const res = await caFetch(`/ca/compliance/${id}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ cbNumber, remarks }),
+        body: JSON.stringify({ cbNumber, remarks, ...(udin.trim() ? { udin: udin.trim() } : {}) }),
       })
       if (!res.ok) throw new Error(await parseErr(res))
       onDone()
@@ -169,6 +176,10 @@ function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void
       </div>
       <Field label="Form 146 Certificate Number (from your CA software)">
         <input className="input-field" style={{ display: 'block' }} value={cbNumber} onChange={e => setCbNumber(e.target.value)} placeholder="e.g. F146-2026-001" />
+      </Field>
+      <Field label="UDIN — Unique Document Identification Number (optional, from ICAI portal)">
+        <input className="input-field" style={{ display: 'block' }} value={udin} onChange={e => setUdin(e.target.value.replace(/\D/g, '').slice(0, 18))} placeholder="18-digit code from udin.icai.org" maxLength={18} />
+        <span style={{ fontSize: '0.7rem', color: '#8BA0B4' }}>Generate at udin.icai.org after filing Form 146. Leave blank if not yet available.</span>
       </Field>
       <Field label="CA Remarks (min 10 chars)">
         <textarea className="input-field" style={{ display: 'block', minHeight: 80, resize: 'vertical' }} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Tax compliance confirmed. TDS verified in Form 26AS under Section 397(3)(d)…" />

@@ -50,16 +50,46 @@ export const getRBIRules = () => ({
 
 export type RBIRules = ReturnType<typeof getRBIRules>;
 
+export interface ComplianceRequirementsOptions {
+  purposeCode?: string;
+  fyOutwardTotalInr?: number;
+}
+
 /**
  * Determine compliance requirements for an outward transfer amount.
  * Always call this fresh — reads env vars on every call.
+ *
+ * Optional purposeCode: property sale (P1004) always forces Form 145 Part C + Form 146.
+ * Optional fyOutwardTotalInr: cumulative FY outward amount (including this transfer).
+ * When fyOutwardTotalInr >= form146ThresholdInr the Part escalates to C even if single
+ * amount is below the threshold.
  */
-export const getComplianceRequirements = (amountInr: number) => {
+export const getComplianceRequirements = (
+  amountInr: number,
+  opts: ComplianceRequirementsOptions = {},
+) => {
   const rules = getRBIRules();
+  const { purposeCode, fyOutwardTotalInr } = opts;
+
+  const isPropertySale = purposeCode === 'P1004';
+  const fyTotal = fyOutwardTotalInr ?? amountInr;
+
+  // Form 146 required when: single amount > threshold, OR cumulative FY exceeds threshold, OR property sale
+  const requiresForm146 =
+    amountInr > rules.form146ThresholdInr ||
+    fyTotal > rules.form146ThresholdInr ||
+    isPropertySale;
+
+  // Form 145 Part C: same conditions as Form 146 requirement
+  const form145Part: 'A' | 'C' = requiresForm146 ? 'C' : 'A';
+
   return {
     isFastTrack: amountInr < rules.fastTrackMaxInr,
     requiresForm145: amountInr >= rules.form145ThresholdInr,
-    requiresForm146: amountInr > rules.form146ThresholdInr,
+    requiresForm146,
+    form145Part,
+    isPropertySale,
+    fyOutwardTotalInr: fyTotal,
     exceedsMaxSingle: amountInr > rules.maxSingleTxInr,
     rulesVersion: rules.rulesVersion,
     purposeCodeValid: (code: string) =>
