@@ -123,10 +123,13 @@ export default function NewTransfer() {
   const commissionCAD = isOutward ? Math.round(grossCAD * COMMISSION_RATE * 100) / 100 : 0
   const totalFees     = commissionCAD + flatFee
   const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
-  // Inward fee: \$1.99 only if amount < \$500, else \$0. No express surcharge.
-  const inwardFee     = !isOutward && amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD ? FEE_INWARD_SMALL_TXN : 0
-  const inwardNetCAD  = !isOutward ? Math.max(0, amt - inwardFee) : 0
-  const receiveINR    = isOutward ? 0 : inwardNetCAD * rate
+  // Inward fee model: user enters the amount they want to convert ('Amount to send').
+  // The \$1.99 small-transfer fee is charged ON TOP of that amount when it's
+  // below \$500. So the customer's account is debited (amt + fee), the rail
+  // converts the full `amt`, and the recipient receives amt * rate.
+  const inwardFee      = !isOutward && amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD ? FEE_INWARD_SMALL_TXN : 0
+  const inwardTotalCAD = !isOutward ? amt + inwardFee : 0
+  const receiveINR     = isOutward ? 0 : amt * rate
 
   const limitRemaining = (user?.annualLimitTotal || 83000) - (user?.annualLimitUsed || 0)
   const exceedsLimit   = isOutward && amtINR / rate > limitRemaining
@@ -396,15 +399,11 @@ export default function NewTransfer() {
                 </>
               ) : (
                 <>
-                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount (CAD)</span><span style={{ color: '#FAF6F0' }}>{formatCAD(amt)}</span></div>
-                  <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
-                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
-                  {/* Inward fee — \$1.99 only when amount < \$500. Make it visible
-                      so the user understands the difference between gross and net. */}
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount you send (CAD)</span><span style={{ color: '#FAF6F0' }}>{formatCAD(amt)}</span></div>
                   {amt > 0 && inwardFee > 0 && (
                     <div style={S.row}>
                       <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Small-transfer fee</span>
-                      <span style={{ color: '#8BA0B4' }}>− {formatCAD(inwardFee)}</span>
+                      <span style={{ color: '#8BA0B4' }}>+ {formatCAD(inwardFee)}</span>
                     </div>
                   )}
                   {amt >= FEE_INWARD_FREE_THRESHOLD && (
@@ -413,6 +412,14 @@ export default function NewTransfer() {
                       <span style={{ color: '#27AE60', fontWeight: 600 }}>No fee</span>
                     </div>
                   )}
+                  {amt > 0 && inwardFee > 0 && (
+                    <div style={S.row}>
+                      <span style={{ color: '#FAF6F0', fontSize: '0.85rem', fontWeight: 600 }}>Total to pay</span>
+                      <span style={{ color: '#FAF6F0', fontWeight: 600 }}>{formatCAD(inwardTotalCAD)}</span>
+                    </div>
+                  )}
+                  <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (INR)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatINR(receiveINR)}</span></div>
                 </>
@@ -580,8 +587,9 @@ export default function NewTransfer() {
               ],
               isOutward ? ['Commission (1.8%)', formatCAD(commissionCAD)] : null,
               isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
-              (!isOutward && inwardFee > 0) ? ['Small-transfer fee', formatCAD(inwardFee)] : null,
+              (!isOutward && inwardFee > 0) ? ['Small-transfer fee', `+ ${formatCAD(inwardFee)}`] : null,
               (!isOutward && inwardFee === 0) ? ['Fee', 'No fee'] : null,
+              (!isOutward && inwardFee > 0) ? ['Total to pay', formatCAD(inwardTotalCAD)] : null,
               (isOutward && purpose) ? ['Purpose', purpose] : null,
             ] as ([string,string]|null)[]).filter(Boolean).map(([k, v]) => (
               <div key={k} style={{ ...S.row, borderBottom: '1px solid rgba(201,150,58,0.1)', paddingBottom: '0.75rem' }}>

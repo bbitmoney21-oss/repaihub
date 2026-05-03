@@ -99,9 +99,11 @@ export async function calculateInwardFees(input: InwardFeeInput): Promise<Inward
   const SMALL_TXN_FEE_CAD = 1.99;
   const FREE_THRESHOLD_CAD = 500;
 
+  // Fee-on-top model: amountCAD is the amount the user wants to convert.
+  // The fee is charged in addition. Recipient receives amountCAD/rate INR;
+  // customer is debited (amountCAD + flatFee).
   const grossAmountINR = Math.round((amountCAD / exchangeRate) * 100) / 100;
 
-  // Single small-transfer fee, waived above the threshold OR on first transfer
   let flatFeeCAD = amountCAD < FREE_THRESHOLD_CAD ? SMALL_TXN_FEE_CAD : 0;
   let flatFeeWaived = false;
   if (isFirstTransfer && cfg.firstTransferFlatFeeWaived) {
@@ -113,8 +115,9 @@ export async function calculateInwardFees(input: InwardFeeInput): Promise<Inward
   const expressSurchargeCAD = 0;
   const totalFeesCAD = Math.round(flatFeeCAD * 100) / 100;
 
-  const netCAD = Math.max(0, amountCAD - totalFeesCAD);
-  const netAmountINR = Math.round((netCAD / exchangeRate) * 100) / 100;
+  // Customer pays amountCAD + fee (fee on top, NOT deducted from amount).
+  // Recipient receives the full amountCAD converted.
+  const netAmountINR = grossAmountINR;
 
   const feeConfigSnapshot: Record<string, unknown> = {
     model: 'inward_v2_small_txn_only',
@@ -123,13 +126,15 @@ export async function calculateInwardFees(input: InwardFeeInput): Promise<Inward
     capturedAt:        new Date().toISOString(),
   };
 
+  const totalChargedCAD = Math.round((amountCAD + totalFeesCAD) * 100) / 100;
   const breakdown: string[] = [
-    `Transfer amount: CAD ${amountCAD.toFixed(2)} = ₹${grossAmountINR.toLocaleString('en-IN')} gross`,
+    `Amount you send: CAD ${amountCAD.toFixed(2)}`,
     flatFeeWaived
       ? `Fee: CAD 0.00 (waived — first inward transfer)`
       : amountCAD < FREE_THRESHOLD_CAD
-        ? `Small-transfer fee: CAD ${flatFeeCAD.toFixed(2)} (amount under CAD ${FREE_THRESHOLD_CAD})`
+        ? `Small-transfer fee (added on top): CAD ${flatFeeCAD.toFixed(2)} (amount under CAD ${FREE_THRESHOLD_CAD})`
         : `Fee: CAD 0.00 (no fee for transfers of CAD ${FREE_THRESHOLD_CAD}+)`,
+    `Total to pay: CAD ${totalChargedCAD.toFixed(2)}`,
     `Recipient receives: ₹${netAmountINR.toLocaleString('en-IN')}`,
   ];
 

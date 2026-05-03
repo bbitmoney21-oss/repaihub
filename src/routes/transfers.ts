@@ -201,16 +201,18 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
     const fintracReport = amountCadIn >= rules.fintracThresholdCad;
-    // Inward fee model: profit comes from FX spread, not from explicit fees.
-    // Charge \$1.99 ONLY when amount < \$500. Above \$500 fee is \$0.
-    // Express vs Standard does NOT change the fee — speed is purely a delivery
-    // option and the surcharge has been removed.
+    // Inward fee model: user enters the amount they want to convert.
+    // The \$1.99 small-transfer fee is charged ON TOP of that amount when
+    // it's below \$500. The rail converts the full amountCadIn (=> recipient
+    // receives amountCadIn * rate). REPAIHUB collects (amountCadIn + flatFee)
+    // from the customer and keeps flatFee as revenue (FX-spread is the rest).
     const SMALL_TXN_FEE_CAD = 1.99;
     const FREE_THRESHOLD_CAD = 500;
     const flatFee = amountCadIn < FREE_THRESHOLD_CAD ? SMALL_TXN_FEE_CAD : 0;
     const expressFee = 0;
+    const totalChargedCad = parseFloat((amountCadIn + flatFee).toFixed(2));
     const exchangeRateInward = 60.91;  // TODO: live Fable rate
-    const amountInrOut = parseFloat(((amountCadIn - flatFee) * exchangeRateInward).toFixed(2));
+    const amountInrOut = parseFloat((amountCadIn * exchangeRateInward).toFixed(2));
     const reference = genReference();
 
     if (!supabaseAdminConfigured) {
@@ -219,6 +221,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
         transfer: {
           id: `demo-in-${Date.now()}`, direction: 'inward', reference, status: 'initiated',
           amountCad: amountCadIn, amountInr: amountInrOut, flatFee, expressFee,
+          totalChargedCad,
           exchangeRate: exchangeRateInward, speed, fintracReport,
         },
         fintracReport, timestamp: ts(),
