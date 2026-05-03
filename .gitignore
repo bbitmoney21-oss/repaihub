@@ -5,3 +5,20 @@ dist-server/
 .env
 .env.local
 .claude/
+
+# Logs
+*.log
+server_e2e.log
+
+# Vite build artifacts
+vite.config.ts.timestamp-*.mjs
+.vite/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local Render / deploy outputs
+*.local.yml

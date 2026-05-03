@@ -87,18 +87,13 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(cors({
   origin: function (origin, callback) {
-    const allowed = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:8081',
-      'http://localhost:19006',
-      'https://repaihub.com',
-      'https://www.repaihub.com',
-    ];
     if (!origin) return callback(null, true);
+    // Allow any localhost port (Vite can auto-increment from 3000)
+    if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
     if (origin.endsWith('.netlify.app')) return callback(null, true);
     if (origin.endsWith('.onrender.com')) return callback(null, true);
-    if (allowed.includes(origin)) return callback(null, true);
+    const prodAllowed = ['https://repaihub.com', 'https://www.repaihub.com'];
+    if (prodAllowed.includes(origin)) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,

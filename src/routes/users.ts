@@ -6,6 +6,13 @@ const router = Router();
 const ts = () => new Date().toISOString();
 
 // ── GET /users/profile ────────────────────────────────────────────────────────
+//
+// Fault-tolerant by design: one missing/unreachable side-table (KYC, banks)
+// must not 500 the whole profile fetch. Uses Promise.allSettled so each
+// sub-query reports independently. Returns 500 only if the *primary* profile
+// row cannot be loaded (which is a real auth/user mismatch). In dev mode
+// the response includes a `debug` array listing any sub-query failures so
+// the browser Network tab tells the truth without spelunking server logs.
 router.get('/profile', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!supabaseAdminConfigured) {
     res.json({
@@ -19,22 +26,83 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
   }
 
   const userId = req.userId!;
-  const [profileRes, kycRes, canadaRes, indiaRes] = await Promise.all([
-    supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
-    supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
-    supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-  ]);
+  const isDev = process.env.NODE_ENV !== 'production';
 
-  res.json({
-    profile: profileRes.data,
-    kyc: kycRes.data,
-    canadaBank: canadaRes.data,
-    indiaAccount: indiaRes.data,
-    timestamp: ts(),
-  });
+  try {
+    const settled = await Promise.allSettled([
+      supabaseAdmin.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+      supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+
+    const labels = ['profile', 'kyc', 'canadaBank', 'indiaAccount'] as const;
+    const debug: Array<{ table: string; status: string; error?: string }> = [];
+
+    type SettledRow = { data: Record<string, unknown> | null; error: { message: string } | null } | undefined;
+    const rows: Record<typeof labels[number], Record<string, unknown> | null> = {
+      profile: null, kyc: null, canadaBank: null, indiaAccount: null,
+    };
+
+    settled.forEach((r, i) => {
+      const label = labels[i];
+      if (r.status === 'rejected') {
+        const reason = r.reason instanceof Error ? r.reason.message : String(r.reason);
+        console.error(`[GET /users/profile] ${label} query threw:`, reason);
+        debug.push({ table: label, status: 'rejected', error: reason });
+        return;
+      }
+      const value = r.value as SettledRow;
+      if (value?.error) {
+        console.error(`[GET /users/profile] ${label} query error:`, value.error.message);
+        debug.push({ table: label, status: 'error', error: value.error.message });
+        return;
+      }
+      rows[label] = value?.data ?? null;
+      debug.push({ table: label, status: 'ok' });
+    });
+
+    // Hard fail only if the primary profile row couldn't load AT ALL.
+    const profileSettled = settled[0];
+    const profileFailed =
+      profileSettled.status === 'rejected' ||
+      (profileSettled.status === 'fulfilled' &&
+        (profileSettled.value as SettledRow)?.error != null);
+
+    if (profileFailed) {
+      const err =
+        profileSettled.status === 'rejected'
+          ? (profileSettled.reason instanceof Error ? profileSettled.reason.message : String(profileSettled.reason))
+          : (profileSettled.value as SettledRow)?.error?.message ?? 'Unknown profile error';
+      res.status(500).json({
+        error: 'Failed to load profile',
+        timestamp: ts(),
+        ...(isDev ? { debug: { cause: err, perTable: debug } } : {}),
+      });
+      return;
+    }
+
+    res.json({
+      profile: rows.profile,
+      kyc: rows.kyc,
+      canadaBank: rows.canadaBank,
+      indiaAccount: rows.indiaAccount,
+      timestamp: ts(),
+      ...(isDev ? { debug } : {}),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to load profile';
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('[GET /users/profile] Unhandled error:', msg);
+    if (stack) console.error(stack);
+    res.status(500).json({
+      error: msg,
+      timestamp: ts(),
+      ...(isDev ? { debug: { stack } } : {}),
+    });
+  }
 });
 
 // ── PUT /users/profile ────────────────────────────────────────────────────────
@@ -44,30 +112,37 @@ router.put('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
     return;
   }
 
-  const allowed = ['full_name', 'phone', 'residency'];
-  const updates: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in req.body) updates[key] = req.body[key];
+  try {
+    const allowed = ['full_name', 'phone', 'residency', 'residency_type'];
+    const updates: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (key in req.body) updates[key] = (req.body as Record<string, unknown>)[key];
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update', timestamp: ts() });
+      return;
+    }
+
+    updates.updated_at = ts();
+
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(updates)
+      .eq('id', req.userId!);
+
+    if (error) {
+      console.error('[PUT /users/profile] Update error:', error.message);
+      res.status(500).json({ error: error.message, timestamp: ts() });
+      return;
+    }
+
+    res.json({ message: 'Profile updated', timestamp: ts() });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to update profile';
+    console.error('[PUT /users/profile] Unhandled error:', msg);
+    res.status(500).json({ error: msg, timestamp: ts() });
   }
-
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: 'No valid fields to update', timestamp: ts() });
-    return;
-  }
-
-  updates.updated_at = ts();
-
-  const { error } = await supabaseAdmin
-    .from('profiles')
-    .update(updates)
-    .eq('id', req.userId!);
-
-  if (error) {
-    res.status(500).json({ error: error.message, timestamp: ts() });
-    return;
-  }
-
-  res.json({ message: 'Profile updated', timestamp: ts() });
 });
 
 // ── POST /users/kyc/canada ────────────────────────────────────────────────────
