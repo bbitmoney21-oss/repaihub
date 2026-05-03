@@ -197,6 +197,7 @@ export default function NewTransfer() {
     }
     setLoading(false)
     setStep(5)
+    setTimeout(() => nav('/app/dashboard'), 2500)
   }
 
   const S = {
