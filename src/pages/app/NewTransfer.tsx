@@ -162,42 +162,43 @@ export default function NewTransfer() {
       setProgressMsg(msg)
     }
 
+    // Animation complete — unblock UX immediately; API call runs in background
+    setLoading(false)
+    setStep(5)
+    setTimeout(() => nav('/app/dashboard'), 2500)
+
     const now = new Date().toISOString()
-    try {
-      const transfer = await apiCreateTransfer({
-        amountInr:     isOutward ? amt : receiveINR,
-        amountCad:     isOutward ? amtCAD : amt,
-        amountFrom:    isOutward ? amt : amt,   // INR for outward, CAD for inward
-        exchangeRate:  rate,
-        feeCad:        isOutward ? fee : 0,
-        purposeCode:   isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301',
-        sourceOfFunds: isOutward ? (SOURCE_OF_FUNDS[purpose] ?? 'other') : 'other',
-        speed:         express ? 'express' : 'standard',
-        reference:     ref,
-        direction,
-      })
+    apiCreateTransfer({
+      amountInr:     isOutward ? amt : receiveINR,
+      amountCad:     isOutward ? amtCAD : amt,
+      amountFrom:    isOutward ? amt : amt,
+      exchangeRate:  rate,
+      feeCad:        isOutward ? totalFees : 0,
+      purposeCode:   isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301',
+      sourceOfFunds: isOutward ? (SOURCE_OF_FUNDS[purpose] ?? 'other') : 'other',
+      speed:         express ? 'express' : 'standard',
+      reference:     ref,
+      direction,
+    }).then(transfer => {
       addTransfer(mapDbTransfer(transfer))
-      const msg = isOutward
+      const notifMsg = isOutward
         ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
         : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`
-      addNotification({ message: msg, type: 'info', timestamp: now })
-    } catch {
+      addNotification({ message: notifMsg, type: 'info', timestamp: now })
+    }).catch(() => {
       addTransfer({
         id:        'TXN-' + Date.now(),
         date:      now,
         amountINR: isOutward ? amt : receiveINR,
         amountCAD: isOutward ? amtCAD : amt,
         rate,
-        fee:       isOutward ? fee : 0,
+        fee:       isOutward ? totalFees : 0,
         status:    '15CA_FILED',
         express,
         reference: ref,
         events:    [{ status: 'INITIATED', timestamp: now, note: 'Transfer initiated' }],
       })
-    }
-    setLoading(false)
-    setStep(5)
-    setTimeout(() => nav('/app/dashboard'), 2500)
+    })
   }
 
   const S = {
