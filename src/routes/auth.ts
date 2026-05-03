@@ -524,8 +524,9 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 
   const userId = req.userId!;
+  const isDevMe = process.env.NODE_ENV !== 'production';
   try {
-    const [profileRes, kycRes, canadaRes, indiaRes] = await Promise.all([
+    const settled = await Promise.allSettled([
       supabaseAdmin.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
       supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
@@ -534,34 +535,72 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
-    const p = profileRes.data;
-    if (!p) {
-      res.status(404).json({ error: 'Profile not found', timestamp: ts() });
+    type SettledRow = { data: Record<string, unknown> | null; error: { message: string } | null } | undefined;
+    const labels = ['profile', 'kyc', 'canadaBank', 'indiaAccount'] as const;
+    const debug: Array<{ table: string; status: string; error?: string }> = [];
+
+    const extract = (idx: number): Record<string, unknown> | null => {
+      const r = settled[idx];
+      const label = labels[idx];
+      if (r.status === 'rejected') {
+        const reason = r.reason instanceof Error ? r.reason.message : String(r.reason);
+        console.error(`[GET /auth/me] ${label} threw:`, reason);
+        debug.push({ table: label, status: 'rejected', error: reason });
+        return null;
+      }
+      const v = r.value as SettledRow;
+      if (v?.error) {
+        console.error(`[GET /auth/me] ${label} error:`, v.error.message);
+        debug.push({ table: label, status: 'error', error: v.error.message });
+        return null;
+      }
+      debug.push({ table: label, status: 'ok' });
+      return v?.data ?? null;
+    };
+
+    const profile = extract(0);
+    const kyc = extract(1) as Record<string, unknown> | null;
+    const canada = extract(2) as Record<string, unknown> | null;
+    const india = extract(3) as Record<string, unknown> | null;
+
+    if (!profile) {
+      res.status(404).json({
+        error: 'Profile not found',
+        timestamp: ts(),
+        ...(isDevMe ? { debug } : {}),
+      });
       return;
     }
 
     res.json({
       user: {
-        id: p.id,
-        email: p.email,
-        name: p.full_name,
-        phone: p.phone,
-        residency: p.residency ?? p.residency_type ?? null,
-        canadaBankVerified: kycRes.data?.canada_verified ?? false,
-        indiaNROVerified: kycRes.data?.india_verified ?? false,
-        canadaBank: canadaRes.data
-          ? { institution: canadaRes.data.institution, holderName: canadaRes.data.holder_name, accountType: canadaRes.data.account_type }
+        id: profile.id,
+        email: profile.email,
+        name: profile.full_name,
+        phone: profile.phone,
+        residency: profile.residency ?? profile.residency_type ?? null,
+        canadaBankVerified: (kyc?.canada_verified as boolean | undefined) ?? false,
+        indiaNROVerified: (kyc?.india_verified as boolean | undefined) ?? false,
+        canadaBank: canada
+          ? { institution: canada.institution, holderName: canada.holder_name, accountType: canada.account_type }
           : null,
-        indiaBank: indiaRes.data
-          ? { bankName: indiaRes.data.bank_name, branch: indiaRes.data.branch }
+        indiaBank: india
+          ? { bankName: india.bank_name, branch: india.branch }
           : null,
       },
       timestamp: ts(),
+      ...(isDevMe ? { debug } : {}),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to load user';
+    const stack = err instanceof Error ? err.stack : undefined;
     console.error('[GET /auth/me] Unhandled error:', msg);
-    res.status(500).json({ error: msg, timestamp: ts() });
+    if (stack) console.error(stack);
+    res.status(500).json({
+      error: msg,
+      timestamp: ts(),
+      ...(isDevMe ? { debug: { stack } } : {}),
+    });
   }
 });
 
