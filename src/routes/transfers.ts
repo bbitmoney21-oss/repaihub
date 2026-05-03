@@ -229,21 +229,54 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
 
+    // Pull recipient details from the user's profile + most-recent India NRO
+    // account.  inward_transfers has NOT NULL constraints on recipient_name,
+    // recipient_bank_name and recipient_ifsc — without these, every insert
+    // 500's with 'null value in column ...'.  The frontend's bothBanksOk
+    // gate should already have ensured an India bank exists, but we fall
+    // back defensively in case onboarding state drifted.
+    const [recipientProfile, recipientIndia] = await Promise.all([
+      supabaseAdmin.from('profiles').select('full_name').eq('id', req.userId!).maybeSingle(),
+      supabaseAdmin.from('india_nro_accounts')
+        .select('bank_name, branch, ifsc_code, account_no')
+        .eq('user_id', req.userId!)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const recipientName     = ((recipientProfile.data?.full_name as string | undefined) ?? req.userEmail ?? 'Account Holder').trim();
+    const recipientBankName = ((recipientIndia.data?.bank_name   as string | undefined) ?? 'NRO Account').trim();
+    const recipientIfsc     = ((recipientIndia.data?.ifsc_code   as string | undefined) ?? 'PENDING').trim();
+    const recipientLast4    = (() => {
+      const acct = recipientIndia.data?.account_no as string | undefined;
+      return acct ? acct.replace(/\s+/g, '').slice(-4) : null;
+    })();
+
     const { data: inwardTransfer, error: inwardErr } = await supabaseAdmin
       .from('inward_transfers')
       .insert({
         user_id: req.userId!,
         amount_cad: amountCadIn,
         amount_inr: amountInrOut,
+        // NOT NULL columns from migration 011:
+        gross_amount_inr: amountInrOut,
+        net_amount_inr:   amountInrOut,   // fee-on-top: rail converts full amountCAD
+        recipient_name:        recipientName,
+        recipient_bank_name:   recipientBankName,
+        recipient_ifsc:        recipientIfsc,
+        recipient_account_last4: recipientLast4,
         exchange_rate: exchangeRateInward,
         flat_fee_cad: flatFee,
         express_surcharge_cad: expressFee,
         total_fees_cad: flatFee + expressFee,
+        fee_cad: flatFee + expressFee,
         speed,
         reference,
         status: 'initiated',
         purpose_code: 'INWARD',
         fintrac_report: fintracReport,
+        fintrac_required: fintracReport,
       })
       .select()
       .single();
