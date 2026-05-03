@@ -381,7 +381,7 @@ router.post('/login', async (req: Request, res: Response) => {
       email: profile.email,
       name: profile.full_name,
       phone: profile.phone,
-      residency: profile.residency,
+      residency: profile.residency ?? profile.residency_type ?? null,
       canadaBankVerified: kycRes.data?.canada_verified ?? false,
       indiaNROVerified: kycRes.data?.india_verified ?? false,
       canadaBank: canadaRes.data
@@ -524,39 +524,45 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 
   const userId = req.userId!;
-  const [profileRes, kycRes, canadaRes, indiaRes] = await Promise.all([
-    supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
-    supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
-    supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-  ]);
+  try {
+    const [profileRes, kycRes, canadaRes, indiaRes] = await Promise.all([
+      supabaseAdmin.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+      supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ]);
 
-  const p = profileRes.data;
-  if (!p) {
-    res.status(404).json({ error: 'Profile not found', timestamp: ts() });
-    return;
+    const p = profileRes.data;
+    if (!p) {
+      res.status(404).json({ error: 'Profile not found', timestamp: ts() });
+      return;
+    }
+
+    res.json({
+      user: {
+        id: p.id,
+        email: p.email,
+        name: p.full_name,
+        phone: p.phone,
+        residency: p.residency ?? p.residency_type ?? null,
+        canadaBankVerified: kycRes.data?.canada_verified ?? false,
+        indiaNROVerified: kycRes.data?.india_verified ?? false,
+        canadaBank: canadaRes.data
+          ? { institution: canadaRes.data.institution, holderName: canadaRes.data.holder_name, accountType: canadaRes.data.account_type }
+          : null,
+        indiaBank: indiaRes.data
+          ? { bankName: indiaRes.data.bank_name, branch: indiaRes.data.branch }
+          : null,
+      },
+      timestamp: ts(),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to load user';
+    console.error('[GET /auth/me] Unhandled error:', msg);
+    res.status(500).json({ error: msg, timestamp: ts() });
   }
-
-  res.json({
-    user: {
-      id: p.id,
-      email: p.email,
-      name: p.full_name,
-      phone: p.phone,
-      residency: p.residency,
-      canadaBankVerified: kycRes.data?.canada_verified ?? false,
-      indiaNROVerified: kycRes.data?.india_verified ?? false,
-      canadaBank: canadaRes.data
-        ? { institution: canadaRes.data.institution, holderName: canadaRes.data.holder_name, accountType: canadaRes.data.account_type }
-        : null,
-      indiaBank: indiaRes.data
-        ? { bankName: indiaRes.data.bank_name, branch: indiaRes.data.branch }
-        : null,
-    },
-    timestamp: ts(),
-  });
 });
 
 // ── POST /auth/refresh ────────────────────────────────────────────────────────
