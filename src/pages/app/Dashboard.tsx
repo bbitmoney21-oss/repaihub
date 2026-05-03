@@ -14,11 +14,34 @@ export default function Dashboard() {
     apiGetTransfers().then(ts => setTransfers(ts.map(mapDbTransfer))).catch(() => {})
   }, [isAuthenticated])
   const recent = transfers.slice(0, 3)
-  const limitPct = user ? (user.annualLimitUsed / user.annualLimitTotal) * 100 : 0
-  const limitRemaining = user ? user.annualLimitTotal - user.annualLimitUsed : 0
 
-  const totalCAD = transfers.filter(t => t.status === 'COMPLETED').reduce((a, t) => a + t.amountCAD, 0)
-  const thisYear = transfers.filter(t => t.status === 'COMPLETED' && t.date.startsWith('2026')).length
+  // RBI / NRO repatriation limit (per user: USD 250k/year).
+  // Hard-coded INR equivalent at INR 83/USD = ₹20,750,000.
+  // Convert to CAD using the live FX rate so the displayed limit always
+  // matches "what does USD 250k look like in CAD today?".
+  const LRS_LIMIT_USD = 250_000
+  const USD_INR_RATE_DEFAULT = 83
+  const fxRateSafe = fxRate && fxRate > 0 ? fxRate : 63.42
+  const annualLimitCAD = Math.round((LRS_LIMIT_USD * USD_INR_RATE_DEFAULT) / fxRateSafe)
+
+  // Indian financial year: April 1 → March 31. fyStart is the start of THIS FY.
+  const now = new Date()
+  const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+  const fyStartIso  = `${fyStartYear}-04-01`
+  const fyEndYear   = fyStartYear + 1
+
+  // Counters: include every non-FAILED transfer (a real transfer counts the
+  // moment it leaves the customer's account, not only when it completes).
+  const nonFailed   = transfers.filter(t => t.status !== 'FAILED')
+  const totalCAD    = nonFailed.reduce((a, t) => a + (t.amountCAD || 0), 0)
+  const thisYear    = nonFailed.filter(t => t.date >= fyStartIso).length
+
+  // Annual LRS usage = sum of OUTWARD (NRO repatriation) transfers this FY.
+  // Inward transfers don't count toward LRS.
+  const outwardThisFY = nonFailed.filter(t => t.direction !== 'inward' && t.date >= fyStartIso)
+  const annualLimitUsedCAD = outwardThisFY.reduce((a, t) => a + (t.amountCAD || 0), 0)
+  const limitPct       = annualLimitCAD > 0 ? (annualLimitUsedCAD / annualLimitCAD) * 100 : 0
+  const limitRemaining = Math.max(0, annualLimitCAD - annualLimitUsedCAD)
 
   const S = {
     page:    { padding: '2rem', maxWidth: 1100, margin: '0 auto' } as React.CSSProperties,
@@ -68,8 +91,8 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '1px', background: 'rgba(201,150,58,0.2)', border: '1px solid rgba(201,150,58,0.2)', marginBottom: '2rem' }}>
         {[
           { label: 'Total Transferred', value: formatCAD(totalCAD), sub: 'All time — CAD', icon: '💰' },
-          { label: 'This Year', value: `${thisYear} transfers`, sub: '2026 financial year', icon: '📅' },
-          { label: 'Annual Limit Used', value: formatCAD(user?.annualLimitUsed || 0), sub: `of ${formatCAD(user?.annualLimitTotal || 83000)}`, icon: '📊' },
+          { label: 'This Year', value: `${thisYear} transfers`, sub: `FY ${fyStartYear}-${String(fyEndYear).slice(-2)}`, icon: '📅' },
+          { label: 'Annual Limit Used', value: formatCAD(annualLimitUsedCAD), sub: `of ${formatCAD(annualLimitCAD)} (USD 250k)`, icon: '📊' },
           { label: 'Limit Remaining', value: formatCAD(limitRemaining), sub: `${(100 - limitPct).toFixed(0)}% available`, icon: '✅' },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#132233', padding: '1.5rem', transition: 'background 0.2s' }}>
@@ -85,9 +108,9 @@ export default function Dashboard() {
       <div style={{ ...S.card, marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
-            <span style={S.sLabel}>Annual RBI Limit — FY 2026</span>
+            <span style={S.sLabel}>Annual RBI Limit — FY {fyStartYear}-{String(fyEndYear).slice(-2)}</span>
             <div style={{ fontSize: '0.9rem', color: '#FAF6F0' }}>
-              {formatCAD(user?.annualLimitUsed || 0)} used of {formatCAD(user?.annualLimitTotal || 83000)}
+              {formatCAD(annualLimitUsedCAD)} used of {formatCAD(annualLimitCAD)}
             </div>
           </div>
           <div style={{ fontSize: '0.85rem', color: limitPct > 80 ? '#F39C12' : '#27AE60', fontWeight: 500 }}>
@@ -98,8 +121,8 @@ export default function Dashboard() {
           <div style={{ height: '100%', width: `${limitPct}%`, background: limitPct > 80 ? '#F39C12' : '#C9963A', borderRadius: 5, transition: 'width 1s ease' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-          <span style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>₹0</span>
-          <span style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>USD 1M (≈ CAD {formatCAD(user?.annualLimitTotal || 83000)})</span>
+          <span style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>$0</span>
+          <span style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>USD 250k (≈ {formatCAD(annualLimitCAD)})</span>
         </div>
       </div>
 

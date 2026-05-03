@@ -161,7 +161,9 @@ export const useStore = create<AppState>()(
           indiaBank: u.indiaBank ?? s.user?.indiaBank,
           kycCompletedAt: s.user?.kycCompletedAt,
           annualLimitUsed: s.user?.annualLimitUsed ?? 0,
-          annualLimitTotal: s.user?.annualLimitTotal ?? 83000,
+          // Default = 0 here; Dashboard / NewTransfer recompute the real CAD
+          // limit dynamically from USD 250k * INR-per-USD / live FX rate.
+          annualLimitTotal: s.user?.annualLimitTotal ?? 0,
         },
       })),
 

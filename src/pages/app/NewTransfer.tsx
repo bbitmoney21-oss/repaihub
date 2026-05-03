@@ -131,7 +131,13 @@ export default function NewTransfer() {
   const inwardTotalCAD = !isOutward ? amt + inwardFee : 0
   const receiveINR     = isOutward ? 0 : amt * rate
 
-  const limitRemaining = (user?.annualLimitTotal || 83000) - (user?.annualLimitUsed || 0)
+  // RBI annual outward (NRO repatriation) cap per user — USD 250k
+  // Convert to CAD using the live rate so the gate moves with FX, matching
+  // how Dashboard renders the same limit.
+  const LRS_LIMIT_USD = 250_000
+  const USD_INR_RATE_DEFAULT = 83
+  const annualLimitCAD = Math.round((LRS_LIMIT_USD * USD_INR_RATE_DEFAULT) / (rate || 63.42))
+  const limitRemaining = annualLimitCAD - (user?.annualLimitUsed || 0)
   const exceedsLimit   = isOutward && amtINR / rate > limitRemaining
   const minOk          = isOutward ? amt >= 10000 : amt >= 100
 
