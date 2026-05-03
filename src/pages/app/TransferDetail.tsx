@@ -16,6 +16,7 @@ export default function TransferDetail() {
   const nav = useNavigate()
   const t = transfers.find(x => x.id === id)
 
+  // Initial load
   useEffect(() => {
     if (!id || !isAuthenticated) return
     apiGetTransfers().then(ts => {
@@ -23,6 +24,18 @@ export default function TransferDetail() {
       if (found) updateTransfer(id, mapDbTransfer(found))
     }).catch(() => {})
   }, [id, isAuthenticated])
+
+  // Auto-poll every 5s while transfer is active (clears itself once terminal)
+  const TERMINAL = new Set(['COMPLETED', 'FAILED', 'CANCELLED'])
+  useEffect(() => {
+    if (!id || !isAuthenticated || !t || TERMINAL.has(t.status)) return
+    const poll = () => apiGetTransfers().then(ts => {
+      const found = ts.find((x: { id: string }) => x.id === id)
+      if (found) updateTransfer(id, mapDbTransfer(found))
+    }).catch(() => {})
+    const interval = setInterval(poll, 5000)
+    return () => clearInterval(interval)
+  }, [id, isAuthenticated, t?.status])
 
   if (!t) return (
     <div style={{ padding: '3rem', textAlign: 'center' }}>
@@ -78,8 +91,10 @@ export default function TransferDetail() {
           <span style={S.sLabel}>Transfer Progress</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {ALL_STATUSES.map((status, idx) => {
-              const done  = currentIdx > idx || t.status === 'COMPLETED'
-              const active = currentIdx === idx && t.status !== 'COMPLETED'
+              // A status reaching currentIdx means that step is COMPLETE — not in progress
+              const done   = currentIdx >= idx || t.status === 'COMPLETED'
+              // "In progress" = the step immediately after the last completed one
+              const active = idx === currentIdx + 1 && t.status !== 'COMPLETED'
               const event  = t.events.find(e => e.status === status)
               return (
                 <div key={status} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', paddingBottom: idx < ALL_STATUSES.length - 1 ? '1rem' : 0 }}>

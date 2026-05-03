@@ -372,6 +372,29 @@ router.post('/transfers/:id/approve', caAuthMiddleware, async (req: CARequest, r
     return;
   }
 
+  // Notify customer that Form 146 is certified (non-blocking)
+  if (supabaseAdminConfigured) {
+    void (async () => {
+      try {
+        const { data: xfer } = await supabaseAdmin.from('transfers').select('user_id, amount_inr, amount_cad').eq('id', req.params.id).single();
+        if (xfer) {
+          const { data: profile } = await supabaseAdmin.from('profiles').select('email, full_name').eq('id', xfer.user_id).single();
+          if (profile) {
+            const { notifyTransferStatusChange } = await import('../services/notifications.js');
+            await notifyTransferStatusChange({
+              customerEmail: profile.email ?? '',
+              customerName:  profile.full_name ?? 'Customer',
+              transferId:    req.params.id as string,
+              amountINR:     Number(xfer.amount_inr ?? 0),
+              amountCAD:     Number(xfer.amount_cad ?? 0),
+              status:        'form146_received',
+            });
+          }
+        }
+      } catch { /* non-critical */ }
+    })();
+  }
+
   // Challenge 4: Refresh rate at CA certification time — orchestrateAfterCAApproval
   // fetches fresh rate from Fable before building the execution instruction.
   setImmediate(() => {
@@ -485,14 +508,20 @@ router.get('/compliance/:id', caAuthMiddleware, async (req: CARequest, res: Resp
   res.json({ request, timestamp: ts() });
 });
 
+const UDIN_REGEX = /^\d{18}$/;
+
 // ── POST /ca/compliance/:id/approve ──────────────────────────────────────────
 router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, res: Response) => {
-  const { cbNumber, remarks, fifteen_ca_part } = req.body as {
-    cbNumber?: string; remarks?: string; fifteen_ca_part?: string;
+  const { cbNumber, remarks, fifteen_ca_part, udin } = req.body as {
+    cbNumber?: string; remarks?: string; fifteen_ca_part?: string; udin?: string;
   };
 
   if (!cbNumber || !remarks || remarks.length < 10) {
     res.status(400).json({ error: 'cbNumber and remarks (min 10 chars) are required', timestamp: ts() });
+    return;
+  }
+  if (udin && !UDIN_REGEX.test(udin)) {
+    res.status(400).json({ error: 'Invalid UDIN format — must be exactly 18 digits', timestamp: ts() });
     return;
   }
 
@@ -511,6 +540,7 @@ router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, 
       ca_reviewed_by:    req.caUser?.name || 'CA',
       ca_reviewed_at:    ts(),
       ...(fifteen_ca_part ? { fifteen_ca_part, form145_part: fifteen_ca_part } : {}),
+      ...(udin ? { udin } : {}),
     })
     .eq('id', req.params.id)
     .select()
@@ -785,6 +815,111 @@ router.get('/stats', caAuthMiddleware, async (_req: CARequest, res: Response) =>
     expressCount,
     monthlyVolumeINR,
     monthlyVolumeFormatted: formatINR(monthlyVolumeINR),
+    timestamp: ts(),
+  });
+});
+
+// ── GET /ca/queue ─────────────────────────────────────────────────────────────
+// Alias for /ca/compliance?status=pending,under_review — surfaces the CA filing queue
+// from the existing compliance_requests table (no new table required).
+router.get('/queue', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  if (!supabaseAdminConfigured) {
+    res.json({ queue: [], blockedCount: 0, parallelCount: 0, timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .select(`
+      *,
+      transfers (
+        id, amount_inr, amount_cad, net_amount_cad, exchange_rate,
+        purpose_code, source_of_funds, speed, reference, status,
+        form145_part, fifteen_ca_part, ca_blocking, risk_level,
+        nro_bank_name, nro_branch_city, account_type, customer_model
+      )
+    `)
+    .in('status', ['pending', 'under_review'])
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: error.message, timestamp: ts() });
+    return;
+  }
+
+  const queue = data ?? [];
+  const blocked  = queue.filter(r => (r as Record<string,unknown>).transfers &&
+    ((r as Record<string,unknown>).transfers as Record<string,unknown>).ca_blocking === true);
+  const parallel = queue.filter(r => !blocked.includes(r));
+
+  res.json({
+    queue,
+    blocked,
+    parallel,
+    blockedCount:  blocked.length,
+    parallelCount: parallel.length,
+    totalCount:    queue.length,
+    caQueueEnabled: true,
+    note: 'Queue sourced from compliance_requests table. UDIN required on submit.',
+    timestamp: ts(),
+  });
+});
+
+// ── POST /ca/queue/:id/submit ─────────────────────────────────────────────────
+// CA submits UDIN + Form 146 cert number for a compliance_request in the queue.
+// This is equivalent to /ca/compliance/:id/approve but enforces UDIN presence.
+router.post('/queue/:id/submit', caAuthMiddleware, async (req: CARequest, res: Response) => {
+  const { cbNumber, udin, remarks } = req.body as {
+    cbNumber?: string; udin?: string; remarks?: string;
+  };
+
+  if (!cbNumber || cbNumber.trim().length < 5) {
+    res.status(400).json({ error: 'cbNumber (Form 146 Ack number) is required', timestamp: ts() });
+    return;
+  }
+  if (!udin) {
+    res.status(400).json({ error: 'udin is required for queue submission (18-digit ICAI code)', timestamp: ts() });
+    return;
+  }
+  if (!UDIN_REGEX.test(udin)) {
+    res.status(400).json({ error: 'Invalid UDIN — must be exactly 18 digits as issued by ICAI portal', timestamp: ts() });
+    return;
+  }
+  if (!remarks || remarks.trim().length < 10) {
+    res.status(400).json({ error: 'remarks (min 10 chars) are required', timestamp: ts() });
+    return;
+  }
+
+  if (!supabaseAdminConfigured) {
+    res.status(503).json({ error: 'DB not configured', timestamp: ts() });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('compliance_requests')
+    .update({
+      status:            'approved',
+      fifteen_cb_number: cbNumber.trim(),
+      form146_number:    cbNumber.trim(),
+      ca_remarks:        remarks.trim(),
+      ca_reviewed_by:    req.caUser?.name || 'CA',
+      ca_reviewed_at:    ts(),
+      udin:              udin.trim(),
+    })
+    .eq('id', req.params.id)
+    .in('status', ['pending', 'under_review'])
+    .select()
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: 'Compliance request not found or already processed', timestamp: ts() });
+    return;
+  }
+
+  res.json({
+    request: data,
+    message: 'Form 146 certified with UDIN — compliance request approved (IT Act 2025)',
+    udinRecorded: udin,
     timestamp: ts(),
   });
 });

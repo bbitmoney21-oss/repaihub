@@ -25,9 +25,12 @@ export default function AppLayout() {
       <aside className="hidden lg:flex flex-col w-64 border-r" style={{ background: '#071420', borderColor: 'rgba(201,150,58,0.15)' }}>
         {/* Logo */}
         <div className="px-6 py-5 border-b" style={{ borderColor: 'rgba(201,150,58,0.15)' }}>
-          <a href="/" className="font-head text-xl font-bold tracking-widest uppercase" style={{ color: '#E8B86D', fontFamily: "'Cormorant Garamond', serif" }}>
-            Repaihub
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <a href="/" className="font-head text-xl font-bold tracking-widest uppercase" style={{ color: '#E8B86D', fontFamily: "'Cormorant Garamond', serif" }}>
+              Repaihub
+            </a>
+            <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', color: '#0B1C2C', background: '#C9963A', padding: '2px 6px', borderRadius: '3px', verticalAlign: 'middle' }}>BETA</span>
+          </div>
           <div className="text-xs mt-0.5" style={{ color: '#8BA0B4' }}>NRO Remittance</div>
         </div>
 
@@ -99,9 +102,12 @@ export default function AppLayout() {
         {/* Top bar */}
         <header className="flex items-center justify-between px-6 py-4 border-b" style={{ background: '#071420', borderColor: 'rgba(201,150,58,0.15)' }}>
           {/* Mobile logo */}
-          <a href="/" className="lg:hidden font-head text-lg font-bold tracking-widest uppercase" style={{ color: '#E8B86D', fontFamily: "'Cormorant Garamond', serif" }}>
-            Repaihub
-          </a>
+          <div className="lg:hidden flex items-center gap-2">
+            <a href="/" className="font-head text-lg font-bold tracking-widest uppercase" style={{ color: '#E8B86D', fontFamily: "'Cormorant Garamond', serif" }}>
+              Repaihub
+            </a>
+            <span style={{ fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.1em', color: '#0B1C2C', background: '#C9963A', padding: '2px 5px', borderRadius: '3px' }}>BETA</span>
+          </div>
           <div className="hidden lg:block" />
 
           <div className="flex items-center gap-4">

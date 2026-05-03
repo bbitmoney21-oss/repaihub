@@ -65,13 +65,33 @@ export async function notifyTransferStatusChange(p: TransferNotificationParams):
     failed:              'Transfer Failed',
     cancelled:           'Transfer Cancelled',
   };
-  const label = statusLabels[p.status] ?? p.status;
-  const html = wrapHtml(`
+  const normalized = p.status.toLowerCase();
+  const label = statusLabels[normalized] ?? p.status;
+  const isCompleted = normalized === 'completed';
+
+  const html = wrapHtml(isCompleted ? `
+    <h2 style="font-size:1.2rem;margin-bottom:8px;color:#27AE60;">Your transfer is complete!</h2>
+    <p style="color:#8BA0B4;font-size:0.85rem;line-height:1.6;margin-bottom:20px;">
+      Hi ${p.customerName}, your funds have been delivered to your Canadian account.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <tr><td style="padding:8px 0;color:#8BA0B4;font-size:0.85rem;">Reference</td><td style="font-weight:600;">${p.transferId.slice(0,8).toUpperCase()}</td></tr>
+      <tr><td style="padding:8px 0;color:#8BA0B4;font-size:0.85rem;">Amount sent</td><td style="font-weight:600;">₹${p.amountINR.toLocaleString('en-IN')}</td></tr>
+      <tr><td style="padding:8px 0;color:#8BA0B4;font-size:0.85rem;">You received</td><td style="font-weight:600;color:#27AE60;">CA$${p.amountCAD.toFixed(2)}</td></tr>
+    </table>
+    <p style="color:#8BA0B4;font-size:0.82rem;line-height:1.6;">Tax compliance documents (Form 145 &amp; 146) are available in your REPAIHUB dashboard.</p>
+  ` : `
     <h2 style="font-size:1.1rem;margin-bottom:16px;">Transfer Update: ${label}</h2>
     <p style="color:#8BA0B4;font-size:0.85rem;line-height:1.6;">
       Reference: ${p.transferId.slice(0,8).toUpperCase()}<br/>
       Amount: ₹${p.amountINR.toLocaleString('en-IN')} → CA$${p.amountCAD.toFixed(2)}
     </p>
   `);
-  await sendEmail(p.customerEmail, `Transfer Update: ${label} — Ref ${p.transferId.slice(0,8)}`, html);
+  await sendEmail(
+    p.customerEmail,
+    isCompleted
+      ? `Transfer Complete — CA$${p.amountCAD.toFixed(2)} delivered — Ref ${p.transferId.slice(0,8).toUpperCase()}`
+      : `Transfer Update: ${label} — Ref ${p.transferId.slice(0,8).toUpperCase()}`,
+    html,
+  );
 }

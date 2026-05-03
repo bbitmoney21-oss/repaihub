@@ -210,6 +210,25 @@ async function executeViaFable(
       is_mock: adapter.isMock(),
     }).eq('id', transferId);
 
+    // Notify customer that transfer is now with bank/SWIFT (non-blocking)
+    void (async () => {
+      try {
+        const { data: xfer } = await supabaseAdmin.from('transfers').select('user_id, amount_inr, net_amount_cad').eq('id', transferId).single();
+        if (!xfer) return;
+        const { data: profile } = await supabaseAdmin.from('profiles').select('email, full_name').eq('id', xfer.user_id).single();
+        if (!profile) return;
+        const { notifyTransferStatusChange } = await import('../services/notifications.js');
+        await notifyTransferStatusChange({
+          customerEmail: profile.email ?? '',
+          customerName:  profile.full_name ?? 'Customer',
+          transferId,
+          amountINR: Number(xfer.amount_inr ?? 0),
+          amountCAD: Number(xfer.net_amount_cad ?? 0),
+          status: 'bank_processing',
+        });
+      } catch { /* non-critical */ }
+    })();
+
     // Log to payment_adapter_logs
     void supabaseAdmin.from('payment_adapter_logs').insert({
       adapter_name: adapter.getProviderName(),
