@@ -399,6 +399,20 @@ export default function NewTransfer() {
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount (CAD)</span><span style={{ color: '#FAF6F0' }}>{formatCAD(amt)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
+                  {/* Inward fee — \$1.99 only when amount < \$500. Make it visible
+                      so the user understands the difference between gross and net. */}
+                  {amt > 0 && inwardFee > 0 && (
+                    <div style={S.row}>
+                      <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Small-transfer fee</span>
+                      <span style={{ color: '#8BA0B4' }}>− {formatCAD(inwardFee)}</span>
+                    </div>
+                  )}
+                  {amt >= FEE_INWARD_FREE_THRESHOLD && (
+                    <div style={S.row}>
+                      <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Fee</span>
+                      <span style={{ color: '#27AE60', fontWeight: 600 }}>No fee</span>
+                    </div>
+                  )}
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (INR)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatINR(receiveINR)}</span></div>
                 </>
