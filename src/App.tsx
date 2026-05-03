@@ -37,13 +37,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RequireKYC({ children }: { children: React.ReactNode }) {
-  const { user } = useStore()
-  // Only require residency selection — bank accounts are connected at first transfer (Remitly-style)
-  if (!user?.residencyStatus) return <Navigate to="/onboarding/residency" replace />
-  return <>{children}</>
-}
-
 function AuthSync() {
   const { isAuthenticated, logout } = useStore()
   useEffect(() => {
@@ -75,8 +68,8 @@ export default function App() {
         <Route path="/onboarding/india-nro"   element={<RequireAuth><IndiaNRO /></RequireAuth>} />
         <Route path="/onboarding/complete"    element={<RequireAuth><KYCComplete /></RequireAuth>} />
 
-        {/* App — protected + KYC required */}
-        <Route path="/app" element={<RequireAuth><RequireKYC><AppLayout /></RequireKYC></RequireAuth>}>
+        {/* App — auth only; residency/bank collected at first transfer (Remitly-style) */}
+        <Route path="/app" element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard"    element={<Dashboard />} />
           <Route path="transfer"     element={<Transfers />} />

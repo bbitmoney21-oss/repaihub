@@ -34,7 +34,7 @@ export default function Signup() {
     try {
       const user = await apiRegister(form.email, form.pw, form.name, form.phone)
       setAuth({ id: user.id, email: user.email, name: user.name, phone: user.phone ?? form.phone })
-      nav('/onboarding/residency')
+      nav('/app/dashboard')
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? ''
       const lower = msg.toLowerCase()
@@ -78,22 +78,12 @@ export default function Signup() {
       <div style={{ width: '100%', maxWidth: 440, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <Link to="/" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.15em', textTransform: 'uppercase', textDecoration: 'none' }}>Repaihub</Link>
-          <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.5rem' }}>Create your account — takes 2 minutes</p>
-        </div>
-
-        {/* Progress */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-          {['Account', 'Residency', 'Canada KYC', 'India KYC'].map((step, i) => (
-            <div key={step} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem' }}>
-              <div style={{ width: '100%', height: 3, background: i === 0 ? '#C9963A' : 'rgba(201,150,58,0.2)', borderRadius: 2 }} />
-              <span style={{ fontSize: '0.6rem', color: i === 0 ? '#C9963A' : '#8BA0B4', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{step}</span>
-            </div>
-          ))}
+          <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.5rem' }}>Create your account — takes 60 seconds</p>
         </div>
 
         <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '2.5rem' }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Create Account</h1>
-          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Step 1 of 4 — Basic information</p>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>Name, email and password — that's it. Bank details added when you send your first transfer.</p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
@@ -180,7 +170,7 @@ export default function Signup() {
 
             <button type="submit" disabled={loading}
               style={{ background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: '0.5rem', transition: 'background 0.2s' }}>
-              {loading ? 'Creating Account...' : 'Continue to Step 2 →'}
+              {loading ? 'Creating Account...' : 'Create Account & Start Sending →'}
             </button>
           </form>
 

@@ -1,9 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
-import { apiCreateTransfer } from '../../lib/api'
+import { apiCreateTransfer, apiUpdateProfile } from '../../lib/api'
 import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
 import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } from 'lucide-react'
+import type { ResidencyStatus } from '../../store/useStore'
+
+const RESIDENCY_OPTIONS: { id: ResidencyStatus; title: string; desc: string }[] = [
+  { id: 'citizen',     title: 'Canadian Citizen',   desc: 'You hold a Canadian passport' },
+  { id: 'pr',          title: 'Permanent Resident', desc: 'You hold a PR card' },
+  { id: 'oci',         title: 'OCI Card Holder',    desc: 'Overseas Citizen of India card' },
+  { id: 'work_permit', title: 'Work Permit Holder', desc: 'Currently on a Canadian work permit' },
+]
 
 type Step = 1 | 2 | 3 | 4 | 5
 type Direction = 'outward' | 'inward'
@@ -46,8 +54,22 @@ const SOURCE_OF_FUNDS: Record<string, string> = {
 }
 
 export default function NewTransfer() {
-  const { user, fxRate, addTransfer, addNotification } = useStore()
+  const { user, fxRate, addTransfer, addNotification, setResidency } = useStore()
   const nav = useNavigate()
+
+  // Deferred KYC — capture residency on first transfer if not already set
+  const [residencyPicker, setResidencyPicker] = useState(!user?.residencyStatus)
+  const [selectedResidency, setSelectedResidency] = useState<ResidencyStatus>(user?.residencyStatus || '')
+  const [savingResidency, setSavingResidency] = useState(false)
+
+  async function confirmResidency() {
+    if (!selectedResidency) return
+    setSavingResidency(true)
+    try { await apiUpdateProfile({ residency: selectedResidency }) } catch { /* non-fatal */ }
+    setResidency(selectedResidency)
+    setResidencyPicker(false)
+    setSavingResidency(false)
+  }
 
   const [step, setStep]               = useState<Step>(1)
   const [direction, setDirection]     = useState<Direction>('outward')
@@ -228,6 +250,46 @@ export default function NewTransfer() {
       </button>
     </div>
   )
+
+  // ── Residency picker screen (shown once if residency not yet set) ─────────────
+  if (residencyPicker) {
+    return (
+      <div style={{ ...S.page, maxWidth: 520 }}>
+        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => nav('/app/dashboard')} style={{ background: 'none', border: 'none', color: '#8BA0B4', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', padding: 0 }}>
+            <ArrowLeft size={16} /> Back
+          </button>
+          <div>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#FFFFFF', lineHeight: 1 }}>Before Your First Transfer</h1>
+            <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.2rem' }}>One quick question — takes 10 seconds</p>
+          </div>
+        </div>
+        <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '2rem' }}>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            Your residency status determines your transfer limits and the compliance forms required by RBI.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.5rem' }}>
+            {RESIDENCY_OPTIONS.map(opt => (
+              <div key={opt.id} onClick={() => setSelectedResidency(opt.id)}
+                style={{ border: `1px solid ${selectedResidency === opt.id ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: selectedResidency === opt.id ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, border: `1px solid ${selectedResidency === opt.id ? '#C9963A' : 'rgba(201,150,58,0.3)'}`, background: selectedResidency === opt.id ? '#C9963A' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                  {selectedResidency === opt.id && <Check size={10} color="#0B1C2C" />}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, color: '#FAF6F0', fontSize: '0.9rem' }}>{opt.title}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#8BA0B4', marginTop: '0.15rem' }}>{opt.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={confirmResidency} disabled={!selectedResidency || savingResidency}
+            style={{ width: '100%', background: selectedResidency ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: selectedResidency && !savingResidency ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}>
+            {savingResidency ? 'Saving…' : 'Continue to Transfer →'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={S.page}>
