@@ -635,6 +635,16 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     return;
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HARD GUARANTEE FROM HERE ON: the transfer row is committed in DB.
+  // No matter what fails in steps 7-10 (events, audits, fees, notifications,
+  // orchestrator, response payload assembly), the customer MUST see 201
+  // success with the transfer object.  Returning 500 here would create a
+  // false-negative — transfer exists but customer thinks it failed.
+  // Single outer try/catch around everything below, with a minimal
+  // 201 fallback in the catch.
+  // ═══════════════════════════════════════════════════════════════════════════
+  try {
   // ── Step 7: Fire-and-forget async side-effects ────────────────────────────
   void log('TRANSFER_INITIATED', 'customer', {
     transferId: transfer.id,
@@ -734,13 +744,9 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     console.error('[Orchestrator] setImmediate scheduling failed (non-critical):', orchErr);
   }
 
-  // Defensive response build — if any downstream field accessor throws
-  // (e.g. complianceResult.documentStatus is undefined on a malformed row),
-  // we MUST still return 201 with the transfer, because the row is already
-  // committed.  Returning 500 here causes the customer to see 'Transfer
-  // Failed' even though the transfer is in the DB and CA queue.
-  try {
-    res.status(201).json({
+  // Rich response build (kept as one block; the outer hard-guarantee try/catch
+  // below catches anything that throws here so the customer always sees 201).
+  res.status(201).json({
     transfer,
     feeBreakdown: {
       grossAmountCAD:      fees.grossAmountCAD,
@@ -789,13 +795,19 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     reference,
     timestamp: ts(),
   });
-  } catch (respErr) {
-    console.error('[Transfer] Response build failed AFTER insert succeeded — returning minimal payload:', respErr);
+  } catch (postInsertErr: unknown) {
+    // Hard-guarantee fallback — anything between the INSERT and the response
+    // threw.  The transfer is in the DB; the customer MUST see success.  We
+    // log, then return a minimal 201 with just enough for the frontend to
+    // render the success state and refresh from the dashboard.
+    const msg = postInsertErr instanceof Error ? postInsertErr.message : String(postInsertErr);
+    console.error('[Transfer] Post-insert work threw — returning minimal 201 anyway. transferId=' + transfer.id + ' :', msg);
+    if (postInsertErr instanceof Error && postInsertErr.stack) console.error(postInsertErr.stack);
     if (!res.headersSent) {
       res.status(201).json({
         transfer,
         reference,
-        form145Part,
+        form145Part: form145Part ?? 'A',
         partial: true,
         warning: 'Transfer recorded; some response fields could not be computed. Refresh the dashboard to see the latest state.',
         timestamp: ts(),
