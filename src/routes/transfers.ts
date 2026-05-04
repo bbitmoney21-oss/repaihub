@@ -725,12 +725,22 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // ── Step 10: Background orchestration (non-blocking) ─────────────────────
-  setImmediate(() => {
-    orchestrateOutwardTransfer(transfer.id).catch(err =>
-      console.error('[Orchestrator] outwardOrchestrator failed (non-critical):', err));
-  });
+  try {
+    setImmediate(() => {
+      orchestrateOutwardTransfer(transfer.id).catch(err =>
+        console.error('[Orchestrator] outwardOrchestrator failed (non-critical):', err));
+    });
+  } catch (orchErr) {
+    console.error('[Orchestrator] setImmediate scheduling failed (non-critical):', orchErr);
+  }
 
-  res.status(201).json({
+  // Defensive response build — if any downstream field accessor throws
+  // (e.g. complianceResult.documentStatus is undefined on a malformed row),
+  // we MUST still return 201 with the transfer, because the row is already
+  // committed.  Returning 500 here causes the customer to see 'Transfer
+  // Failed' even though the transfer is in the DB and CA queue.
+  try {
+    res.status(201).json({
     transfer,
     feeBreakdown: {
       grossAmountCAD:      fees.grossAmountCAD,
@@ -773,12 +783,25 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       status:  initialStatus,
       message: accountTypeDecision.accountType === 'NRE'
         ? 'NRE account — no CA approval needed. Fable will execute directly.'
-        : decision.customerMessage,
+        : (decision?.customerMessage ?? 'Transfer accepted.'),
     },
     form145Part,
     reference,
     timestamp: ts(),
   });
+  } catch (respErr) {
+    console.error('[Transfer] Response build failed AFTER insert succeeded — returning minimal payload:', respErr);
+    if (!res.headersSent) {
+      res.status(201).json({
+        transfer,
+        reference,
+        form145Part,
+        partial: true,
+        warning: 'Transfer recorded; some response fields could not be computed. Refresh the dashboard to see the latest state.',
+        timestamp: ts(),
+      });
+    }
+  }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Internal server error';
     console.error('[POST /transfers/initiate] Unhandled error:', msg, err);

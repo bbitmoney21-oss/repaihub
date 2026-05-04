@@ -472,7 +472,15 @@ router.get('/compliance', caAuthMiddleware, async (req: CARequest, res: Response
     `)
     .order('created_at', { ascending: false });
 
-  if (status) query = query.eq('status', status);
+  // 'needs_action' is a meta-filter that surfaces every compliance row a CA
+  // still has to touch — both 'pending' (Part A audit rows + HIGH-risk holds)
+  // AND 'under_review' (Form 146 in-progress).  Without it the dashboard chip
+  // would only show under_review and silently hide the AUDIT_REVIEW queue.
+  if (status === 'needs_action') {
+    query = query.in('status', ['pending', 'under_review']);
+  } else if (status) {
+    query = query.eq('status', status);
+  }
 
   const { data, error } = await query;
   if (error) {

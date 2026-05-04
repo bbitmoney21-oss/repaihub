@@ -612,7 +612,7 @@ export default function CaDashboard() {
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {[
             { v: '',             label: 'All' },
-            { v: 'under_review', label: 'Needs Action' },
+            { v: 'needs_action', label: 'Needs Action' },
             { v: 'approved',     label: 'Approved' },
             { v: 'rejected',     label: 'Rejected' },
           ].map(({ v, label }) => (
