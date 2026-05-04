@@ -164,6 +164,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     lockId,
     idempotencyKey,
     panNumber,
+    form15ca,
   } = req.body as {
     direction?: 'outward' | 'inward';
     amountFrom?: number;
@@ -185,6 +186,20 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     idempotencyKey?: string;
     panNumber?: string;
     amountCad?: number; feeCad?: number;
+    // Form 15CA Part A self-declaration — present when frontend collected
+    // it via the modal (sub-₹5L outward path).  When present we skip the
+    // CA queue and mark the transfer for direct bank processing.
+    form15ca?: {
+      remitterName: string; remitterPAN: string; remitterFatherName: string;
+      remitterAddressIndia: string; remitterEmail: string; remitterPhone: string;
+      beneficiaryName: string; beneficiaryCountry: 'CA';
+      amountInr: number; amountCad: number; exchangeRate: number;
+      purposeCode: string; remittanceDate: string;
+      isChargeableToTax: boolean;
+      tdsDeducted: boolean; tdsAmountInr: number;
+      aggregateFyRemittanceInr: number;
+      declared: boolean;
+    };
   };
 
   // ── INWARD TRANSFER (Canada → India) ─────────────────────────────────────
@@ -527,11 +542,40 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     : fyCompliance.form145Part;
   const reference    = genReference();
 
+  // Form 15CA Part A short-circuit — when the frontend collected a Part A
+  // self-declaration AND amount is within the Part A band (<= ₹5L) AND the
+  // FY total stays under ₹5L too, we generate a mock ARN and let this
+  // transfer proceed straight to bank processing without the CA queue.
+  // ARN format mirrors the IT department: 'ITD' + epoch + 4 random digits.
+  const partABandMaxInr = 500_000;
+  const fyTotalAfter    = fyOutwardTotalInr ?? amountInr;
+  const partAEligible   =
+    !!form15ca &&
+    form15ca.declared === true &&
+    amountInr <= partABandMaxInr &&
+    fyTotalAfter <= partABandMaxInr;
+
+  let form15caArn: string | null = null;
+  if (partAEligible) {
+    const epoch = Date.now().toString().slice(-8);
+    const rand  = Math.floor(1000 + Math.random() * 9000).toString();
+    form15caArn = `ITD${epoch}${rand}`;
+  }
+
   const initialStatus = accountTypeDecision.accountType === 'NRE'
     ? 'initiated'
-    : (decision.transferStatus ?? 'initiated');
+    : partAEligible
+      ? 'completed'                                         // Part A short-circuit
+      : (decision.transferStatus ?? 'initiated');
 
   // ── Step 6: Create transfer record ────────────────────────────────────────
+  // Persist 15CA payload + ARN until migration 026 adds dedicated columns.
+  // Storing as JSON inside `notes` keeps the schema unchanged but lets us
+  // surface the data on the transfer detail page today.
+  const notesPayload = form15ca
+    ? JSON.stringify({ form15caArn, form15caPartA: form15ca })
+    : null;
+
   const { data: transfer, error } = await supabaseAdmin
     .from('transfers')
     .insert({
@@ -547,6 +591,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       flat_fee_cad:        fees.flatFeeCAD,
       express_surcharge_cad: fees.expressSurchargeCAD,
       total_fees_cad:      fees.totalFeesCAD,
+      notes:               notesPayload,
       net_amount_cad:      fees.netAmountCAD,
       promo_discount_cad:  fees.promoDiscountCAD,
       credit_applied_cad:  fees.creditAppliedCAD,
@@ -560,6 +605,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       reference,
       idempotency_key:     idempotencyKey ?? null,
       status:              initialStatus,
+      completed_at:        partAEligible ? ts() : null,
       risk_score:          riskResult.score,
       risk_level:          riskResult.level,
       risk_breakdown:      riskResult.breakdown,

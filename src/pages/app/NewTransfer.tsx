@@ -796,6 +796,27 @@ export default function NewTransfer() {
           </div>
         </div>
       )}
+
+      {/* Form 15CA Part A self-declaration modal — appears at Step-4 confirm
+          when the customer is sending a sub-₹5L outward transfer.  Returns
+          form data straight into submitTransfer() which attaches it to the
+          API payload so the backend can mark the transfer 'completed'
+          without a CA-queue round-trip. */}
+      <Form15CAPartAModal
+        open={show15CA}
+        amountInr={amt}
+        amountCad={amtCAD > 0 ? amtCAD : 0}
+        exchangeRate={rate}
+        purposeCode={isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301'}
+        remitterName={user?.name ?? ''}
+        remitterPAN={(user as { pan?: string | null } | null | undefined)?.pan ?? null}
+        remitterEmail={user?.email ?? ''}
+        remitterPhone={user?.phone ?? ''}
+        beneficiaryName={user?.canadaBank?.holderName ?? user?.name ?? ''}
+        aggregateFyRemittanceInr={aggregateOutwardFyInr()}
+        onSubmit={submitTransfer}
+        onCancel={() => setShow15CA(false)}
+      />
     </div>
   )
 }
