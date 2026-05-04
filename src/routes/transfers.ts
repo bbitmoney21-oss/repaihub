@@ -574,12 +574,10 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       : (decision.transferStatus ?? 'initiated');
 
   // ── Step 6: Create transfer record ────────────────────────────────────────
-  // Persist 15CA payload + ARN until migration 026 adds dedicated columns.
-  // Storing as JSON inside `notes` keeps the schema unchanged but lets us
-  // surface the data on the transfer detail page today.
-  const notesPayload = form15ca
-    ? JSON.stringify({ form15caArn, form15caPartA: form15ca })
-    : null;
+  // The form15ca payload + ARN are persisted on compliance_requests further
+  // below (ca_remarks holds a JSON blob, fifteen_ca_number holds the ARN).
+  // Migration 026 will add dedicated columns on transfers when the user
+  // approves it; until then the audit trail is on compliance_requests.
 
   const { data: transfer, error } = await supabaseAdmin
     .from('transfers')
@@ -596,7 +594,6 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       flat_fee_cad:        fees.flatFeeCAD,
       express_surcharge_cad: fees.expressSurchargeCAD,
       total_fees_cad:      fees.totalFeesCAD,
-      notes:               notesPayload,
       net_amount_cad:      fees.netAmountCAD,
       promo_discount_cad:  fees.promoDiscountCAD,
       credit_applied_cad:  fees.creditAppliedCAD,
@@ -672,8 +669,18 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   const complianceStatus = partAEligible
     ? 'pending'
     : (riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved');
+  // For partAEligible transfers, ca_remarks carries a JSON blob containing
+  // the human-readable summary + the full Part A form data + the customer's
+  // typed digital signature.  CA portal can decide whether to display the
+  // summary line or parse the JSON for an audit-review screen.  Until
+  // migration 026 lands, this is the canonical audit trail.
   const complianceRemarks = partAEligible
-    ? `AUDIT_REVIEW: Sub-₹5L Form 15CA Part A self-declaration. Transfer already completed (ARN ${form15caArn ?? 'pending'}). Non-blocking — CA review is for retrospective audit only.`
+    ? JSON.stringify({
+        summary: `AUDIT_REVIEW: Sub-₹5L Form 15CA Part A self-declaration. Transfer already completed (ARN ${form15caArn ?? 'pending'}). Non-blocking — CA review is for retrospective audit only.`,
+        arn: form15caArn,
+        formData: form15ca ?? null,
+        capturedAt: ts(),
+      })
     : null;
   supabaseAdmin.from('compliance_requests').insert({
     transfer_id:         transfer.id,
