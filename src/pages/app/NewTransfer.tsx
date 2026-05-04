@@ -5,7 +5,7 @@ import { apiCreateTransfer, apiUpdateProfile, apiGetFeeTiers } from '../../lib/a
 import type { OutwardFeeTier, Form15CAPartASubmission } from '../../lib/api'
 import Form15CAPartAModal from '../../components/transfer/Form15CAPartAModal'
 import type { Form15CAPartAData } from '../../components/transfer/Form15CAPartAModal'
-import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
+import { formatINR, formatCAD, generateRef } from '../../lib/utils'
 import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } from 'lucide-react'
 import type { ResidencyStatus } from '../../store/useStore'
 
@@ -271,35 +271,56 @@ export default function NewTransfer() {
       form15ca,
     })
 
-    // Animate progress while the API call runs in parallel
-    const animationSteps: [number, string][] = isOutward ? [
-      [15,  'Verifying KYC tokens…'],
-      [35,  `Locking FX rate at ₹${rate}…`],
-      [55,  'Generating Form 145 XML…'],
-      [75,  'Filing with IT portal…'],
-      [88,  'Assigning CA for Form 146…'],
-    ] : [
-      [25,  'Verifying FINTRAC compliance…'],
-      [55,  'Processing CAD withdrawal…'],
-      [80,  'Routing to India NRO account…'],
-    ]
+    // ─── Submission UX ────────────────────────────────────────────────────────
+    //
+    // Previous designs lied to the customer with a fake percentage that
+    // crawled to 88% on a hardcoded 3 s timer, then sat frozen waiting on
+    // the real API. The "stuck at 88%" complaint was unfixable while the
+    // bar was percentage-driven, because we genuinely don't know how long
+    // /transfers/initiate will take (4 supabase queries + risk + compliance
+    // + insert + side-effects, can be 1-8 s on cloud).
+    //
+    // New behaviour: an indeterminate progress bar that animates
+    // CONTINUOUSLY via CSS until the API resolves. The customer sees
+    // motion the whole time — no freeze possible — and the bar fills to
+    // 100% only when the transfer is genuinely confirmed. Compliance
+    // messages rotate every 1.2 s so there's reassurance the system is
+    // doing real work.
+    //
+    // Total floor: ~apiTime + 600 ms outro. Ceiling: same.
+    const messages = isOutward
+      ? [
+          'Verifying KYC tokens…',
+          `Locking FX rate at ₹${rate}…`,
+          'Generating Form 145 XML…',
+          'Filing with IT portal…',
+          'Assigning CA for Form 146…',
+          'Confirming with server…',
+        ]
+      : [
+          'Verifying FINTRAC compliance…',
+          'Processing CAD withdrawal…',
+          'Routing to India NRO account…',
+          'Confirming with server…',
+        ]
 
-    for (const [pct, msg] of animationSteps) {
-      await sleep(600)
-      setProgress(pct)
-      setProgressMsg(msg)
-    }
+    setProgress(0)             // 0 means: render the indeterminate bar (see JSX)
+    setProgressMsg(messages[0])
 
-    // Animation done — now wait for the real API result
-    setProgressMsg('Confirming with server…')
+    let msgIdx = 0
+    const msgInterval = setInterval(() => {
+      msgIdx = Math.min(msgIdx + 1, messages.length - 1)
+      setProgressMsg(messages[msgIdx])
+    }, 1200)
 
     const now = new Date().toISOString()
     try {
       const transfer = await apiPromise
+
       // Real success — transfer is in the database, response was 2xx.
-      setProgress(100)
+      clearInterval(msgInterval)
+      setProgress(100)         // > 0 means: render the determinate bar at 100%
       setProgressMsg('Transfer initiated!')
-      await sleep(400)
 
       // Defensive: a throw inside addTransfer / mapDbTransfer / addNotification
       // (e.g. unexpected response shape, store mutation race) MUST NOT flip
@@ -307,7 +328,7 @@ export default function NewTransfer() {
       // recorded server-side; surface success regardless and log the inner
       // error to the console for follow-up.
       try {
-        addTransfer(mapDbTransfer(transfer))
+        addTransfer(mapDbTransfer(transfer as Record<string, unknown>))
         addNotification({
           message: isOutward
             ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
@@ -320,9 +341,10 @@ export default function NewTransfer() {
       }
       setLoading(false)
       setStep(5)
-      setTimeout(() => nav('/app/dashboard'), 2500)
+      setTimeout(() => nav('/app/dashboard'), 600)
     } catch (err: unknown) {
       // Real failure — tell the user, do NOT fake success
+      clearInterval(msgInterval)
       const msg = err instanceof Error ? err.message : 'Transfer failed. Please try again.'
       setTransferError(msg)
       setLoading(false)
@@ -767,11 +789,39 @@ export default function NewTransfer() {
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '1.5rem' }}>{progressMsg}</p>
-              <div style={{ height: 8, background: '#0B1C2C', overflow: 'hidden', marginBottom: '0.5rem' }}>
-                <div style={{ height: '100%', background: '#C9963A', width: `${progress}%`, transition: 'width 0.5s ease' }} />
+              {/* Inline keyframes — scoped to this widget. The indeterminate
+                  bar slides a 40%-wide swatch back and forth across the
+                  track every 1.4 s so the customer always sees motion
+                  while the API is in flight. The instant the API resolves,
+                  progress flips to 100 and we render a full, static bar. */}
+              <style>{`
+                @keyframes rh-indeterminate {
+                  0%   { left: -40%; }
+                  100% { left: 100%; }
+                }
+              `}</style>
+              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '1.5rem', minHeight: '1.2em' }}>{progressMsg}</p>
+              <div style={{ height: 8, background: '#0B1C2C', overflow: 'hidden', marginBottom: '0.5rem', position: 'relative' }}>
+                {progress < 100 ? (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: '-40%',
+                      width: '40%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, #C9963A, transparent)',
+                      animation: 'rh-indeterminate 1.4s ease-in-out infinite',
+                    }}
+                  />
+                ) : (
+                  <div style={{ height: '100%', background: '#C9963A', width: '100%', transition: 'width 0.3s ease' }} />
+                )}
               </div>
-              <span style={{ fontSize: '0.78rem', color: '#8BA0B4' }}>{progress}%</span>
+              <span style={{ fontSize: '0.78rem', color: '#8BA0B4' }}>
+                {progress < 100 ? 'Processing…' : '100%'}
+              </span>
             </div>
           ) : transferError ? (
             <div>

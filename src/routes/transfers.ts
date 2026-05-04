@@ -451,7 +451,12 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // ── Parallel data fetch ────────────────────────────────────────────────────
-  const [historyRes, kycRes, profileRes, residencyRes] = await Promise.all([
+  // Was 4 queries; the 4th (residencyRes) was a duplicate of profiles just to
+  // get residency_type defensively. profileRes already pulls it, and switching
+  // .single() → .maybeSingle() removes the throw-on-no-row footgun, so we can
+  // drop the 4th round-trip entirely. One less network hop = ~100-300 ms off
+  // the /initiate latency on Supabase cloud.
+  const [historyRes, kycRes, profileRes] = await Promise.all([
     supabaseAdmin
       .from('transfers')
       .select('id, amount_inr, created_at, status')
@@ -465,11 +470,6 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     supabaseAdmin
       .from('profiles')
       .select('full_name, email, residency_type')
-      .eq('id', userId)
-      .single(),
-    supabaseAdmin
-      .from('profiles')
-      .select('residency_type')
       .eq('id', userId)
       .maybeSingle(),
   ]);
@@ -512,7 +512,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   const docsProvided       = documents ?? [];
   const tdsDeductedBool    = tdsDeducted ?? false;
   const tdsAmountInrNum    = tdsAmountInr ?? 0;
-  const residencyType      = (residencyRes.data?.residency_type ?? profileRes.data?.residency_type ?? 'work_permit') as string;
+  const residencyType      = (profileRes.data?.residency_type ?? 'work_permit') as string;
 
   // ── Step 1: Fee calculation ────────────────────────────────────────────────
   const fees = await calculateFees({
@@ -832,71 +832,113 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
 // Uses Promise.allSettled so a transient error on one source doesn't 500 the
 // whole list — degrades to whichever side responded.
 router.get('/history', authMiddleware, async (req: AuthRequest, res: Response) => {
-  if (!supabaseAdminConfigured) {
-    res.json({ transfers: [], count: 0, timestamp: ts() });
-    return;
-  }
-
-  const userId = req.userId!;
-  const settled = await Promise.allSettled([
-    supabaseAdmin.from('transfers').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }),
-    supabaseAdmin.from('inward_transfers').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }),
-  ]);
-
-  type Row = Record<string, unknown> & { id: string; created_at: string };
-  const rows: Row[] = [];
-  const debug: Array<{ source: string; status: string; count?: number; error?: string }> = [];
-
-  // Outward transfers
-  const outwardR = settled[0];
-  if (outwardR.status === 'fulfilled') {
-    const v = outwardR.value as { data: Row[] | null; error: { message: string } | null };
-    if (v.error) {
-      console.error('[GET /transfers/history] outward query error:', v.error.message);
-      debug.push({ source: 'outward', status: 'error', error: v.error.message });
-    } else {
-      const list = (v.data ?? []).map(r => ({ ...r, direction: 'outward' as const }));
-      rows.push(...list);
-      debug.push({ source: 'outward', status: 'ok', count: list.length });
+  // HARD GUARANTEE: this endpoint MUST NOT 500. The customer dashboard
+  // depends on it. A 500 here renders the dashboard as a misleading
+  // "No active transfers" empty state — which on a remittance product is
+  // an active lie about whether the user has money in flight.
+  // We wrap everything; on unexpected failure we return 200 with an empty
+  // list and an explicit { error } field so the frontend can show a
+  // "Couldn't load transfers" banner instead of pretending the user has
+  // none.
+  try {
+    if (!supabaseAdminConfigured) {
+      res.json({ transfers: [], count: 0, timestamp: ts() });
+      return;
     }
-  } else {
-    const reason = outwardR.reason instanceof Error ? outwardR.reason.message : String(outwardR.reason);
-    console.error('[GET /transfers/history] outward threw:', reason);
-    debug.push({ source: 'outward', status: 'rejected', error: reason });
-  }
 
-  // Inward transfers — column names overlap (amount_cad, amount_inr, exchange_rate,
-  // status, speed, reference, created_at, fee_cad, etc) so the row maps directly.
-  // We tag direction: 'inward' so the frontend can render correctly.
-  const inwardR = settled[1];
-  if (inwardR.status === 'fulfilled') {
-    const v = inwardR.value as { data: Row[] | null; error: { message: string } | null };
-    if (v.error) {
-      console.error('[GET /transfers/history] inward query error:', v.error.message);
-      debug.push({ source: 'inward', status: 'error', error: v.error.message });
+    const userId = req.userId!;
+    const settled = await Promise.allSettled([
+      supabaseAdmin.from('transfers').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.from('inward_transfers').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    type Row = Record<string, unknown> & { id: string; created_at: string };
+    const rows: Row[] = [];
+    const debug: Array<{ source: string; status: string; count?: number; error?: string }> = [];
+
+    // Outward transfers
+    const outwardR = settled[0];
+    if (outwardR.status === 'fulfilled') {
+      const v = outwardR.value as { data: Row[] | null; error: { message: string } | null };
+      if (v.error) {
+        console.error('[GET /transfers/history] outward query error:', v.error.message);
+        debug.push({ source: 'outward', status: 'error', error: v.error.message });
+      } else {
+        const list = (v.data ?? []).map(r => ({ ...r, direction: 'outward' as const }));
+        rows.push(...list);
+        debug.push({ source: 'outward', status: 'ok', count: list.length });
+      }
     } else {
-      const list = (v.data ?? []).map(r => ({ ...r, direction: 'inward' as const }));
-      rows.push(...list);
-      debug.push({ source: 'inward', status: 'ok', count: list.length });
+      const reason = outwardR.reason instanceof Error ? outwardR.reason.message : String(outwardR.reason);
+      console.error('[GET /transfers/history] outward threw:', reason);
+      debug.push({ source: 'outward', status: 'rejected', error: reason });
     }
-  } else {
-    const reason = inwardR.reason instanceof Error ? inwardR.reason.message : String(inwardR.reason);
-    console.error('[GET /transfers/history] inward threw:', reason);
-    debug.push({ source: 'inward', status: 'rejected', error: reason });
+
+    // Inward transfers — column names overlap (amount_cad, amount_inr, exchange_rate,
+    // status, speed, reference, created_at, fee_cad, etc) so the row maps directly.
+    // We tag direction: 'inward' so the frontend can render correctly.
+    const inwardR = settled[1];
+    if (inwardR.status === 'fulfilled') {
+      const v = inwardR.value as { data: Row[] | null; error: { message: string } | null };
+      if (v.error) {
+        console.error('[GET /transfers/history] inward query error:', v.error.message);
+        debug.push({ source: 'inward', status: 'error', error: v.error.message });
+      } else {
+        const list = (v.data ?? []).map(r => ({ ...r, direction: 'inward' as const }));
+        rows.push(...list);
+        debug.push({ source: 'inward', status: 'ok', count: list.length });
+      }
+    } else {
+      const reason = inwardR.reason instanceof Error ? inwardR.reason.message : String(inwardR.reason);
+      console.error('[GET /transfers/history] inward threw:', reason);
+      debug.push({ source: 'inward', status: 'rejected', error: reason });
+    }
+
+    // Sort merged list newest first.  Defensive: coerce created_at to string so
+    // a Date / number / null can never throw inside localeCompare.
+    rows.sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    // If BOTH sources errored, surface the error to the frontend so the UI
+    // can render a "Couldn't load transfers, retry?" banner instead of the
+    // misleading empty-state copy.
+    const allFailed = debug.length > 0 && debug.every(d => d.status !== 'ok');
+    if (allFailed) {
+      res.json({
+        transfers: [],
+        count: 0,
+        partial: true,
+        error: 'Could not load transfer history. Please retry.',
+        timestamp: ts(),
+        ...(isDev ? { debug } : {}),
+      });
+      return;
+    }
+
+    res.json({
+      transfers: rows,
+      count: rows.length,
+      timestamp: ts(),
+      ...(isDev ? { debug } : {}),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error in /transfers/history';
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('[GET /transfers/history] Unhandled error:', msg);
+    if (stack) console.error(stack);
+    // Still return 200 with an explicit error field — see comment at top.
+    res.json({
+      transfers: [],
+      count: 0,
+      partial: true,
+      error: 'Could not load transfer history. Please retry.',
+      timestamp: ts(),
+      ...(process.env.NODE_ENV !== 'production' ? { debug: { unhandled: msg, stack } } : {}),
+    });
   }
-
-  // Sort merged list newest first
-  rows.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
-
-  const isDev = process.env.NODE_ENV !== 'production';
-  res.json({
-    transfers: rows,
-    count: rows.length,
-    timestamp: ts(),
-    ...(isDev ? { debug } : {}),
-  });
 });
 
 // ── GET /transfers/fema-limit (alias: /fema-status) ──────────────────────────

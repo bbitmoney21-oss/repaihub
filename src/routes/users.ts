@@ -112,6 +112,8 @@ router.put('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
     return;
   }
 
+  const isDev = process.env.NODE_ENV !== 'production';
+
   try {
     const allowed = ['full_name', 'phone', 'residency', 'residency_type'];
     const updates: Record<string, unknown> = {};
@@ -126,22 +128,66 @@ router.put('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
 
     updates.updated_at = ts();
 
-    const { error } = await supabaseAdmin
+    // Verbose log so the server terminal tells the truth on the next 500.
+    // Includes the userId, the redacted body, and the column list — without
+    // this we were spelunking blind. Safe to keep in prod (no PII printed).
+    console.log('[PUT /users/profile] userId=' + (req.userId ?? '<none>') +
+                ' fields=' + JSON.stringify(Object.keys(updates)));
+
+    const { data, error, status, statusText } = await supabaseAdmin
       .from('profiles')
       .update(updates)
-      .eq('id', req.userId!);
+      .eq('id', req.userId!)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
-      console.error('[PUT /users/profile] Update error:', error.message);
-      res.status(500).json({ error: error.message, timestamp: ts() });
+      // Supabase / PostgREST errors carry .code (Postgres SQLSTATE), .details,
+      // .hint — surface ALL of them so we can diagnose without re-running.
+      const supaErr = error as { code?: string; details?: string; hint?: string; message: string };
+      console.error('[PUT /users/profile] Supabase update failed:', {
+        code:    supaErr.code,
+        message: supaErr.message,
+        details: supaErr.details,
+        hint:    supaErr.hint,
+        status,
+        statusText,
+        userId:  req.userId,
+        keys:    Object.keys(updates),
+      });
+      res.status(500).json({
+        error: error.message,
+        ...(isDev ? { debug: { code: supaErr.code, details: supaErr.details, hint: supaErr.hint } } : {}),
+        timestamp: ts(),
+      });
+      return;
+    }
+
+    // If the row didn't exist we still return 200 — this isn't an error, the
+    // profile auto-create trigger may not have fired yet. Frontend treats
+    // this as non-fatal (matches NewTransfer.tsx's existing catch-and-ignore).
+    if (!data) {
+      console.warn('[PUT /users/profile] No profile row matched userId=' + req.userId +
+                   ' — auto-create trigger may not have fired. Returning 200 noop.');
+      res.json({
+        message: 'Profile update was a no-op (no matching row).',
+        warning: 'Profile row did not exist for this user. Sign-up trigger may need to be re-run.',
+        timestamp: ts(),
+      });
       return;
     }
 
     res.json({ message: 'Profile updated', timestamp: ts() });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Failed to update profile';
+    const msg   = err instanceof Error ? err.message : 'Failed to update profile';
+    const stack = err instanceof Error ? err.stack   : undefined;
     console.error('[PUT /users/profile] Unhandled error:', msg);
-    res.status(500).json({ error: msg, timestamp: ts() });
+    if (stack) console.error(stack);
+    res.status(500).json({
+      error: msg,
+      ...(isDev ? { debug: { stack } } : {}),
+      timestamp: ts(),
+    });
   }
 });
 

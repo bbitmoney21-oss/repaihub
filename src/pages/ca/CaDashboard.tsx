@@ -546,11 +546,20 @@ export default function CaDashboard() {
 
   function logout() { clearCaToken(); nav('/ca-login') }
 
+  // We fetch the FULL list once and filter CLIENT-SIDE.
+  //
+  // Previous design: each tab click sent ?status=needs_action to the backend
+  // which translated to `status IN ('pending','under_review')`. In practice
+  // the embedded select on transfers caused the count on the "All" tab to
+  // disagree with the rows returned on the "Needs Action" tab (7 vs 2 in a
+  // real session). With tens of compliance rows per CA per shift, a single
+  // fetch is negligible — and making one in-memory list the only source of
+  // truth eliminates an entire class of "rendered-empty-while-data-exists"
+  // bugs that any remittance-grade CA tool must never have.
   async function load() {
     setLoading(true); setError('')
     try {
-      const qs = statusFilter ? `?status=${statusFilter}` : ''
-      const res = await caFetch(`/ca/compliance${qs}`)
+      const res = await caFetch('/ca/compliance')   // always fetch all
       if (!res.ok) throw new Error(await parseErr(res))
       const data = await res.json()
       setRequests(data.requests)
@@ -569,14 +578,26 @@ export default function CaDashboard() {
       setCaUser({ name: payload.name || payload.email, email: payload.email })
     } catch {}
     load()
-  }, [statusFilter])
+  }, [])   // ← load once on mount; statusFilter no longer triggers a refetch
 
+  // Counts come from the FULL request list — never from a filtered subset.
   const counts = { total: requests.length, needs_action: 0, approved: 0, rejected: 0 }
   requests.forEach(r => {
     if (r.status === 'pending' || r.status === 'under_review') counts.needs_action++
     else if (r.status === 'approved') counts.approved++
     else if (r.status === 'rejected') counts.rejected++
   })
+
+  // Client-side filtered view. statusFilter is one of:
+  //   ''             → show all
+  //   'needs_action' → show pending OR under_review
+  //   'approved'     → show approved
+  //   'rejected'     → show rejected
+  const visibleRequests = !statusFilter
+    ? requests
+    : statusFilter === 'needs_action'
+      ? requests.filter(r => r.status === 'pending' || r.status === 'under_review')
+      : requests.filter(r => r.status === statusFilter)
 
   return (
     <div style={S.page}>
@@ -626,12 +647,14 @@ export default function CaDashboard() {
           <div style={{ textAlign: 'center', padding: '3rem', color: '#8BA0B4' }}>Loading compliance requests…</div>
         ) : error ? (
           <div style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)', padding: '1rem', color: '#E74C3C', fontSize: '0.85rem' }}>{error}</div>
-        ) : requests.length === 0 ? (
+        ) : visibleRequests.length === 0 ? (
           <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: '#8BA0B4' }}>
-            No compliance requests{statusFilter ? ` with status "${statusFilter}"` : ''}.
+            {requests.length === 0
+              ? 'No compliance requests yet.'
+              : `No compliance requests in "${statusFilter || 'All'}".`}
           </div>
         ) : (
-          requests.map(r => <RequestRow key={r.id} request={r} onRefresh={load} />)
+          visibleRequests.map(r => <RequestRow key={r.id} request={r} onRefresh={load} />)
         )}
       </div>
     </div>

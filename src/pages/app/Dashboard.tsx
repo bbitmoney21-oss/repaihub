@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import type { Transfer, TransferStatus } from '../../store/useStore'
@@ -47,10 +47,32 @@ export default function Dashboard() {
   const nav = useNavigate()
   const isDesktop = useIsDesktop()
 
-  useEffect(() => {
+  // historyError = true when the backend couldn't load transfers. Without this,
+  // a 5xx silently rendered as "No active transfers" — actively misleading on
+  // a remittance product. The backend now returns 200 with { partial: true,
+  // error } on failure (see src/routes/transfers.ts), and apiGetTransfers
+  // re-throws so the frontend can react. We also keep a manual-retry handle
+  // so the user can re-fetch without reloading the whole tab.
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  const loadHistory = useCallback(() => {
     if (!isAuthenticated) return
-    apiGetTransfers().then(ts => setTransfers(ts.map(mapDbTransfer))).catch(() => {})
+    setHistoryLoading(true)
+    setHistoryError(null)
+    apiGetTransfers()
+      .then(ts => setTransfers(ts.map(mapDbTransfer)))
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : 'Could not load transfer history.'
+        setHistoryError(msg)
+        // Do NOT clear existing transfers — keep optimistic state from
+        // NewTransfer's addTransfer() so the customer still sees their
+        // just-submitted row.
+      })
+      .finally(() => setHistoryLoading(false))
   }, [isAuthenticated, setTransfers])
+
+  useEffect(() => { loadHistory() }, [loadHistory])
 
   // Active = not COMPLETED, not FAILED. Cap at 5 on the home screen so the
   // mobile fold stays clean; everything else is on the Transfers tab.
@@ -90,6 +112,47 @@ export default function Dashboard() {
       flexDirection: 'column',
       gap:      isDesktop ? '1.5rem' : '1rem',
     }}>
+
+      {/* 0 — History load banner. Renders ONLY when /transfers/history failed.
+             Replaces the previous behaviour of silently rendering an empty
+             "No active transfers" state on a 5xx — which was actively
+             misleading on a remittance product. */}
+      {historyError && (
+        <div role="status" aria-live="polite" style={{
+          background:    'rgba(231,76,60,0.08)',
+          border:        `1px solid ${C.danger}`,
+          borderRadius:  8,
+          padding:       '0.75rem 0.9rem',
+          color:         C.text,
+          fontSize:      '0.82rem',
+          display:       'flex',
+          alignItems:    'center',
+          justifyContent:'space-between',
+          gap:           '0.75rem',
+        }}>
+          <span>
+            <strong style={{ color: C.danger }}>Couldn't load transfers.</strong>{' '}
+            We're showing your latest local state. Tap retry to fetch from the server.
+          </span>
+          <button
+            onClick={loadHistory}
+            disabled={historyLoading}
+            style={{
+              background:    'transparent',
+              color:         C.accentLt,
+              border:        `1px solid ${C.accentLt}`,
+              borderRadius:  6,
+              padding:       '0.3rem 0.75rem',
+              fontSize:      '0.75rem',
+              cursor:        historyLoading ? 'wait' : 'pointer',
+              whiteSpace:    'nowrap',
+              opacity:       historyLoading ? 0.6 : 1,
+            }}
+          >
+            {historyLoading ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
+      )}
 
       {/* 1 — Greeting strip */}
       <div>
