@@ -281,18 +281,17 @@ export default function Form15CAPartAModal({
 
         <div style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-          {/* Sticky missing-fields panel — visible at the top of the modal
-              body whenever any required field is incomplete.  Gives the
-              customer an unmissable answer to 'why is the button disabled?'. */}
+          {/* Top-of-modal missing-fields panel — visible whenever any
+              required field is incomplete.  No sticky positioning to avoid
+              overlapping the auto-fill panel below.  A duplicate copy
+              renders just above the submit button so the customer sees it
+              both at scroll-top and scroll-bottom. */}
           {missingFields.length > 0 && (
             <div style={{
-              position: 'sticky', top: 0, zIndex: 5,
               background: 'rgba(243,156,18,0.16)',
               border: `1px solid ${C.warning}`,
               borderLeft: `4px solid ${C.warning}`,
               padding: '0.7rem 0.9rem',
-              marginTop: '-0.25rem',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, color: C.warning, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
                 <AlertCircle size={14} /> {missingFields.length} {missingFields.length === 1 ? 'item' : 'items'} to complete

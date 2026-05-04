@@ -214,18 +214,33 @@ export default function NewTransfer() {
 
   // Step-4 confirm entry point.
   //
-  // The 15CA Part A modal opens for EVERY sub-₹5L outward transfer.  The
-  // modal itself shows a prominent red alert at the top + disables submit
-  // when (FY total + this transfer) exceeds ₹5L — so the customer always
-  // knows WHY they can't proceed (Form 15CB is required at that band).
+  // Part A 'fast lane' modal opens ONLY when the customer is legally
+  // eligible for it:
+  //   1) outward direction, AND
+  //   2) this transfer alone is < ₹5L, AND
+  //   3) cumulative FY outward (incl. this transfer) is <= ₹5L.
   //
-  // Reasoning: silently skipping the modal when FY > ₹5L confused testers,
-  // because the popup just 'didn't appear' for any user with prior FY
-  // history.  Always opening it makes the rule visible and discoverable.
+  // Form 15CB is triggered by EITHER a single >₹5L transfer OR cumulative
+  // FY > ₹5L — at that band Part A is no longer legal, so opening a Part A
+  // modal would be both wrong and confusing.  Ineligible customers go
+  // straight through submitTransfer() which routes through the standard
+  // CA-queued flow that creates the Form 15CB compliance request.
+  //
+  // For the ineligible case we briefly surface a notification so the
+  // customer knows WHY there's no popup and that their transfer is going
+  // through the CA-routed path instead.
   async function handleConfirm() {
-    if (isOutward && amt < 500_000) {
+    const fyAfter = aggregateOutwardFyInr() + amt
+    const inPartABand = isOutward && amt < 500_000 && fyAfter <= 500_000
+    if (inPartABand) {
       setShow15CA(true)
       return
+    }
+    if (isOutward && amt < 500_000 && fyAfter > 500_000) {
+      addNotification({
+        message: `FY total of ₹${fyAfter.toLocaleString('en-IN')} exceeds the ₹5L Part A band — this transfer needs CA-certified Form 15CB. Routing through the standard flow now.`,
+        type: 'info',
+      })
     }
     return submitTransfer()
   }
