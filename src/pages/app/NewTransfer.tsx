@@ -214,21 +214,16 @@ export default function NewTransfer() {
 
   // Step-4 confirm entry point.
   //
-  // Part A 'fast lane' modal opens ONLY when:
-  //   1) outward direction, AND
-  //   2) this transfer is < ₹5L on its own, AND
-  //   3) cumulative FY outward (incl. this transfer) is <= ₹5L.
+  // The 15CA Part A modal opens for EVERY sub-₹5L outward transfer.  The
+  // modal itself shows a prominent red alert at the top + disables submit
+  // when (FY total + this transfer) exceeds ₹5L — so the customer always
+  // knows WHY they can't proceed (Form 15CB is required at that band).
   //
-  // Form 15CB (CA-certified) is triggered by EITHER a single >₹5L transfer
-  // OR cumulative FY > ₹5L — so once the customer is past the FY threshold,
-  // even a small transfer needs the standard CA-routed flow.  Routing them
-  // through the modal in that case would just disable the submit button
-  // and confuse them; better to skip the modal entirely and let the regular
-  // animated submit flow handle the CA queue logic.
+  // Reasoning: silently skipping the modal when FY > ₹5L confused testers,
+  // because the popup just 'didn't appear' for any user with prior FY
+  // history.  Always opening it makes the rule visible and discoverable.
   async function handleConfirm() {
-    const fyAfter = aggregateOutwardFyInr() + amt
-    const inPartABand = isOutward && amt < 500_000 && fyAfter <= 500_000
-    if (inPartABand) {
+    if (isOutward && amt < 500_000) {
       setShow15CA(true)
       return
     }
