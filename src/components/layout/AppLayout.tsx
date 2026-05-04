@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import {
   LayoutDashboard, ArrowRightLeft, ShieldCheck, Settings, Bell, LogOut, ChevronRight,
+  Receipt,
 } from 'lucide-react'
 
 export default function AppLayout() {
@@ -13,6 +14,7 @@ export default function AppLayout() {
     { to: '/app/dashboard',   icon: LayoutDashboard,  label: 'Dashboard'   },
     { to: '/app/transfer',    icon: ArrowRightLeft,   label: 'Transfers'   },
     { to: '/app/compliance',  icon: ShieldCheck,      label: 'Compliance'  },
+    { to: '/app/fees',        icon: Receipt,          label: 'Fees & Rates' },
     { to: '/app/settings',    icon: Settings,         label: 'Settings'    },
   ]
 

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
-import { apiCreateTransfer, apiUpdateProfile } from '../../lib/api'
-import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
+import { apiCreateTransfer, apiUpdateProfile, apiGetFeeTiers } from '../../lib/api'
+import type { OutwardFeeTier, Form15CAPartASubmission } from '../../lib/api'
+import Form15CAPartAModal from '../../components/transfer/Form15CAPartAModal'
+import type { Form15CAPartAData } from '../../components/transfer/Form15CAPartAModal'
+import { formatINR, formatCAD, generateRef } from '../../lib/utils'
 import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } from 'lucide-react'
 import type { ResidencyStatus } from '../../store/useStore'
 
@@ -16,7 +19,9 @@ const RESIDENCY_OPTIONS: { id: ResidencyStatus; title: string; desc: string }[] 
 type Step = 1 | 2 | 3 | 4 | 5
 type Direction = 'outward' | 'inward'
 
-const COMMISSION_RATE = 0.018   // 1.8% — ~70% of Wise/Western Union typical 2.5–2.8%
+// Fallback commission rate used until live tiers (from /fees/tiers) load.
+// Live tiers come from outward_fee_tiers in Supabase — see migration 025.
+const COMMISSION_RATE_FALLBACK = 0.018
 const FEE_FLAT_STD   = 24.99   // outward standard flat fee CAD
 const FEE_FLAT_EXP   = 49.99   // outward express flat fee (incl. \$25 surcharge)
 // Inward fee model: profit comes from FX spread, not from explicit fees.
@@ -89,6 +94,21 @@ export default function NewTransfer() {
   const [progressMsg, setProgressMsg] = useState('')
   const [transferError, setTransferError] = useState<string | null>(null)
 
+  // Live fee tiers (loaded from /fees/tiers on mount).  Empty array means
+  // we use COMMISSION_RATE_FALLBACK as a single flat rate (keeps the page
+  // working if the API is unreachable, e.g. cold start, brand-new dev DB).
+  const [feeTiers, setFeeTiers] = useState<OutwardFeeTier[]>([])
+
+  useEffect(() => {
+    apiGetFeeTiers()
+      .then(r => setFeeTiers(r.tiers))
+      .catch(() => { /* fall back silently to COMMISSION_RATE_FALLBACK */ })
+  }, [])
+
+  // Form 15CA Part A modal — opened at Step-4 confirm for sub-₹5L outward
+  // transfers.  When closed, submitTransfer is called with the form data.
+  const [show15CA, setShow15CA] = useState(false)
+
   // Restore draft state after returning from bank connection pages
   useEffect(() => {
     const raw = sessionStorage.getItem(DRAFT_KEY)
@@ -115,12 +135,36 @@ export default function NewTransfer() {
   const amt       = parseFloat(amount.replace(/,/g, '')) || 0
 
   const amtINR        = isOutward ? amt : amt * rate
-  const flatFee       = express ? FEE_FLAT_EXP : FEE_FLAT_STD
+  // Resolve the tier this transfer falls into.  When the live tier list is
+  // empty (initial render or API error) we fall back to a single 1.8% rate
+  // and the legacy flat fees, so the form is never blocked.
+  const currentTier: OutwardFeeTier | null = (() => {
+    if (!feeTiers || feeTiers.length === 0) return null
+    for (const t of feeTiers) {
+      const above = amtINR >= t.slabMinInr
+      const below = t.slabMaxInr === null || amtINR <= t.slabMaxInr
+      if (above && below) return t
+    }
+    return feeTiers[feeTiers.length - 1]
+  })()
+  const currentCommissionRate = currentTier ? currentTier.commissionRate : COMMISSION_RATE_FALLBACK
+  // Tier-driven flat fee: tier base, with the express surcharge added on top
+  // when the user opts for express. Waivers (waiveFlatFee, flatFeeWaiveAboveInr)
+  // are honoured here as well so the customer preview matches the backend math.
+  const tierFlatBase = currentTier
+    ? (() => {
+        if (currentTier.waiveFlatFee) return 0
+        if (currentTier.flatFeeWaiveAboveInr != null && amtINR >= currentTier.flatFeeWaiveAboveInr) return 0
+        return currentTier.flatFeeCAD
+      })()
+    : FEE_FLAT_STD
+  const expressSurcharge = express ? (FEE_FLAT_EXP - FEE_FLAT_STD) : 0  // = \$25
+  const flatFee       = tierFlatBase + expressSurcharge
   const tcsApplies    = isOutward && amtINR > TCS_THRESHOLD_INR
   const tcsAmt        = tcsApplies ? amtINR * 0.05 : 0
   const netINR        = amtINR - tcsAmt
   const grossCAD      = isOutward ? netINR / rate : amt
-  const commissionCAD = isOutward ? Math.round(grossCAD * COMMISSION_RATE * 100) / 100 : 0
+  const commissionCAD = isOutward ? Math.round(grossCAD * currentCommissionRate * 100) / 100 : 0
   const totalFees     = commissionCAD + flatFee
   const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
   // Inward fee model: user enters the amount they want to convert ('Amount to send').
@@ -155,11 +199,62 @@ export default function NewTransfer() {
     return n ? parseInt(n).toLocaleString(isOutward ? 'en-IN' : 'en-CA') : ''
   }
 
+  // Aggregate outward INR remittance during the current Indian FY (Apr-Mar).
+  // Feeds the 15CA Part A modal preview AND the backend's compliance gate.
+  function aggregateOutwardFyInr(): number {
+    const now = new Date()
+    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+    const fyStartIso  = `${fyStartYear}-04-01`
+    return useStore
+      .getState()
+      .transfers
+      .filter(t => t.direction !== 'inward' && t.status !== 'FAILED' && t.date >= fyStartIso)
+      .reduce((sum, t) => sum + (t.amountINR || 0), 0)
+  }
+
+  // Step-4 confirm entry point.
+  //
+  // Part A 'fast lane' modal opens ONLY when the customer is legally
+  // eligible for it:
+  //   1) outward direction, AND
+  //   2) this transfer alone is < ₹5L, AND
+  //   3) cumulative FY outward (incl. this transfer) is <= ₹5L.
+  //
+  // Form 15CB is triggered by EITHER a single >₹5L transfer OR cumulative
+  // FY > ₹5L — at that band Part A is no longer legal, so opening a Part A
+  // modal would be both wrong and confusing.  Ineligible customers go
+  // straight through submitTransfer() which routes through the standard
+  // CA-queued flow that creates the Form 15CB compliance request.
+  //
+  // For the ineligible case we briefly surface a notification so the
+  // customer knows WHY there's no popup and that their transfer is going
+  // through the CA-routed path instead.
   async function handleConfirm() {
+    const fyAfter = aggregateOutwardFyInr() + amt
+    const inPartABand = isOutward && amt < 500_000 && fyAfter <= 500_000
+    if (inPartABand) {
+      setShow15CA(true)
+      return
+    }
+    if (isOutward && amt < 500_000 && fyAfter > 500_000) {
+      addNotification({
+        message: `FY total of ₹${fyAfter.toLocaleString('en-IN')} exceeds the ₹5L Part A band — this transfer needs CA-certified Form 15CB. Routing through the standard flow now.`,
+        type: 'info',
+      })
+    }
+    return submitTransfer()
+  }
+
+  async function submitTransfer(form15caData?: Form15CAPartAData) {
+    setShow15CA(false)
     setLoading(true)
     setTransferError(null)
     const ref = generateRef()
     setTxnRef(ref)
+
+    const form15ca: Form15CAPartASubmission | undefined = form15caData
+      ? { ...form15caData, beneficiaryCountry: 'CA' as const }
+      : undefined
 
     // Start the real API call immediately — runs concurrently with the animation
     const apiPromise = apiCreateTransfer({
@@ -173,50 +268,83 @@ export default function NewTransfer() {
       speed:         express ? 'express' : 'standard',
       reference:     ref,
       direction,
+      form15ca,
     })
 
-    // Animate progress while the API call runs in parallel
-    const animationSteps: [number, string][] = isOutward ? [
-      [15,  'Verifying KYC tokens…'],
-      [35,  `Locking FX rate at ₹${rate}…`],
-      [55,  'Generating Form 145 XML…'],
-      [75,  'Filing with IT portal…'],
-      [88,  'Assigning CA for Form 146…'],
-    ] : [
-      [25,  'Verifying FINTRAC compliance…'],
-      [55,  'Processing CAD withdrawal…'],
-      [80,  'Routing to India NRO account…'],
-    ]
+    // ─── Submission UX ────────────────────────────────────────────────────────
+    //
+    // Previous designs lied to the customer with a fake percentage that
+    // crawled to 88% on a hardcoded 3 s timer, then sat frozen waiting on
+    // the real API. The "stuck at 88%" complaint was unfixable while the
+    // bar was percentage-driven, because we genuinely don't know how long
+    // /transfers/initiate will take (4 supabase queries + risk + compliance
+    // + insert + side-effects, can be 1-8 s on cloud).
+    //
+    // New behaviour: an indeterminate progress bar that animates
+    // CONTINUOUSLY via CSS until the API resolves. The customer sees
+    // motion the whole time — no freeze possible — and the bar fills to
+    // 100% only when the transfer is genuinely confirmed. Compliance
+    // messages rotate every 1.2 s so there's reassurance the system is
+    // doing real work.
+    //
+    // Total floor: ~apiTime + 600 ms outro. Ceiling: same.
+    const messages = isOutward
+      ? [
+          'Verifying KYC tokens…',
+          `Locking FX rate at ₹${rate}…`,
+          'Generating Form 145 XML…',
+          'Filing with IT portal…',
+          'Assigning CA for Form 146…',
+          'Confirming with server…',
+        ]
+      : [
+          'Verifying FINTRAC compliance…',
+          'Processing CAD withdrawal…',
+          'Routing to India NRO account…',
+          'Confirming with server…',
+        ]
 
-    for (const [pct, msg] of animationSteps) {
-      await sleep(600)
-      setProgress(pct)
-      setProgressMsg(msg)
-    }
+    setProgress(0)             // 0 means: render the indeterminate bar (see JSX)
+    setProgressMsg(messages[0])
 
-    // Animation done — now wait for the real API result
-    setProgressMsg('Confirming with server…')
+    let msgIdx = 0
+    const msgInterval = setInterval(() => {
+      msgIdx = Math.min(msgIdx + 1, messages.length - 1)
+      setProgressMsg(messages[msgIdx])
+    }, 1200)
 
     const now = new Date().toISOString()
     try {
       const transfer = await apiPromise
-      // Real success — transfer is in the database
-      setProgress(100)
+
+      // Real success — transfer is in the database, response was 2xx.
+      clearInterval(msgInterval)
+      setProgress(100)         // > 0 means: render the determinate bar at 100%
       setProgressMsg('Transfer initiated!')
-      await sleep(400)
-      addTransfer(mapDbTransfer(transfer))
-      addNotification({
-        message: isOutward
-          ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
-          : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`,
-        type: 'info',
-        timestamp: now,
-      })
+
+      // Defensive: a throw inside addTransfer / mapDbTransfer / addNotification
+      // (e.g. unexpected response shape, store mutation race) MUST NOT flip
+      // the customer's screen to 'Transfer Failed'. The transfer is already
+      // recorded server-side; surface success regardless and log the inner
+      // error to the console for follow-up.
+      try {
+        addTransfer(mapDbTransfer(transfer as Record<string, unknown>))
+        addNotification({
+          message: isOutward
+            ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
+            : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`,
+          type: 'info',
+          timestamp: now,
+        })
+      } catch (postErr) {
+        console.error('[Transfer] Post-success bookkeeping failed (transfer is already in DB):', postErr)
+      }
       setLoading(false)
       setStep(5)
-      setTimeout(() => nav('/app/dashboard'), 2500)
+      setTimeout(() => nav('/app/dashboard'), 600)
     } catch (err: unknown) {
       // Real failure — tell the user, do NOT fake success
+      clearInterval(msgInterval)
       const msg = err instanceof Error ? err.message : 'Transfer failed. Please try again.'
       setTransferError(msg)
       setLoading(false)
@@ -397,7 +525,12 @@ export default function NewTransfer() {
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Net amount sent</span><span style={{ color: '#FAF6F0' }}>{formatINR(netINR)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
-                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>1.8% commission</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(commissionCAD)}</span></div>
+                  <div style={S.row}>
+                    <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>
+                      Commission {(currentCommissionRate * 100).toFixed(2)}%{currentTier ? ` · ${currentTier.label}` : ''}
+                    </span>
+                    <span style={{ color: '#8BA0B4' }}>− {formatCAD(commissionCAD)}</span>
+                  </div>
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{express ? 'Express flat fee' : 'Flat fee'}</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(flatFee)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Total fees</span><span style={{ color: '#8BA0B4', fontWeight: 600 }}>− {formatCAD(totalFees)}</span></div>
@@ -591,7 +724,10 @@ export default function NewTransfer() {
                   ? (express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)')
                   : (express ? 'Express (4–8 hrs)' : 'Standard (1–2 days)'),
               ],
-              isOutward ? ['Commission (1.8%)', formatCAD(commissionCAD)] : null,
+              isOutward ? [
+                `Commission (${(currentCommissionRate * 100).toFixed(2)}%${currentTier ? ' · ' + currentTier.label : ''})`,
+                formatCAD(commissionCAD),
+              ] : null,
               isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
               (!isOutward && inwardFee > 0) ? ['Small-transfer fee', `+ ${formatCAD(inwardFee)}`] : null,
               (!isOutward && inwardFee === 0) ? ['Fee', 'No fee'] : null,
@@ -653,11 +789,39 @@ export default function NewTransfer() {
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '1.5rem' }}>{progressMsg}</p>
-              <div style={{ height: 8, background: '#0B1C2C', overflow: 'hidden', marginBottom: '0.5rem' }}>
-                <div style={{ height: '100%', background: '#C9963A', width: `${progress}%`, transition: 'width 0.5s ease' }} />
+              {/* Inline keyframes — scoped to this widget. The indeterminate
+                  bar slides a 40%-wide swatch back and forth across the
+                  track every 1.4 s so the customer always sees motion
+                  while the API is in flight. The instant the API resolves,
+                  progress flips to 100 and we render a full, static bar. */}
+              <style>{`
+                @keyframes rh-indeterminate {
+                  0%   { left: -40%; }
+                  100% { left: 100%; }
+                }
+              `}</style>
+              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '1.5rem', minHeight: '1.2em' }}>{progressMsg}</p>
+              <div style={{ height: 8, background: '#0B1C2C', overflow: 'hidden', marginBottom: '0.5rem', position: 'relative' }}>
+                {progress < 100 ? (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: '-40%',
+                      width: '40%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, #C9963A, transparent)',
+                      animation: 'rh-indeterminate 1.4s ease-in-out infinite',
+                    }}
+                  />
+                ) : (
+                  <div style={{ height: '100%', background: '#C9963A', width: '100%', transition: 'width 0.3s ease' }} />
+                )}
               </div>
-              <span style={{ fontSize: '0.78rem', color: '#8BA0B4' }}>{progress}%</span>
+              <span style={{ fontSize: '0.78rem', color: '#8BA0B4' }}>
+                {progress < 100 ? 'Processing…' : '100%'}
+              </span>
             </div>
           ) : transferError ? (
             <div>
@@ -750,6 +914,33 @@ export default function NewTransfer() {
           </div>
         </div>
       )}
+
+      {/* Form 15CA Part A self-declaration modal — appears at Step-4 confirm
+          when the customer is sending a sub-₹5L outward transfer.  Returns
+          form data straight into submitTransfer() which attaches it to the
+          API payload so the backend can mark the transfer 'completed'
+          without a CA-queue round-trip. */}
+
+      {/* Form 15CA Part A self-declaration modal — appears at Step-4 confirm
+          when the customer is sending a sub-₹5L outward transfer.  Returns
+          form data straight into submitTransfer() which attaches it to the
+          API payload so the backend can mark the transfer 'completed'
+          without a CA-queue round-trip. */}
+      <Form15CAPartAModal
+        open={show15CA}
+        amountInr={amt}
+        amountCad={amtCAD > 0 ? amtCAD : 0}
+        exchangeRate={rate}
+        purposeCode={isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301'}
+        remitterName={user?.name ?? ''}
+        remitterPAN={(user as { pan?: string | null } | null | undefined)?.pan ?? null}
+        remitterEmail={user?.email ?? ''}
+        remitterPhone={user?.phone ?? ''}
+        beneficiaryName={user?.canadaBank?.holderName ?? user?.name ?? ''}
+        aggregateFyRemittanceInr={aggregateOutwardFyInr()}
+        onSubmit={submitTransfer}
+        onCancel={() => setShow15CA(false)}
+      />
     </div>
   )
 }

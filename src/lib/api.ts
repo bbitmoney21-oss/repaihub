@@ -134,6 +134,35 @@ export async function apiGetTransfers() {
   return (data.transfers ?? []) as Record<string, unknown>[];
 }
 
+// Form 15CA Part A self-declaration sent with sub-₹5L outward transfers
+// to skip the CA queue and process immediately.  Field names follow the
+// modal component verbatim — see src/components/transfer/Form15CAPartAModal.tsx
+export interface Form15CAPartASubmission {
+  remitterName:             string;
+  remitterPAN:              string;
+  remitterFatherName:       string;
+  remitterAddressIndia:     string;
+  remitterEmail:            string;
+  remitterPhone:            string;
+  beneficiaryName:          string;
+  beneficiaryCountry:       'CA';
+  amountInr:                number;
+  amountCad:                number;
+  exchangeRate:             number;
+  purposeCode:              string;
+  remittanceDate:           string;
+  isChargeableToTax:        boolean;
+  tdsDeducted:              boolean;
+  tdsAmountInr:             number;
+  aggregateFyRemittanceInr: number;
+  declared:                 boolean;
+  signature: {
+    typedName:              string;
+    signedAt:               string;
+    method:                 'typed_electronic';
+  };
+}
+
 export async function apiCreateTransfer(params: {
   amountInr: number;
   amountCad: number;
@@ -145,6 +174,7 @@ export async function apiCreateTransfer(params: {
   speed: 'standard' | 'express';
   reference?: string;
   direction?: 'outward' | 'inward';
+  form15ca?: Form15CAPartASubmission;
 }) {
   const res = await apiFetch('/transfers/initiate', {
     method: 'POST',
@@ -158,6 +188,7 @@ export async function apiCreateTransfer(params: {
       sourceOfFunds: params.sourceOfFunds,
       speed:         params.speed,
       direction:     params.direction ?? 'outward',
+      form15ca:      params.form15ca,
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));
@@ -252,6 +283,38 @@ export async function apiWalletConfirm(params: {
   const res = await apiFetch('/wallet/confirm', { method: 'POST', body: JSON.stringify(params) });
   if (!res.ok) throw new Error(await parseError(res));
   return (await res.json()).document as WalletDocument;
+}
+
+// ── Fees ──────────────────────────────────────────────────────────────────────
+
+export interface OutwardFeeTier {
+  slabMinInr: number
+  slabMaxInr: number | null
+  commissionRate: number   // 0.018 = 1.8%
+  commissionPct: number    // 1.80 (= rate * 100, pre-rounded)
+  flatFeeCAD: number
+  waiveFlatFee: boolean
+  flatFeeWaiveAboveInr: number | null
+  label: string
+}
+
+export interface FeeTiersResponse {
+  direction: 'outward'
+  currency: 'INR'
+  tiers: OutwardFeeTier[]
+  expressSurchargeCAD: number
+  inward: {
+    smallTransferFeeCAD: number
+    freeAboveCAD: number
+    note: string
+  }
+  timestamp: string
+}
+
+export async function apiGetFeeTiers(): Promise<FeeTiersResponse> {
+  const res = await apiFetch('/fees/tiers')
+  if (!res.ok) throw new Error(await parseError(res))
+  return await res.json() as FeeTiersResponse
 }
 
 // ── Shared types ──────────────────────────────────────────────────────────────

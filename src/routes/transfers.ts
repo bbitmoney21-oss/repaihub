@@ -164,6 +164,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     lockId,
     idempotencyKey,
     panNumber,
+    form15ca,
   } = req.body as {
     direction?: 'outward' | 'inward';
     amountFrom?: number;
@@ -185,6 +186,25 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     idempotencyKey?: string;
     panNumber?: string;
     amountCad?: number; feeCad?: number;
+    // Form 15CA Part A self-declaration — present when frontend collected
+    // it via the modal (sub-₹5L outward path).  When present we skip the
+    // CA queue and mark the transfer for direct bank processing.
+    form15ca?: {
+      remitterName: string; remitterPAN: string; remitterFatherName: string;
+      remitterAddressIndia: string; remitterEmail: string; remitterPhone: string;
+      beneficiaryName: string; beneficiaryCountry: 'CA';
+      amountInr: number; amountCad: number; exchangeRate: number;
+      purposeCode: string; remittanceDate: string;
+      isChargeableToTax: boolean;
+      tdsDeducted: boolean; tdsAmountInr: number;
+      aggregateFyRemittanceInr: number;
+      declared: boolean;
+      signature: {
+        typedName: string;
+        signedAt:  string;
+        method:    'typed_electronic';
+      };
+    };
   };
 
   // ── INWARD TRANSFER (Canada → India) ─────────────────────────────────────
@@ -431,7 +451,12 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // ── Parallel data fetch ────────────────────────────────────────────────────
-  const [historyRes, kycRes, profileRes, residencyRes] = await Promise.all([
+  // Was 4 queries; the 4th (residencyRes) was a duplicate of profiles just to
+  // get residency_type defensively. profileRes already pulls it, and switching
+  // .single() → .maybeSingle() removes the throw-on-no-row footgun, so we can
+  // drop the 4th round-trip entirely. One less network hop = ~100-300 ms off
+  // the /initiate latency on Supabase cloud.
+  const [historyRes, kycRes, profileRes] = await Promise.all([
     supabaseAdmin
       .from('transfers')
       .select('id, amount_inr, created_at, status')
@@ -445,11 +470,6 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     supabaseAdmin
       .from('profiles')
       .select('full_name, email, residency_type')
-      .eq('id', userId)
-      .single(),
-    supabaseAdmin
-      .from('profiles')
-      .select('residency_type')
       .eq('id', userId)
       .maybeSingle(),
   ]);
@@ -492,7 +512,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   const docsProvided       = documents ?? [];
   const tdsDeductedBool    = tdsDeducted ?? false;
   const tdsAmountInrNum    = tdsAmountInr ?? 0;
-  const residencyType      = (residencyRes.data?.residency_type ?? profileRes.data?.residency_type ?? 'work_permit') as string;
+  const residencyType      = (profileRes.data?.residency_type ?? 'work_permit') as string;
 
   // ── Step 1: Fee calculation ────────────────────────────────────────────────
   const fees = await calculateFees({
@@ -527,11 +547,38 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     : fyCompliance.form145Part;
   const reference    = genReference();
 
+  // Form 15CA Part A short-circuit — when the frontend collected a Part A
+  // self-declaration AND amount is within the Part A band (<= ₹5L) AND the
+  // FY total stays under ₹5L too, we generate a mock ARN and let this
+  // transfer proceed straight to bank processing without the CA queue.
+  // ARN format mirrors the IT department: 'ITD' + epoch + 4 random digits.
+  const partABandMaxInr = 500_000;
+  const fyTotalAfter    = fyOutwardTotalInr ?? amountInr;
+  const partAEligible   =
+    !!form15ca &&
+    form15ca.declared === true &&
+    amountInr <= partABandMaxInr &&
+    fyTotalAfter <= partABandMaxInr;
+
+  let form15caArn: string | null = null;
+  if (partAEligible) {
+    const epoch = Date.now().toString().slice(-8);
+    const rand  = Math.floor(1000 + Math.random() * 9000).toString();
+    form15caArn = `ITD${epoch}${rand}`;
+  }
+
   const initialStatus = accountTypeDecision.accountType === 'NRE'
     ? 'initiated'
-    : (decision.transferStatus ?? 'initiated');
+    : partAEligible
+      ? 'completed'                                         // Part A short-circuit
+      : (decision.transferStatus ?? 'initiated');
 
   // ── Step 6: Create transfer record ────────────────────────────────────────
+  // The form15ca payload + ARN are persisted on compliance_requests further
+  // below (ca_remarks holds a JSON blob, fifteen_ca_number holds the ARN).
+  // Migration 026 will add dedicated columns on transfers when the user
+  // approves it; until then the audit trail is on compliance_requests.
+
   const { data: transfer, error } = await supabaseAdmin
     .from('transfers')
     .insert({
@@ -560,6 +607,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       reference,
       idempotency_key:     idempotencyKey ?? null,
       status:              initialStatus,
+      completed_at:        partAEligible ? ts() : null,
       risk_score:          riskResult.score,
       risk_level:          riskResult.level,
       risk_breakdown:      riskResult.breakdown,
@@ -587,6 +635,16 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     return;
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HARD GUARANTEE FROM HERE ON: the transfer row is committed in DB.
+  // No matter what fails in steps 7-10 (events, audits, fees, notifications,
+  // orchestrator, response payload assembly), the customer MUST see 201
+  // success with the transfer object.  Returning 500 here would create a
+  // false-negative — transfer exists but customer thinks it failed.
+  // Single outer try/catch around everything below, with a minimal
+  // 201 fallback in the catch.
+  // ═══════════════════════════════════════════════════════════════════════════
+  try {
   // ── Step 7: Fire-and-forget async side-effects ────────────────────────────
   void log('TRANSFER_INITIATED', 'customer', {
     transferId: transfer.id,
@@ -606,17 +664,45 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     if (evErr) console.error('[transfer_events] Insert failed:', evErr.message);
   });
 
-  // compliance_requests: use only columns guaranteed to exist in the table
-  // form145_part / form146_required are aliases not yet added — use fifteen_ca_part / fifteen_cb_required
+  // compliance_requests insert.
+  //
+  // For partAEligible (sub-₹5L Part A self-declaration) transfers, the
+  // customer's transfer is already 'completed' — but we STILL queue a
+  // compliance row tagged AUDIT_REVIEW so a CA can retrospectively audit
+  // the self-declaration.  Non-blocking: the customer is unaffected.  This
+  // protects both the customer and REPAIHUB if the IT department ever
+  // questions a transfer years from now (the CA's retrospective sign-off
+  // is the audit trail).
+  //
+  // For all other transfers the existing behaviour applies (HIGH risk
+  // pending; CA-required under_review; otherwise approved).
+  const complianceStatus = partAEligible
+    ? 'pending'
+    : (riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved');
+  // For partAEligible transfers, ca_remarks carries a JSON blob containing
+  // the human-readable summary + the full Part A form data + the customer's
+  // typed digital signature.  CA portal can decide whether to display the
+  // summary line or parse the JSON for an audit-review screen.  Until
+  // migration 026 lands, this is the canonical audit trail.
+  const complianceRemarks = partAEligible
+    ? JSON.stringify({
+        summary: `AUDIT_REVIEW: Sub-₹5L Form 15CA Part A self-declaration. Transfer already completed (ARN ${form15caArn ?? 'pending'}). Non-blocking — CA review is for retrospective audit only.`,
+        arn: form15caArn,
+        formData: form15ca ?? null,
+        capturedAt: ts(),
+      })
+    : null;
   supabaseAdmin.from('compliance_requests').insert({
     transfer_id:         transfer.id,
     user_id:             userId,
-    status:              riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved',
+    status:              complianceStatus,
     fifteen_ca_part:     form145Part,
+    fifteen_ca_number:   form15caArn,
     fifteen_cb_required: complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+    ca_remarks:          complianceRemarks,
   }).then(({ error: crErr }) => {
     if (crErr) console.error('[compliance_request] Insert failed:', crErr.message, '— transfer:', transfer.id);
-    else console.log('[compliance_request] Created for transfer:', transfer.id, '| Form 146 required:', complianceResult.requiresForm146);
+    else console.log('[compliance_request] Created for transfer:', transfer.id, '|', partAEligible ? 'AUDIT_REVIEW (Part A)' : ('Form 146 required: ' + complianceResult.requiresForm146));
   });
 
   // ── Step 8: Financial side-effects ────────────────────────────────────────
@@ -649,11 +735,17 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   }
 
   // ── Step 10: Background orchestration (non-blocking) ─────────────────────
-  setImmediate(() => {
-    orchestrateOutwardTransfer(transfer.id).catch(err =>
-      console.error('[Orchestrator] outwardOrchestrator failed (non-critical):', err));
-  });
+  try {
+    setImmediate(() => {
+      orchestrateOutwardTransfer(transfer.id).catch(err =>
+        console.error('[Orchestrator] outwardOrchestrator failed (non-critical):', err));
+    });
+  } catch (orchErr) {
+    console.error('[Orchestrator] setImmediate scheduling failed (non-critical):', orchErr);
+  }
 
+  // Rich response build (kept as one block; the outer hard-guarantee try/catch
+  // below catches anything that throws here so the customer always sees 201).
   res.status(201).json({
     transfer,
     feeBreakdown: {
@@ -697,12 +789,31 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       status:  initialStatus,
       message: accountTypeDecision.accountType === 'NRE'
         ? 'NRE account — no CA approval needed. Fable will execute directly.'
-        : decision.customerMessage,
+        : (decision?.customerMessage ?? 'Transfer accepted.'),
     },
     form145Part,
     reference,
     timestamp: ts(),
   });
+  } catch (postInsertErr: unknown) {
+    // Hard-guarantee fallback — anything between the INSERT and the response
+    // threw.  The transfer is in the DB; the customer MUST see success.  We
+    // log, then return a minimal 201 with just enough for the frontend to
+    // render the success state and refresh from the dashboard.
+    const msg = postInsertErr instanceof Error ? postInsertErr.message : String(postInsertErr);
+    console.error('[Transfer] Post-insert work threw — returning minimal 201 anyway. transferId=' + transfer.id + ' :', msg);
+    if (postInsertErr instanceof Error && postInsertErr.stack) console.error(postInsertErr.stack);
+    if (!res.headersSent) {
+      res.status(201).json({
+        transfer,
+        reference,
+        form145Part: form145Part ?? 'A',
+        partial: true,
+        warning: 'Transfer recorded; some response fields could not be computed. Refresh the dashboard to see the latest state.',
+        timestamp: ts(),
+      });
+    }
+  }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Internal server error';
     console.error('[POST /transfers/initiate] Unhandled error:', msg, err);
@@ -721,71 +832,113 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
 // Uses Promise.allSettled so a transient error on one source doesn't 500 the
 // whole list — degrades to whichever side responded.
 router.get('/history', authMiddleware, async (req: AuthRequest, res: Response) => {
-  if (!supabaseAdminConfigured) {
-    res.json({ transfers: [], count: 0, timestamp: ts() });
-    return;
-  }
-
-  const userId = req.userId!;
-  const settled = await Promise.allSettled([
-    supabaseAdmin.from('transfers').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }),
-    supabaseAdmin.from('inward_transfers').select('*').eq('user_id', userId)
-      .order('created_at', { ascending: false }),
-  ]);
-
-  type Row = Record<string, unknown> & { id: string; created_at: string };
-  const rows: Row[] = [];
-  const debug: Array<{ source: string; status: string; count?: number; error?: string }> = [];
-
-  // Outward transfers
-  const outwardR = settled[0];
-  if (outwardR.status === 'fulfilled') {
-    const v = outwardR.value as { data: Row[] | null; error: { message: string } | null };
-    if (v.error) {
-      console.error('[GET /transfers/history] outward query error:', v.error.message);
-      debug.push({ source: 'outward', status: 'error', error: v.error.message });
-    } else {
-      const list = (v.data ?? []).map(r => ({ ...r, direction: 'outward' as const }));
-      rows.push(...list);
-      debug.push({ source: 'outward', status: 'ok', count: list.length });
+  // HARD GUARANTEE: this endpoint MUST NOT 500. The customer dashboard
+  // depends on it. A 500 here renders the dashboard as a misleading
+  // "No active transfers" empty state — which on a remittance product is
+  // an active lie about whether the user has money in flight.
+  // We wrap everything; on unexpected failure we return 200 with an empty
+  // list and an explicit { error } field so the frontend can show a
+  // "Couldn't load transfers" banner instead of pretending the user has
+  // none.
+  try {
+    if (!supabaseAdminConfigured) {
+      res.json({ transfers: [], count: 0, timestamp: ts() });
+      return;
     }
-  } else {
-    const reason = outwardR.reason instanceof Error ? outwardR.reason.message : String(outwardR.reason);
-    console.error('[GET /transfers/history] outward threw:', reason);
-    debug.push({ source: 'outward', status: 'rejected', error: reason });
-  }
 
-  // Inward transfers — column names overlap (amount_cad, amount_inr, exchange_rate,
-  // status, speed, reference, created_at, fee_cad, etc) so the row maps directly.
-  // We tag direction: 'inward' so the frontend can render correctly.
-  const inwardR = settled[1];
-  if (inwardR.status === 'fulfilled') {
-    const v = inwardR.value as { data: Row[] | null; error: { message: string } | null };
-    if (v.error) {
-      console.error('[GET /transfers/history] inward query error:', v.error.message);
-      debug.push({ source: 'inward', status: 'error', error: v.error.message });
+    const userId = req.userId!;
+    const settled = await Promise.allSettled([
+      supabaseAdmin.from('transfers').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.from('inward_transfers').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    type Row = Record<string, unknown> & { id: string; created_at: string };
+    const rows: Row[] = [];
+    const debug: Array<{ source: string; status: string; count?: number; error?: string }> = [];
+
+    // Outward transfers
+    const outwardR = settled[0];
+    if (outwardR.status === 'fulfilled') {
+      const v = outwardR.value as { data: Row[] | null; error: { message: string } | null };
+      if (v.error) {
+        console.error('[GET /transfers/history] outward query error:', v.error.message);
+        debug.push({ source: 'outward', status: 'error', error: v.error.message });
+      } else {
+        const list = (v.data ?? []).map(r => ({ ...r, direction: 'outward' as const }));
+        rows.push(...list);
+        debug.push({ source: 'outward', status: 'ok', count: list.length });
+      }
     } else {
-      const list = (v.data ?? []).map(r => ({ ...r, direction: 'inward' as const }));
-      rows.push(...list);
-      debug.push({ source: 'inward', status: 'ok', count: list.length });
+      const reason = outwardR.reason instanceof Error ? outwardR.reason.message : String(outwardR.reason);
+      console.error('[GET /transfers/history] outward threw:', reason);
+      debug.push({ source: 'outward', status: 'rejected', error: reason });
     }
-  } else {
-    const reason = inwardR.reason instanceof Error ? inwardR.reason.message : String(inwardR.reason);
-    console.error('[GET /transfers/history] inward threw:', reason);
-    debug.push({ source: 'inward', status: 'rejected', error: reason });
+
+    // Inward transfers — column names overlap (amount_cad, amount_inr, exchange_rate,
+    // status, speed, reference, created_at, fee_cad, etc) so the row maps directly.
+    // We tag direction: 'inward' so the frontend can render correctly.
+    const inwardR = settled[1];
+    if (inwardR.status === 'fulfilled') {
+      const v = inwardR.value as { data: Row[] | null; error: { message: string } | null };
+      if (v.error) {
+        console.error('[GET /transfers/history] inward query error:', v.error.message);
+        debug.push({ source: 'inward', status: 'error', error: v.error.message });
+      } else {
+        const list = (v.data ?? []).map(r => ({ ...r, direction: 'inward' as const }));
+        rows.push(...list);
+        debug.push({ source: 'inward', status: 'ok', count: list.length });
+      }
+    } else {
+      const reason = inwardR.reason instanceof Error ? inwardR.reason.message : String(inwardR.reason);
+      console.error('[GET /transfers/history] inward threw:', reason);
+      debug.push({ source: 'inward', status: 'rejected', error: reason });
+    }
+
+    // Sort merged list newest first.  Defensive: coerce created_at to string so
+    // a Date / number / null can never throw inside localeCompare.
+    rows.sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    // If BOTH sources errored, surface the error to the frontend so the UI
+    // can render a "Couldn't load transfers, retry?" banner instead of the
+    // misleading empty-state copy.
+    const allFailed = debug.length > 0 && debug.every(d => d.status !== 'ok');
+    if (allFailed) {
+      res.json({
+        transfers: [],
+        count: 0,
+        partial: true,
+        error: 'Could not load transfer history. Please retry.',
+        timestamp: ts(),
+        ...(isDev ? { debug } : {}),
+      });
+      return;
+    }
+
+    res.json({
+      transfers: rows,
+      count: rows.length,
+      timestamp: ts(),
+      ...(isDev ? { debug } : {}),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error in /transfers/history';
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('[GET /transfers/history] Unhandled error:', msg);
+    if (stack) console.error(stack);
+    // Still return 200 with an explicit error field — see comment at top.
+    res.json({
+      transfers: [],
+      count: 0,
+      partial: true,
+      error: 'Could not load transfer history. Please retry.',
+      timestamp: ts(),
+      ...(process.env.NODE_ENV !== 'production' ? { debug: { unhandled: msg, stack } } : {}),
+    });
   }
-
-  // Sort merged list newest first
-  rows.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
-
-  const isDev = process.env.NODE_ENV !== 'production';
-  res.json({
-    transfers: rows,
-    count: rows.length,
-    timestamp: ts(),
-    ...(isDev ? { debug } : {}),
-  });
 });
 
 // ── GET /transfers/fema-limit (alias: /fema-status) ──────────────────────────

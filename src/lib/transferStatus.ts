@@ -29,11 +29,11 @@ export interface StatusDetail {
 
 const OUTWARD: Partial<Record<TransferStatus, StatusDetail>> = {
   INITIATED:        { step: 1, totalSteps: 5, label: 'Verifying KYC',                       etaHint: 'A few minutes' },
-  KYC_VERIFIED:     { step: 2, totalSteps: 5, label: 'Filing Form 145',                     etaHint: '~30 minutes' },
-  '15CA_FILED':     { step: 3, totalSteps: 5, label: 'Form 145 filed · CA reviewing 146',   etaHint: 'Typically 4–8 hours' },
+  KYC_VERIFIED:     { step: 2, totalSteps: 5, label: 'Filing Form 15CA',                    etaHint: '~30 minutes' },
+  '15CA_FILED':     { step: 3, totalSteps: 5, label: 'Form 15CA filed · CA reviewing 15CB', etaHint: 'Within 1 business day' },
   '15CB_CERTIFIED': { step: 4, totalSteps: 5, label: 'CA certified · queued for bank',      etaHint: '~1–2 hours' },
-  BANK_PROCESSING:  { step: 5, totalSteps: 5, label: 'Bank processing transfer',            etaHint: '~24–48 hours' },
-  SWIFT_SENT:       { step: 5, totalSteps: 5, label: 'SWIFT sent · awaiting delivery',      etaHint: '~24 hours' },
+  BANK_PROCESSING:  { step: 5, totalSteps: 5, label: 'Bank processing transfer',            etaHint: 'Within 1–2 business days' },
+  SWIFT_SENT:       { step: 5, totalSteps: 5, label: 'SWIFT sent · awaiting delivery',      etaHint: 'Within 1 business day' },
 }
 
 // Inward = Canada -> India.  No 15CA / 15CB required (those are Indian
