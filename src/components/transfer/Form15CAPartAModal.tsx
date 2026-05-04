@@ -126,16 +126,25 @@ export default function Form15CAPartAModal({
 
   // Required-field gate — keeps the submit button disabled until everything
   // mandatory is filled.  Visual cue mirrors what Winman does: red * + a
-  // disabled button until the form is valid.
-  const tdsAmountValid = !tdsDeducted || (Number(tdsAmount) > 0 && Number.isFinite(Number(tdsAmount)))
-  const allMandatoryFilled =
-    PAN_REGEX.test(pan.trim().toUpperCase()) &&
-    fatherName.trim().length >= 2 &&
-    indianAddress.trim().length >= 10 &&
-    tdsAmountValid &&
-    signatureValid &&
-    declared &&
-    !exceedsPartABand
+  // disabled button + an explicit list of what's still missing so the
+  // customer is never guessing which field is blocking them.
+  const tdsAmountNum   = Number(tdsAmount)
+  const tdsAmountValid = !tdsDeducted || (tdsAmountNum > 0 && Number.isFinite(tdsAmountNum))
+
+  // Build a list of human-readable field names that are still missing or
+  // invalid.  Empty array = form is submittable.
+  const missingFields: string[] = []
+  if (!PAN_REGEX.test(pan.trim().toUpperCase())) missingFields.push('Valid PAN (AAAAA9999A)')
+  if (fatherName.trim().length < 2)              missingFields.push("Father's name")
+  if (indianAddress.trim().length < 10)          missingFields.push('Indian address')
+  if (tdsDeducted && !tdsAmountValid)            missingFields.push('TDS amount (you selected Yes)')
+  if (!signatureValid && signedName.trim().length === 0)
+                                                  missingFields.push('Digital signature (type your full name)')
+  else if (!signatureValid)                      missingFields.push(`Signature must match registered name (${remitterName})`)
+  if (!declared)                                  missingFields.push('Tick the declaration box')
+  if (exceedsPartABand)                          missingFields.push('FY total exceeds ₹5,00,000 — use the standard CA flow')
+
+  const allMandatoryFilled = missingFields.length === 0
 
   if (!open) return null
 
@@ -350,7 +359,12 @@ export default function Form15CAPartAModal({
                   onChange={e => setTdsAmount(e.target.value.replace(/[^0-9.]/g, ''))}
                   placeholder="TDS amount in ₹"
                   inputMode="decimal"
-                  style={{ ...inputStyle, fontFamily: "'DM Sans'", marginTop: '0.4rem' }} />
+                  style={{
+                    ...inputStyle,
+                    fontFamily: "'DM Sans'",
+                    marginTop: '0.4rem',
+                    borderColor: tdsAmount.length === 0 || !tdsAmountValid ? C.danger : C.border,
+                  }} />
               )}
             </div>
           </div>
@@ -399,6 +413,16 @@ export default function Form15CAPartAModal({
 
         {/* Footer */}
         <div style={{ padding: '1rem 1.25rem', borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {missingFields.length > 0 && (
+            <div style={{ background: 'rgba(243,156,18,0.08)', border: `1px solid ${C.warning}`, padding: '0.6rem 0.8rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: C.warning, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
+                Before you can submit
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: C.text, lineHeight: 1.5 }}>
+                {missingFields.map(f => <li key={f}>{f}</li>)}
+              </ul>
+            </div>
+          )}
           <button onClick={submit}
             disabled={!allMandatoryFilled}
             style={{
