@@ -17,6 +17,7 @@ export interface Transfer {
   status: TransferStatus
   express: boolean
   reference: string
+  direction: 'outward' | 'inward'
   events: { status: TransferStatus; timestamp: string; note: string }[]
 }
 
@@ -74,21 +75,32 @@ export interface DbTransfer {
   reference: string | null
   created_at: string
   completed_at: string | null
+  // Set by GET /transfers/history when merging outward + inward.
+  direction?: 'outward' | 'inward'
+  // inward_transfers fee column is total_fees_cad, not fee_cad — accept both
+  total_fees_cad?: number | null
 }
 
 export function mapDbTransfer(t: DbTransfer): Transfer {
   const status: TransferStatus = STATUS_MAP[t.status?.toLowerCase() ?? 'initiated'] ?? 'INITIATED'
+  // fee_cad exists on outward rows; inward rows use total_fees_cad. Accept either.
+  const fee = Number(t.fee_cad ?? t.total_fees_cad ?? 0)
   return {
     id: t.id,
     date: t.created_at,
     amountINR: Number(t.amount_inr),
     amountCAD: Number(t.amount_cad),
     rate: Number(t.exchange_rate),
-    fee: Number(t.fee_cad),
+    fee,
     status,
     express: t.speed === 'express',
     reference: t.reference ?? `RH-${t.id.slice(0, 6).toUpperCase()}`,
-    events: [{ status: 'INITIATED', timestamp: t.created_at, note: 'Transfer initiated' }],
+    direction: t.direction ?? 'outward',
+    events: [{
+      status: 'INITIATED',
+      timestamp: t.created_at,
+      note: t.direction === 'inward' ? 'Inward transfer initiated' : 'Transfer initiated',
+    }],
   }
 }
 
@@ -149,7 +161,9 @@ export const useStore = create<AppState>()(
           indiaBank: u.indiaBank ?? s.user?.indiaBank,
           kycCompletedAt: s.user?.kycCompletedAt,
           annualLimitUsed: s.user?.annualLimitUsed ?? 0,
-          annualLimitTotal: s.user?.annualLimitTotal ?? 83000,
+          // Default = 0 here; Dashboard / NewTransfer recompute the real CAD
+          // limit dynamically from USD 250k * INR-per-USD / live FX rate.
+          annualLimitTotal: s.user?.annualLimitTotal ?? 0,
         },
       })),
 

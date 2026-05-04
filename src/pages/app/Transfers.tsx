@@ -94,9 +94,16 @@ export default function Transfers() {
               style={{ background: i % 2 === 0 ? '#0B1C2C' : '#091826', padding: '1rem 1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: '1rem', alignItems: 'center', cursor: 'pointer', transition: 'background 0.2s', borderTop: '1px solid rgba(201,150,58,0.1)' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#132233')}
               onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#0B1C2C' : '#091826')}>
-              <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#FAF6F0' }}>{t.id}</div>
-                {t.express && <span style={{ fontSize: '0.65rem', background: 'rgba(201,150,58,0.15)', color: '#C9963A', padding: '0.15rem 0.4rem', borderRadius: 2, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Express</span>}
+                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                  {t.direction === 'inward' ? (
+                    <span style={{ fontSize: '0.65rem', background: 'rgba(39,174,96,0.15)', color: '#27AE60', padding: '0.15rem 0.4rem', borderRadius: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>↙ Inward</span>
+                  ) : (
+                    <span style={{ fontSize: '0.65rem', background: 'rgba(232,184,109,0.15)', color: '#E8B86D', padding: '0.15rem 0.4rem', borderRadius: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>↗ Outward</span>
+                  )}
+                  {t.express && <span style={{ fontSize: '0.65rem', background: 'rgba(201,150,58,0.15)', color: '#C9963A', padding: '0.15rem 0.4rem', borderRadius: 2, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Express</span>}
+                </div>
               </div>
               <span style={{ fontSize: '0.82rem', color: '#8BA0B4' }}>{formatDate(t.date)}</span>
               <span style={{ fontSize: '0.9rem', color: '#FAF6F0', fontFamily: "'DM Sans'" }}>{formatINR(t.amountINR)}</span>

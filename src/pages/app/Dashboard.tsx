@@ -1,179 +1,368 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
+import type { Transfer, TransferStatus } from '../../store/useStore'
 import { apiGetTransfers } from '../../lib/api'
-import { formatCAD, formatDateShort, statusLabel, statusColor, residencyLabels } from '../../lib/utils'
-import { ArrowRight, TrendingUp, Plus } from 'lucide-react'
+import { formatCAD, formatINR } from '../../lib/utils'
+import { getStatusDetail, isActive } from '../../lib/transferStatus'
+import { ChevronRight, Plus, AlertTriangle, Bell } from 'lucide-react'
+
+/**
+ * REPAIHUB Dashboard — mobile-first.
+ *
+ * The home screen answers ONE question: "where is my money right now?"
+ * Everything else lives a tab away.
+ *
+ * Vertical order (single column, max 480px wide, centered):
+ *   1. Greeting strip (compact)
+ *   2. Live FX rate + the single primary CTA
+ *   3. Pending action banner — conditional, hidden when no action required
+ *   4. Active transfers list — the heart of the screen
+ *   5. View-all link to /app/transfer when there are completed/historic rows
+ *
+ * Deleted from the previous design: vanity total/this-year stat boxes,
+ * outward/inward summary boxes, the full LRS progress bar, the "How your
+ * transfer works" educational footer, the dual-pane recent + quick-actions
+ * grid. Those live in dedicated tabs (Transfers, Settings) where customers
+ * actively go to look up that information.
+ */
+// Track viewport width so the dashboard renders a real desktop layout
+// (wider container, FX strip + CTA on a row, 2-column active grid) instead
+// of just centering the mobile column on a wide screen.
+function useIsDesktop(threshold = 768) {
+  const [v, setV] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth >= threshold
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => setV(window.innerWidth >= threshold)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [threshold])
+  return v
+}
 
 export default function Dashboard() {
   const { user, transfers, fxRate, setTransfers, isAuthenticated } = useStore()
   const nav = useNavigate()
+  const isDesktop = useIsDesktop()
 
   useEffect(() => {
     if (!isAuthenticated) return
     apiGetTransfers().then(ts => setTransfers(ts.map(mapDbTransfer))).catch(() => {})
-  }, [isAuthenticated])
-  const recent = transfers.slice(0, 3)
-  const limitPct = user ? (user.annualLimitUsed / user.annualLimitTotal) * 100 : 0
-  const limitRemaining = user ? user.annualLimitTotal - user.annualLimitUsed : 0
+  }, [isAuthenticated, setTransfers])
 
-  const totalCAD = transfers.filter(t => t.status === 'COMPLETED').reduce((a, t) => a + t.amountCAD, 0)
-  const thisYear = transfers.filter(t => t.status === 'COMPLETED' && t.date.startsWith('2026')).length
+  // Active = not COMPLETED, not FAILED. Cap at 5 on the home screen so the
+  // mobile fold stays clean; everything else is on the Transfers tab.
+  const activeAll  = transfers.filter(t => isActive(t.status))
+  const activeShown = activeAll.slice(0, 5)
+  const allCount   = transfers.length
 
-  const S = {
-    page:    { padding: '2rem', maxWidth: 1100, margin: '0 auto' } as React.CSSProperties,
-    sLabel:  { fontSize: '0.7rem', fontWeight: 600 as const, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#C9963A', marginBottom: '0.5rem', display: 'block' },
-    card:    { background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '1.5rem' } as React.CSSProperties,
-  }
+  // Pending action banner: surface the FIRST transfer whose status mapping
+  // includes an actionRequired field. Today the helper never sets one — when
+  // backend adds compliance-blocking flags, this banner activates without UI
+  // changes.
+  const pendingAction = activeAll
+    .map(t => ({ t, detail: getStatusDetail(t.status, t.direction) }))
+    .find(x => x.detail?.actionRequired)
+
+  // Color tokens (in line with the rest of the app).
+  const C = {
+    bg:        '#0B1C2C',
+    card:      '#132233',
+    border:    'rgba(201,150,58,0.2)',
+    accent:    '#C9963A',
+    accentLt:  '#E8B86D',
+    text:      '#FAF6F0',
+    muted:     '#8BA0B4',
+    success:   '#27AE60',
+    warning:   '#F39C12',
+    danger:    '#E74C3C',
+    subtle:    'rgba(201,150,58,0.06)',
+  } as const
 
   return (
-    <div style={S.page}>
+    <div style={{
+      maxWidth: isDesktop ? 1000 : 480,
+      margin:   '0 auto',
+      padding:  isDesktop ? '2rem' : '1rem',
+      display:  'flex',
+      flexDirection: 'column',
+      gap:      isDesktop ? '1.5rem' : '1rem',
+    }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <span style={S.sLabel}>Dashboard</span>
-        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.3rem' }}>
-          Welcome back, <em style={{ fontStyle: 'normal', color: '#E8B86D' }}>{user?.name?.split(' ')[0] || 'Raj'}</em>
+      {/* 1 — Greeting strip */}
+      <div>
+        <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.accent, marginBottom: '0.4rem' }}>
+          Dashboard
+        </div>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: isDesktop ? '2.2rem' : '1.6rem', fontWeight: 600, color: C.text, margin: 0, lineHeight: 1.2 }}>
+          Hi, <em style={{ fontStyle: 'normal', color: C.accentLt }}>{user?.name?.split(' ')[0] || 'there'}</em>
         </h1>
-        <p style={{ fontSize: '0.85rem', color: '#8BA0B4' }}>
-          {residencyLabels[user?.residencyStatus || ''] || 'Canadian Citizen'} &nbsp;·&nbsp; {user?.canadaBank?.institution} &nbsp;·&nbsp; {user?.indiaBank?.bankName}
+        <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0.25rem 0 0 0' }}>
+          {[user?.canadaBank?.institution, user?.indiaBank?.bankName].filter(Boolean).join(' · ') || 'Account ready'}
         </p>
       </div>
 
-      {/* FX Rate Banner */}
-      <div style={{ background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '1rem 1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <TrendingUp color="#C9963A" size={20} />
+      {/* 2 — FX rate strip + the primary CTA.
+              Desktop: rate left, CTA right, single row.
+              Mobile:  rate stacked, CTA full-width below. */}
+      <div style={{
+        background: C.subtle,
+        border: `1px solid ${C.border}`,
+        padding: isDesktop ? '1rem 1.25rem' : '0.85rem 1rem',
+        display: 'flex',
+        flexDirection: isDesktop ? 'row' : 'column',
+        alignItems: isDesktop ? 'center' : 'stretch',
+        justifyContent: 'space-between',
+        gap: isDesktop ? '1rem' : '0.85rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flex: isDesktop ? 1 : undefined }}>
           <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8BA0B4' }}>Live FX Rate</span>
-            <div style={{ fontSize: '1.4rem', fontWeight: 600, color: '#E8B86D', fontFamily: "'DM Sans'", lineHeight: 1.1 }}>
-              1 CAD = ₹{fxRate.toFixed(2)}
+            <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.muted }}>
+              Live FX
+            </span>
+            <div style={{ fontSize: isDesktop ? '1.4rem' : '1.15rem', fontWeight: 600, color: C.accentLt, fontFamily: "'DM Sans'", lineHeight: 1.1, marginTop: 2 }}>
+              1 CAD = ₹{(fxRate || 0).toFixed(2)}
             </div>
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>|</div>
-          <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8BA0B4' }}>₹1,00,000 =</span>
-            <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#FAF6F0', lineHeight: 1.1 }}>
-              {formatCAD(100000 / fxRate)}
-            </div>
-          </div>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', color: C.success, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.success, display: 'inline-block' }} />
+            Live
+          </span>
         </div>
-        <button onClick={() => nav('/app/new-transfer')}
-          style={{ background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '0.75rem 1.5rem', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-          <Plus size={14} /> New Transfer
+
+        <button
+          onClick={() => nav('/app/new-transfer')}
+          style={{
+            width: isDesktop ? 'auto' : '100%',
+            minWidth: isDesktop ? 240 : undefined,
+            background: C.accent,
+            color: C.bg,
+            border: 'none',
+            padding: isDesktop ? '0.85rem 1.5rem' : '0.95rem',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            minHeight: 48,
+          }}>
+          <Plus size={16} /> New Transfer
         </button>
       </div>
 
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '1px', background: 'rgba(201,150,58,0.2)', border: '1px solid rgba(201,150,58,0.2)', marginBottom: '2rem' }}>
-        {[
-          { label: 'Total Transferred', value: formatCAD(totalCAD), sub: 'All time — CAD', icon: '💰' },
-          { label: 'This Year', value: `${thisYear} transfers`, sub: '2026 financial year', icon: '📅' },
-          { label: 'Annual Limit Used', value: formatCAD(user?.annualLimitUsed || 0), sub: `of ${formatCAD(user?.annualLimitTotal || 83000)}`, icon: '📊' },
-          { label: 'Limit Remaining', value: formatCAD(limitRemaining), sub: `${(100 - limitPct).toFixed(0)}% available`, icon: '✅' },
-        ].map(stat => (
-          <div key={stat.label} style={{ background: '#132233', padding: '1.5rem', transition: 'background 0.2s' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{stat.icon}</div>
-            <span style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8BA0B4', display: 'block', marginBottom: '0.4rem' }}>{stat.label}</span>
-            <div style={{ fontSize: '1.3rem', fontWeight: 600, color: '#FAF6F0', lineHeight: 1, marginBottom: '0.25rem', fontFamily: "'DM Sans'" }}>{stat.value}</div>
-            <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{stat.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Annual limit progress */}
-      <div style={{ ...S.card, marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div>
-            <span style={S.sLabel}>Annual RBI Limit — FY 2026</span>
-            <div style={{ fontSize: '0.9rem', color: '#FAF6F0' }}>
-              {formatCAD(user?.annualLimitUsed || 0)} used of {formatCAD(user?.annualLimitTotal || 83000)}
+      {/* 3 — Pending action banner — only when something is blocked on the user */}
+      {pendingAction?.detail?.actionRequired && (
+        <button
+          onClick={() => nav(`/app/transfer/${pendingAction.t.id}`)}
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            background: 'rgba(243,156,18,0.08)',
+            border: `1px solid ${C.warning}`,
+            borderLeft: `4px solid ${C.warning}`,
+            padding: '0.85rem 1rem',
+            textAlign: 'left',
+            cursor: 'pointer',
+            width: '100%',
+            color: 'inherit',
+          }}>
+          <AlertTriangle size={18} color={C.warning} style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: C.warning, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+              Action needed
+            </div>
+            <div style={{ fontSize: '0.85rem', color: C.text, lineHeight: 1.4 }}>
+              {pendingAction.detail.actionRequired.message}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: C.muted, marginTop: '0.25rem' }}>
+              {pendingAction.t.reference}
             </div>
           </div>
-          <div style={{ fontSize: '0.85rem', color: limitPct > 80 ? '#F39C12' : '#27AE60', fontWeight: 500 }}>
-            {limitPct.toFixed(1)}% used
-          </div>
-        </div>
-        <div style={{ height: 10, background: '#0B1C2C', borderRadius: 5, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${limitPct}%`, background: limitPct > 80 ? '#F39C12' : '#C9963A', borderRadius: 5, transition: 'width 1s ease' }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-          <span style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>₹0</span>
-          <span style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>USD 1M (≈ CAD {formatCAD(user?.annualLimitTotal || 83000)})</span>
-        </div>
-      </div>
+          <ChevronRight size={18} color={C.muted} style={{ flexShrink: 0, alignSelf: 'center' }} />
+        </button>
+      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px,1fr))', gap: '1.5rem' }}>
-
-        {/* Recent Transfers */}
-        <div style={S.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <span style={S.sLabel}>Recent Transfers</span>
-            <button onClick={() => nav('/app/transfer')} style={{ fontSize: '0.78rem', color: '#C9963A', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              View all <ArrowRight size={12} />
+      {/* 4 — Active transfers */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.accent }}>
+            Active {activeAll.length > 0 && `(${activeAll.length})`}
+          </span>
+          {allCount > 0 && (
+            <button onClick={() => nav('/app/transfer')}
+              style={{ background: 'none', border: 'none', color: C.accent, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: 0 }}>
+              View all <ChevronRight size={14} />
             </button>
-          </div>
-          {recent.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: '#8BA0B4', fontSize: '0.85rem' }}>
-              No transfers yet.<br/>
-              <button onClick={() => nav('/app/new-transfer')} style={{ marginTop: '1rem', background: 'none', border: '1px solid rgba(201,150,58,0.3)', color: '#C9963A', padding: '0.5rem 1rem', fontSize: '0.78rem', cursor: 'pointer' }}>Start your first transfer</button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'rgba(201,150,58,0.1)' }}>
-              {recent.map(t => (
-                <div key={t.id} onClick={() => nav(`/app/transfer/${t.id}`)}
-                  style={{ background: '#0B1C2C', padding: '1rem', cursor: 'pointer', transition: 'background 0.2s', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#132233')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#0B1C2C')}>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 500, color: '#FAF6F0', marginBottom: '0.2rem' }}>{t.id}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{formatDateShort(t.date)}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FAF6F0' }}>{formatCAD(t.amountCAD)}</div>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: statusColor[t.status] }}>
-                      {statusLabel[t.status]}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div>
-          <span style={{ ...S.sLabel, marginBottom: '1rem' }}>Quick Actions</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {[
-              { icon: '💸', title: 'Send Money', desc: 'New NRO to CAD transfer', action: () => nav('/app/new-transfer'), primary: true },
-              { icon: '📋', title: 'Track Transfer', desc: 'Live status on your transfer', action: () => nav('/app/transfer'), primary: false },
-              { icon: '🛡', title: 'Compliance Centre', desc: 'FINTRAC, forms, limits', action: () => nav('/app/compliance'), primary: false },
-              { icon: '📊', title: 'Tax Report', desc: 'Download annual summary', action: () => nav('/app/settings'), primary: false },
-            ].map(item => (
-              <div key={item.title} onClick={item.action}
-                style={{ ...S.card, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', transition: 'background 0.2s', border: item.primary ? '1px solid rgba(201,150,58,0.4)' : '1px solid rgba(201,150,58,0.2)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#1C3147')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#132233')}>
-                <span style={{ fontSize: '1.5rem' }}>{item.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#FAF6F0', fontSize: '0.9rem' }}>{item.title}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#8BA0B4', marginTop: '0.1rem' }}>{item.desc}</div>
-                </div>
-                <ArrowRight size={16} color="#8BA0B4" />
-              </div>
+        {activeAll.length === 0 ? (
+          <EmptyState onNew={() => nav('/app/new-transfer')} />
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isDesktop ? 'repeat(2, 1fr)' : '1fr',
+            gap: '0.6rem',
+          }}>
+            {activeShown.map(t => (
+              <ActiveCard key={t.id} t={t} onOpen={() => nav(`/app/transfer/${t.id}`)} />
             ))}
+            {activeAll.length > activeShown.length && (
+              <button onClick={() => nav('/app/transfer')}
+                style={{ background: 'none', border: `1px dashed ${C.border}`, color: C.muted, fontSize: '0.8rem', padding: '0.75rem', cursor: 'pointer' }}>
+                +{activeAll.length - activeShown.length} more active · View all
+              </button>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* CA Note */}
-      <div style={{ marginTop: '2rem', background: 'rgba(201,150,58,0.04)', border: '1px solid rgba(201,150,58,0.2)', borderLeft: '3px solid #C9963A', padding: '1.25rem 1.5rem' }}>
-        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#C9963A', display: 'block', marginBottom: '0.4rem' }}>How Your Transfer Works</span>
-        <p style={{ fontSize: '0.85rem', color: '#8BA0B4', lineHeight: 1.7, margin: 0 }}>
-          Every REPAIHUB transfer goes through our state machine: Initiate → KYC Check → Form 145 filed → CA certifies Form 146 → Bank processes → SWIFT → CAD in your account. You'll get a push notification at every step. Standard: 24–48 hours. Express: 8–12 hours.
-        </p>
-      </div>
+      {/* Hidden notification icon equivalent — the bell already lives in the
+          top app bar.  No extra surface needed here. */}
+      <div style={{ display: 'none' }}><Bell /></div>
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-components — inline so the dashboard stays one-file-readable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ActiveCard({ t, onOpen }: { t: Transfer; onOpen: () => void }) {
+  const detail = getStatusDetail(t.status, t.direction)
+  const dir = t.direction === 'inward' ? '↙' : '↗'
+  const pillBg = t.direction === 'inward' ? 'rgba(39,174,96,0.15)'   : 'rgba(232,184,109,0.15)'
+  const pillFg = t.direction === 'inward' ? '#27AE60'                : '#E8B86D'
+  const dirLabel = t.direction === 'inward' ? 'Canada → India'        : 'India → Canada'
+
+  return (
+    <button onClick={onOpen}
+      style={{
+        textAlign: 'left',
+        background: '#132233',
+        border: '1px solid rgba(201,150,58,0.2)',
+        padding: '0.9rem 1rem',
+        cursor: 'pointer',
+        color: 'inherit',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.55rem',
+        width: '100%',
+        minHeight: 92,
+      }}>
+      {/* Top row — direction pill + reference */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.45rem', background: pillBg, color: pillFg, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          {dir} {dirLabel}
+        </span>
+        <span style={{ fontSize: '0.7rem', color: '#8BA0B4', fontFamily: "'DM Sans'" }}>
+          {t.reference}
+        </span>
+      </div>
+
+      {/* Amount line — big, prominent, direction-aware ordering */}
+      <div style={{ fontSize: '1rem', fontWeight: 600, color: '#FAF6F0', fontFamily: "'DM Sans'" }}>
+        {t.direction === 'inward'
+          ? <>{formatCAD(t.amountCAD)} <span style={{ color: '#8BA0B4' }}>→</span> {formatINR(t.amountINR)}</>
+          : <>{formatINR(t.amountINR)} <span style={{ color: '#8BA0B4' }}>→</span> {formatCAD(t.amountCAD)}</>
+        }
+      </div>
+
+      {/* Step dots */}
+      <StepDots step={detail?.step ?? 1} total={detail?.totalSteps ?? 5} />
+
+      {/* Status text + ETA */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '0.5rem' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.82rem', color: '#FAF6F0', lineHeight: 1.35 }}>
+            {detail?.label ?? statusFallbackLabel(t.status)}
+          </div>
+          {detail?.etaHint && (
+            <div style={{ fontSize: '0.72rem', color: '#8BA0B4', marginTop: '0.15rem' }}>
+              ETA · {detail.etaHint}
+            </div>
+          )}
+        </div>
+        {detail?.actionRequired && (
+          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.45rem', background: 'rgba(243,156,18,0.15)', color: '#F39C12', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            Needs you
+          </span>
+        )}
+      </div>
+    </button>
+  )
+}
+
+function StepDots({ step, total }: { step: number; total: number }) {
+  return (
+    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+      {Array.from({ length: total }, (_, i) => {
+        const filled = i < step
+        const active = i === step - 1
+        return (
+          <span key={i}
+            style={{
+              flex: 1,
+              height: 4,
+              background: filled ? '#C9963A' : 'rgba(201,150,58,0.15)',
+              boxShadow: active ? '0 0 0 1px rgba(201,150,58,0.5)' : 'none',
+              transition: 'background 200ms ease',
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function EmptyState({ onNew }: { onNew: () => void }) {
+  return (
+    <div style={{
+      background: '#132233',
+      border: '1px dashed rgba(201,150,58,0.3)',
+      padding: '1.5rem 1rem',
+      textAlign: 'center',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '0.6rem',
+    }}>
+      <div style={{ fontSize: '1.6rem', opacity: 0.6 }}>📭</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FAF6F0' }}>No active transfers</div>
+      <div style={{ fontSize: '0.78rem', color: '#8BA0B4', maxWidth: 280, lineHeight: 1.4 }}>
+        Send your first transfer and track it here in real time.
+      </div>
+      <button onClick={onNew}
+        style={{
+          marginTop: '0.4rem',
+          background: 'transparent',
+          color: '#C9963A',
+          border: '1px solid #C9963A',
+          padding: '0.6rem 1.1rem',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          cursor: 'pointer',
+          minHeight: 40,
+        }}>
+        + New Transfer
+      </button>
+    </div>
+  )
+}
+
+function statusFallbackLabel(s: TransferStatus): string {
+  switch (s) {
+    case 'COMPLETED': return 'Completed'
+    case 'FAILED':    return 'Failed'
+    default:          return s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+  }
 }

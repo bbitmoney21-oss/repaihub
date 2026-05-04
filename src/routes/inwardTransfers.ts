@@ -61,17 +61,18 @@ router.get('/rates', async (req, res) => {
     totalFeesCAD = flatFeeCAD;
   }
 
-  const netCAD = amountCAD - totalFeesCAD;
-  const netINR = Math.round(netCAD * rateResult.rate * 100) / 100;
-  const totalCustomerPaysCAD = amountCAD + (speed === 'express' ? expressFeeCAD : 0);
+  // Fee-on-top model: rail converts amountCAD; customer pays amountCAD + fees.
+  const netINR = Math.round(amountCAD * rateResult.rate * 100) / 100;
+  const totalCustomerPaysCAD = Math.round((amountCAD + totalFeesCAD) * 100) / 100;
 
   const breakdown: string[] = [
-    `You send: CAD ${amountCAD.toFixed(2)}`,
+    `Amount you send: CAD ${amountCAD.toFixed(2)}`,
     flatFeeWaived
-      ? `Flat fee: CAD 0.00 (${flatFeeWaivedReason || 'waived'})`
-      : `Flat fee: CAD ${flatFeeCAD.toFixed(2)}`,
+      ? `Fee: CAD 0.00 (${flatFeeWaivedReason || 'waived'})`
+      : `Small-transfer fee (on top): CAD ${flatFeeCAD.toFixed(2)}`,
   ];
-  if (speed === 'express') breakdown.push(`Express fee: CAD ${expressFeeCAD.toFixed(2)}`);
+  if (speed === 'express' && expressFeeCAD > 0) breakdown.push(`Express fee: CAD ${expressFeeCAD.toFixed(2)}`);
+  breakdown.push(`Total to pay: CAD ${totalCustomerPaysCAD.toFixed(2)}`);
   breakdown.push(`Exchange rate: 1 CAD = ₹${rateResult.rate}`);
   breakdown.push(`Recipient gets: ₹${netINR.toLocaleString('en-IN')}`);
 
