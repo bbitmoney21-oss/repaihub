@@ -18,6 +18,7 @@ import transfersRoutes from './routes/transfers';
 import inwardTransfersRoutes from './routes/inwardTransfers';
 import usersRoutes from './routes/users';
 import walletRoutes from './routes/wallet';
+import feesRoutes from './routes/fees';
 import complianceRoutes from './routes/compliance';
 import webhooksRoutes from './routes/webhooks';
 import devToolsRoutes from './routes/devTools';
@@ -135,6 +136,7 @@ app.use('/transfers', transfersRoutes);
 app.use('/inward', inwardTransfersRoutes);
 app.use('/users', usersRoutes);
 app.use('/wallet', walletRoutes);
+app.use('/fees', feesRoutes);
 app.use('/compliance', complianceRoutes);
 app.use('/kyc', kycRoutes);
 

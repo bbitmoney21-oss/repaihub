@@ -30,6 +30,7 @@ import TransferDetail from './pages/app/TransferDetail'
 import NewTransfer    from './pages/app/NewTransfer'
 import Compliance     from './pages/app/Compliance'
 import AppSettings    from './pages/app/AppSettings'
+import Fees           from './pages/app/Fees'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useStore()
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="new-transfer" element={<NewTransfer />} />
           <Route path="compliance"   element={<Compliance />} />
           <Route path="settings"     element={<AppSettings />} />
+          <Route path="fees"         element={<Fees />} />
         </Route>
 
         {/* 404 */}

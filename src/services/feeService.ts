@@ -15,6 +15,20 @@ interface FeeConfig {
   maxTransferINR: number;
 }
 
+// Slab-based commission for OUTWARD (NRO repatriation) transfers — see
+// migration 025.  When the table is empty / unreachable the calculator
+// falls back to the single commission_rate_total from fee_config so the
+// app is never broken by a config drift.
+export interface OutwardFeeTier {
+  slabMinInr: number;
+  slabMaxInr: number | null;     // null = unbounded ('₹50L+')
+  commissionRate: number;        // 0.0180 = 1.80%
+  flatFeeCAD: number;
+  waiveFlatFee: boolean;         // unconditionally waive (e.g. ₹50L+ tier)
+  flatFeeWaiveAboveInr: number | null;
+  label: string;
+}
+
 // ── 5-minute cache — avoids hitting DB on every transfer ──────────────────────
 
 let feeConfigCache: FeeConfig | null = null;
@@ -67,6 +81,62 @@ export async function getFeeConfig(): Promise<FeeConfig> {
 export function clearFeeConfigCache(): void {
   feeConfigCache = null;
   feeConfigCachedAt = 0;
+  outwardTierCache = null;
+  outwardTierCachedAt = 0;
+}
+
+// ── Outward fee tiers cache ───────────────────────────────────────────────────
+
+let outwardTierCache: OutwardFeeTier[] | null = null;
+let outwardTierCachedAt = 0;
+
+export async function getOutwardFeeTiers(): Promise<OutwardFeeTier[]> {
+  const now = Date.now();
+  if (outwardTierCache && (now - outwardTierCachedAt) < CACHE_TTL_MS) {
+    return outwardTierCache;
+  }
+
+  let tiers: OutwardFeeTier[] = [];
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('outward_fee_tiers')
+      .select('slab_min_inr, slab_max_inr, commission_rate, flat_fee_cad, waive_flat_fee, flat_fee_waive_above_inr, label')
+      .eq('is_active', true)
+      .order('slab_min_inr', { ascending: true });
+
+    if (!error && data) {
+      tiers = (data as Array<Record<string, unknown>>).map(r => ({
+        slabMinInr:           Number(r.slab_min_inr),
+        slabMaxInr:           r.slab_max_inr === null ? null : Number(r.slab_max_inr),
+        commissionRate:       Number(r.commission_rate),
+        flatFeeCAD:           Number(r.flat_fee_cad),
+        waiveFlatFee:         Boolean(r.waive_flat_fee),
+        flatFeeWaiveAboveInr: r.flat_fee_waive_above_inr === null ? null : Number(r.flat_fee_waive_above_inr),
+        label:                String(r.label ?? ''),
+      }));
+    } else if (error) {
+      console.warn('[FeeService] outward_fee_tiers unavailable — falling back to flat rate:', error.message);
+    }
+  } catch (err) {
+    console.warn('[FeeService] outward_fee_tiers query failed — falling back to flat rate:', err);
+  }
+
+  outwardTierCache    = tiers;
+  outwardTierCachedAt = now;
+  return tiers;
+}
+
+// Find the tier matching a given INR amount.  Returns null when no tiers
+// configured (caller falls back to the flat fee_config commission rate).
+export function resolveOutwardTier(amountINR: number, tiers: OutwardFeeTier[]): OutwardFeeTier | null {
+  if (!tiers || tiers.length === 0) return null;
+  for (const t of tiers) {
+    const above = amountINR >= t.slabMinInr;
+    const below = t.slabMaxInr === null || amountINR <= t.slabMaxInr;
+    if (above && below) return t;
+  }
+  // Amount above the highest defined slab — use the last (unbounded or top) tier.
+  return tiers[tiers.length - 1];
 }
 
 // ── Public interfaces ─────────────────────────────────────────────────────────
@@ -105,22 +175,53 @@ export interface FeeCalculationResult {
 
 export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalculationResult> {
   const cfg = await getFeeConfig();
+  const tiers = await getOutwardFeeTiers();
+  const tier = resolveOutwardTier(input.amountINR, tiers);
   const { amountINR, exchangeRate, speed, isFirstTransfer, promoCode, userId } = input;
 
   // Step 1 — Gross CAD (rate is INR per CAD, so divide)
   const grossAmountCAD = Math.round((amountINR / exchangeRate) * 100) / 100;
 
-  // Step 2 — Commission components
-  const commissionCAD         = Math.round(grossAmountCAD * (cfg.commissionRateTotal   / 100) * 100) / 100;
-  const repaihubCommissionCAD = Math.round(grossAmountCAD * (cfg.commissionRateRPH     / 100) * 100) / 100;
-  const partnerCommissionCAD  = Math.round(grossAmountCAD * (cfg.commissionRatePartner / 100) * 100) / 100;
+  // Step 2 — Commission components.
+  // When a tier exists for this amount, use its commissionRate; otherwise
+  // fall back to the legacy flat commission_rate_total in fee_config.
+  // commissionRate in tiers is stored as a fraction (0.018 = 1.8%); the
+  // legacy fee_config.commissionRateTotal is stored as a percentage (1.8).
+  const effectiveCommissionPct = tier
+    ? tier.commissionRate * 100               // 0.0180 -> 1.80
+    : cfg.commissionRateTotal;                // already a percentage
 
-  // Step 3 — Flat fee (waived for first transfer if config says so)
-  let flatFeeCAD = cfg.flatFeeCAD;
+  // Keep the RPH / partner split proportional so the existing
+  // accounting columns continue to balance.  When the legacy split sums
+  // to zero (no fallback config) we default to all-to-RPH.
+  const legacyTotal = cfg.commissionRateRPH + cfg.commissionRatePartner;
+  const rphShareFraction =
+    legacyTotal > 0 ? cfg.commissionRateRPH / legacyTotal : 1;
+
+  const commissionCAD         = Math.round(grossAmountCAD * (effectiveCommissionPct       / 100) * 100) / 100;
+  const repaihubCommissionCAD = Math.round(commissionCAD * rphShareFraction * 100) / 100;
+  const partnerCommissionCAD  = Math.round((commissionCAD - repaihubCommissionCAD) * 100) / 100;
+
+  // Step 3 — Flat fee.  Tier-driven: tier.flatFeeCAD is the per-tier flat,
+  // tier.waiveFlatFee unconditionally zeroes it (concierge ₹50L+ tier),
+  // tier.flatFeeWaiveAboveInr waives it for transfers >= the threshold.
+  // When no tier exists we fall back to fee_config.flatFeeCAD.
+  let flatFeeCAD = tier ? tier.flatFeeCAD : cfg.flatFeeCAD;
   let flatFeeWaived = false;
-  if (isFirstTransfer && cfg.firstTransferFlatFeeWaived) {
+  let flatFeeWaivedReason: string | null = null;
+
+  if (tier?.waiveFlatFee) {
     flatFeeCAD = 0;
     flatFeeWaived = true;
+    flatFeeWaivedReason = `${tier.label} — flat fee waived`;
+  } else if (tier?.flatFeeWaiveAboveInr != null && amountINR >= tier.flatFeeWaiveAboveInr) {
+    flatFeeCAD = 0;
+    flatFeeWaived = true;
+    flatFeeWaivedReason = `Above ₹${(tier.flatFeeWaiveAboveInr / 100000).toFixed(0)}L — flat fee waived`;
+  } else if (isFirstTransfer && cfg.firstTransferFlatFeeWaived) {
+    flatFeeCAD = 0;
+    flatFeeWaived = true;
+    flatFeeWaivedReason = 'first transfer';
   }
 
   // Step 4 — Express surcharge
@@ -181,8 +282,9 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
 
   // Step 8 — Config snapshot (preserves rates at time of transfer; history never changes)
   const feeConfigSnapshot: Record<string, unknown> = {
-    flatFeeCAD:           cfg.flatFeeCAD,
-    commissionRateTotal:  cfg.commissionRateTotal,
+    flatFeeCAD:           flatFeeCAD,
+    commissionRateApplied: effectiveCommissionPct,        // %, e.g. 1.80
+    commissionTier:       tier ? { label: tier.label, slabMinInr: tier.slabMinInr, slabMaxInr: tier.slabMaxInr, rate: tier.commissionRate } : null,
     commissionRateRPH:    cfg.commissionRateRPH,
     commissionRatePartner: cfg.commissionRatePartner,
     expressSurchargeCAD:  cfg.expressSurchargeCAD,
@@ -192,9 +294,11 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   // Step 9 — Human-readable breakdown for UI display
   const breakdown: string[] = [
     `Transfer amount: ₹${amountINR.toLocaleString('en-IN')} = CAD ${grossAmountCAD.toFixed(2)} gross`,
-    `Commission ${cfg.commissionRateTotal}%: CAD ${commissionCAD.toFixed(2)}`,
+    tier
+      ? `Commission ${effectiveCommissionPct.toFixed(2)}% (${tier.label}): CAD ${commissionCAD.toFixed(2)}`
+      : `Commission ${effectiveCommissionPct.toFixed(2)}%: CAD ${commissionCAD.toFixed(2)}`,
     flatFeeWaived
-      ? `Flat fee: CAD 0.00 (waived${isFirstTransfer ? ' — first transfer' : promoDescription ? ` — ${promoDescription}` : ''})`
+      ? `Flat fee: CAD 0.00 (waived — ${flatFeeWaivedReason ?? (promoDescription ?? 'discount')})`
       : `Flat fee: CAD ${flatFeeCAD.toFixed(2)}`,
     ...(expressSurchargeCAD > 0 ? [`Express surcharge: CAD ${expressSurchargeCAD.toFixed(2)}`] : []),
     ...(promoDiscountCAD > 0 ? [`Promo ${promoCodeApplied}: -CAD ${promoDiscountCAD.toFixed(2)}`] : []),

@@ -254,6 +254,38 @@ export async function apiWalletConfirm(params: {
   return (await res.json()).document as WalletDocument;
 }
 
+// ── Fees ──────────────────────────────────────────────────────────────────────
+
+export interface OutwardFeeTier {
+  slabMinInr: number
+  slabMaxInr: number | null
+  commissionRate: number   // 0.018 = 1.8%
+  commissionPct: number    // 1.80 (= rate * 100, pre-rounded)
+  flatFeeCAD: number
+  waiveFlatFee: boolean
+  flatFeeWaiveAboveInr: number | null
+  label: string
+}
+
+export interface FeeTiersResponse {
+  direction: 'outward'
+  currency: 'INR'
+  tiers: OutwardFeeTier[]
+  expressSurchargeCAD: number
+  inward: {
+    smallTransferFeeCAD: number
+    freeAboveCAD: number
+    note: string
+  }
+  timestamp: string
+}
+
+export async function apiGetFeeTiers(): Promise<FeeTiersResponse> {
+  const res = await apiFetch('/fees/tiers')
+  if (!res.ok) throw new Error(await parseError(res))
+  return await res.json() as FeeTiersResponse
+}
+
 // ── Shared types ──────────────────────────────────────────────────────────────
 export interface ComplianceRequest {
   id: string;
