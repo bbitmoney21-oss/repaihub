@@ -296,18 +296,28 @@ export default function NewTransfer() {
     const now = new Date().toISOString()
     try {
       const transfer = await apiPromise
-      // Real success — transfer is in the database
+      // Real success — transfer is in the database, response was 2xx.
       setProgress(100)
       setProgressMsg('Transfer initiated!')
       await sleep(400)
-      addTransfer(mapDbTransfer(transfer))
-      addNotification({
-        message: isOutward
-          ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
-          : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`,
-        type: 'info',
-        timestamp: now,
-      })
+
+      // Defensive: a throw inside addTransfer / mapDbTransfer / addNotification
+      // (e.g. unexpected response shape, store mutation race) MUST NOT flip
+      // the customer's screen to 'Transfer Failed'. The transfer is already
+      // recorded server-side; surface success regardless and log the inner
+      // error to the console for follow-up.
+      try {
+        addTransfer(mapDbTransfer(transfer))
+        addNotification({
+          message: isOutward
+            ? `Transfer initiated — ₹${amt.toLocaleString('en-IN')} → ${formatCAD(amtCAD)}. CA reviewing Form 146.`
+            : `Inward transfer initiated — ${formatCAD(amt)} → ₹${Math.round(receiveINR).toLocaleString('en-IN')}.`,
+          type: 'info',
+          timestamp: now,
+        })
+      } catch (postErr) {
+        console.error('[Transfer] Post-success bookkeeping failed (transfer is already in DB):', postErr)
+      }
       setLoading(false)
       setStep(5)
       setTimeout(() => nav('/app/dashboard'), 2500)
@@ -854,6 +864,12 @@ export default function NewTransfer() {
           </div>
         </div>
       )}
+
+      {/* Form 15CA Part A self-declaration modal — appears at Step-4 confirm
+          when the customer is sending a sub-₹5L outward transfer.  Returns
+          form data straight into submitTransfer() which attaches it to the
+          API payload so the backend can mark the transfer 'completed'
+          without a CA-queue round-trip. */}
 
       {/* Form 15CA Part A self-declaration modal — appears at Step-4 confirm
           when the customer is sending a sub-₹5L outward transfer.  Returns
