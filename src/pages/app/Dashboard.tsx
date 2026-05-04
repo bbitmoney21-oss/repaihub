@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiGetTransfers } from '../../lib/api'
-import { formatCAD, formatDateShort, statusLabel, statusColor, residencyLabels } from '../../lib/utils'
+import { formatCAD, formatINR, formatDateShort, statusLabel, statusColor, residencyLabels } from '../../lib/utils'
 import { ArrowRight, TrendingUp, Plus } from 'lucide-react'
 
 export default function Dashboard() {
