@@ -146,6 +146,25 @@ export default function Form15CAPartAModal({
 
   const allMandatoryFilled = missingFields.length === 0
 
+  // Dev-mode diagnostic — when the modal is open, log every validation
+  // state change so it's trivial to debug a stuck submit button from
+  // the browser console.  Tree-shaken away in production builds.
+  useEffect(() => {
+    if (!open) return
+    if (typeof process === 'undefined' || process.env.NODE_ENV === 'production') return
+    // eslint-disable-next-line no-console
+    console.log('[15CA modal] validation state:', {
+      pan, panValid: PAN_REGEX.test(pan.trim().toUpperCase()),
+      fatherName, fatherValid: fatherName.trim().length >= 2,
+      indianAddress, addressValid: indianAddress.trim().length >= 10,
+      chargeable, tdsDeducted, tdsAmount, tdsAmountValid,
+      signedName, signatureValid, expectedSignature: remitterName,
+      declared,
+      aggregateFyRemittanceInr, aggregateAfter, exceedsPartABand,
+      missingFields, allMandatoryFilled,
+    })
+  }, [open, pan, fatherName, indianAddress, chargeable, tdsDeducted, tdsAmount, tdsAmountValid, signedName, signatureValid, declared, exceedsPartABand, missingFields.length, allMandatoryFilled, remitterName, aggregateFyRemittanceInr, aggregateAfter])
+
   if (!open) return null
 
   function submit() {
@@ -261,6 +280,28 @@ export default function Form15CAPartAModal({
         </div>
 
         <div style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Sticky missing-fields panel — visible at the top of the modal
+              body whenever any required field is incomplete.  Gives the
+              customer an unmissable answer to 'why is the button disabled?'. */}
+          {missingFields.length > 0 && (
+            <div style={{
+              position: 'sticky', top: 0, zIndex: 5,
+              background: 'rgba(243,156,18,0.16)',
+              border: `1px solid ${C.warning}`,
+              borderLeft: `4px solid ${C.warning}`,
+              padding: '0.7rem 0.9rem',
+              marginTop: '-0.25rem',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, color: C.warning, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
+                <AlertCircle size={14} /> {missingFields.length} {missingFields.length === 1 ? 'item' : 'items'} to complete
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: C.text, lineHeight: 1.5 }}>
+                {missingFields.map(f => <li key={f}>{f}</li>)}
+              </ul>
+            </div>
+          )}
 
           {/* Auto-filled — collapsed by default */}
           <div style={{ background: C.autofill, border: `1px solid ${C.border}`, padding: '0.75rem 0.85rem' }}>
