@@ -199,6 +199,11 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
       tdsDeducted: boolean; tdsAmountInr: number;
       aggregateFyRemittanceInr: number;
       declared: boolean;
+      signature: {
+        typedName: string;
+        signedAt:  string;
+        method:    'typed_electronic';
+      };
     };
   };
 
@@ -652,17 +657,35 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     if (evErr) console.error('[transfer_events] Insert failed:', evErr.message);
   });
 
-  // compliance_requests: use only columns guaranteed to exist in the table
-  // form145_part / form146_required are aliases not yet added — use fifteen_ca_part / fifteen_cb_required
+  // compliance_requests insert.
+  //
+  // For partAEligible (sub-₹5L Part A self-declaration) transfers, the
+  // customer's transfer is already 'completed' — but we STILL queue a
+  // compliance row tagged AUDIT_REVIEW so a CA can retrospectively audit
+  // the self-declaration.  Non-blocking: the customer is unaffected.  This
+  // protects both the customer and REPAIHUB if the IT department ever
+  // questions a transfer years from now (the CA's retrospective sign-off
+  // is the audit trail).
+  //
+  // For all other transfers the existing behaviour applies (HIGH risk
+  // pending; CA-required under_review; otherwise approved).
+  const complianceStatus = partAEligible
+    ? 'pending'
+    : (riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved');
+  const complianceRemarks = partAEligible
+    ? `AUDIT_REVIEW: Sub-₹5L Form 15CA Part A self-declaration. Transfer already completed (ARN ${form15caArn ?? 'pending'}). Non-blocking — CA review is for retrospective audit only.`
+    : null;
   supabaseAdmin.from('compliance_requests').insert({
     transfer_id:         transfer.id,
     user_id:             userId,
-    status:              riskResult.level === 'HIGH' ? 'pending' : decision.caRequired ? 'under_review' : 'approved',
+    status:              complianceStatus,
     fifteen_ca_part:     form145Part,
+    fifteen_ca_number:   form15caArn,
     fifteen_cb_required: complianceResult.requiresForm146 && accountTypeDecision.accountType !== 'NRE',
+    ca_remarks:          complianceRemarks,
   }).then(({ error: crErr }) => {
     if (crErr) console.error('[compliance_request] Insert failed:', crErr.message, '— transfer:', transfer.id);
-    else console.log('[compliance_request] Created for transfer:', transfer.id, '| Form 146 required:', complianceResult.requiresForm146);
+    else console.log('[compliance_request] Created for transfer:', transfer.id, '|', partAEligible ? 'AUDIT_REVIEW (Part A)' : ('Form 146 required: ' + complianceResult.requiresForm146));
   });
 
   // ── Step 8: Financial side-effects ────────────────────────────────────────

@@ -156,6 +156,11 @@ export interface Form15CAPartASubmission {
   tdsAmountInr:             number;
   aggregateFyRemittanceInr: number;
   declared:                 boolean;
+  signature: {
+    typedName:              string;
+    signedAt:               string;
+    method:                 'typed_electronic';
+  };
 }
 
 export async function apiCreateTransfer(params: {
