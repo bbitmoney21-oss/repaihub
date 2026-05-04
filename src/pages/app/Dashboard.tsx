@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import type { Transfer, TransferStatus } from '../../store/useStore'
@@ -26,9 +26,26 @@ import { ChevronRight, Plus, AlertTriangle, Bell } from 'lucide-react'
  * grid. Those live in dedicated tabs (Transfers, Settings) where customers
  * actively go to look up that information.
  */
+// Track viewport width so the dashboard renders a real desktop layout
+// (wider container, FX strip + CTA on a row, 2-column active grid) instead
+// of just centering the mobile column on a wide screen.
+function useIsDesktop(threshold = 768) {
+  const [v, setV] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth >= threshold
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => setV(window.innerWidth >= threshold)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [threshold])
+  return v
+}
+
 export default function Dashboard() {
   const { user, transfers, fxRate, setTransfers, isAuthenticated } = useStore()
   const nav = useNavigate()
+  const isDesktop = useIsDesktop()
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -66,12 +83,12 @@ export default function Dashboard() {
 
   return (
     <div style={{
-      maxWidth: 480,
+      maxWidth: isDesktop ? 1000 : 480,
       margin:   '0 auto',
-      padding:  '1rem',
+      padding:  isDesktop ? '2rem' : '1rem',
       display:  'flex',
       flexDirection: 'column',
-      gap:      '1rem',
+      gap:      isDesktop ? '1.5rem' : '1rem',
     }}>
 
       {/* 1 — Greeting strip */}
@@ -79,7 +96,7 @@ export default function Dashboard() {
         <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.accent, marginBottom: '0.4rem' }}>
           Dashboard
         </div>
-        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.6rem', fontWeight: 600, color: C.text, margin: 0, lineHeight: 1.2 }}>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: isDesktop ? '2.2rem' : '1.6rem', fontWeight: 600, color: C.text, margin: 0, lineHeight: 1.2 }}>
           Hi, <em style={{ fontStyle: 'normal', color: C.accentLt }}>{user?.name?.split(' ')[0] || 'there'}</em>
         </h1>
         <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0.25rem 0 0 0' }}>
@@ -87,21 +104,25 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* 2 — FX rate strip + the primary CTA */}
+      {/* 2 — FX rate strip + the primary CTA.
+              Desktop: rate left, CTA right, single row.
+              Mobile:  rate stacked, CTA full-width below. */}
       <div style={{
         background: C.subtle,
         border: `1px solid ${C.border}`,
-        padding: '0.85rem 1rem',
+        padding: isDesktop ? '1rem 1.25rem' : '0.85rem 1rem',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '0.85rem',
+        flexDirection: isDesktop ? 'row' : 'column',
+        alignItems: isDesktop ? 'center' : 'stretch',
+        justifyContent: 'space-between',
+        gap: isDesktop ? '1rem' : '0.85rem',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flex: isDesktop ? 1 : undefined }}>
           <div>
             <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.muted }}>
               Live FX
             </span>
-            <div style={{ fontSize: '1.15rem', fontWeight: 600, color: C.accentLt, fontFamily: "'DM Sans'", lineHeight: 1.1, marginTop: 2 }}>
+            <div style={{ fontSize: isDesktop ? '1.4rem' : '1.15rem', fontWeight: 600, color: C.accentLt, fontFamily: "'DM Sans'", lineHeight: 1.1, marginTop: 2 }}>
               1 CAD = ₹{(fxRate || 0).toFixed(2)}
             </div>
           </div>
@@ -114,11 +135,12 @@ export default function Dashboard() {
         <button
           onClick={() => nav('/app/new-transfer')}
           style={{
-            width: '100%',
+            width: isDesktop ? 'auto' : '100%',
+            minWidth: isDesktop ? 240 : undefined,
             background: C.accent,
             color: C.bg,
             border: 'none',
-            padding: '0.95rem',
+            padding: isDesktop ? '0.85rem 1.5rem' : '0.95rem',
             fontSize: '0.85rem',
             fontWeight: 700,
             letterSpacing: '0.12em',
@@ -184,7 +206,11 @@ export default function Dashboard() {
         {activeAll.length === 0 ? (
           <EmptyState onNew={() => nav('/app/new-transfer')} />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isDesktop ? 'repeat(2, 1fr)' : '1fr',
+            gap: '0.6rem',
+          }}>
             {activeShown.map(t => (
               <ActiveCard key={t.id} t={t} onOpen={() => nav(`/app/transfer/${t.id}`)} />
             ))}

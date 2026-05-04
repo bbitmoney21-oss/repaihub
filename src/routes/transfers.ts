@@ -215,11 +215,21 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     const amountInrOut = parseFloat((amountCadIn * exchangeRateInward).toFixed(2));
     const reference = genReference();
 
+    // Inward transfers (Canada -> India) do NOT require Form 15CA / 15CB.
+    // Those are Indian IT-Act forms that gate OUTWARD remittance from India.
+    // Inward only needs FINTRAC reporting (Canadian AML) when amount >= CAD 10k.
+    // Below the FINTRAC threshold: the rail clears immediately, status =
+    // 'completed'.  At/above: status = 'fintrac_review' until ops clears it.
+    const inwardInitialStatus = fintracReport ? 'fintrac_review' : 'completed';
+    const inwardCompletedAt   = inwardInitialStatus === 'completed' ? ts() : null;
+
     if (!supabaseAdminConfigured) {
       res.json({
         success: true,
         transfer: {
-          id: `demo-in-${Date.now()}`, direction: 'inward', reference, status: 'initiated',
+          id: `demo-in-${Date.now()}`, direction: 'inward', reference,
+          status: inwardInitialStatus,
+          completed_at: inwardCompletedAt,
           amountCad: amountCadIn, amountInr: amountInrOut, flatFee, expressFee,
           totalChargedCad,
           exchangeRate: exchangeRateInward, speed, fintracReport,
@@ -273,7 +283,8 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
         fee_cad: flatFee + expressFee,
         speed,
         reference,
-        status: 'initiated',
+        status: inwardInitialStatus,
+        completed_at: inwardCompletedAt,
         purpose_code: 'INWARD',
         fintrac_report: fintracReport,
         fintrac_required: fintracReport,
