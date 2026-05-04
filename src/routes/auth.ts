@@ -364,14 +364,34 @@ router.post('/login', async (req: Request, res: Response) => {
     last_login_at: ts(),
   }).eq('email', email);
 
-  // Fetch associated KYC and bank accounts
-  const [kycRes, canadaRes, indiaRes] = await Promise.all([
+  // Fetch associated KYC and bank accounts.  Use allSettled so a transient
+  // failure on any single side-table does NOT 500 the entire login —
+  // missing KYC/bank rows just mean the customer hasn't completed those
+  // steps yet (typical for fresh signups).
+  type SettledRow = { data: Record<string, unknown> | null; error: { message: string } | null } | undefined;
+  const settled = await Promise.allSettled([
     supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', profile.id).maybeSingle(),
     supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', profile.id)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', profile.id)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
+  const safeSettled = (idx: number): { data: Record<string, unknown> | null } => {
+    const r = settled[idx];
+    if (r.status === 'rejected') {
+      console.error(`[Auth login] side-query #${idx} rejected:`, r.reason instanceof Error ? r.reason.message : r.reason);
+      return { data: null };
+    }
+    const v = r.value as SettledRow;
+    if (v?.error) {
+      console.error(`[Auth login] side-query #${idx} error:`, v.error.message);
+      return { data: null };
+    }
+    return { data: v?.data ?? null };
+  };
+  const kycRes    = safeSettled(0);
+  const canadaRes = safeSettled(1);
+  const indiaRes  = safeSettled(2);
 
   const token = issueToken(profile.id, email);
   res.json({
@@ -395,7 +415,8 @@ router.post('/login', async (req: Request, res: Response) => {
   });
   } catch (err: unknown) {
     console.error('[Auth] Unhandled login error:', err);
-    res.status(500).json({ error: 'Login failed. Please try again.', timestamp: ts() });
+    if (err instanceof Error && err.stack) console.error(err.stack);
+    res.status(500).json(errBody('Login failed. Please try again.', err));
   }
 });
 
