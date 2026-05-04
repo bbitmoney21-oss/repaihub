@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiCreateTransfer, apiUpdateProfile, apiGetFeeTiers } from '../../lib/api'
-import type { OutwardFeeTier } from '../../lib/api'
+import type { OutwardFeeTier, Form15CAPartASubmission } from '../../lib/api'
+import Form15CAPartAModal from '../../components/transfer/Form15CAPartAModal'
+import type { Form15CAPartAData } from '../../components/transfer/Form15CAPartAModal'
 import { formatINR, formatCAD, generateRef, sleep } from '../../lib/utils'
 import { Check, AlertCircle, Zap, Clock, ArrowLeft, ArrowLeftRight, Building2 } from 'lucide-react'
 import type { ResidencyStatus } from '../../store/useStore'
@@ -103,6 +105,10 @@ export default function NewTransfer() {
       .catch(() => { /* fall back silently to COMMISSION_RATE_FALLBACK */ })
   }, [])
 
+  // Form 15CA Part A modal — opened at Step-4 confirm for sub-₹5L outward
+  // transfers.  When closed, submitTransfer is called with the form data.
+  const [show15CA, setShow15CA] = useState(false)
+
   // Restore draft state after returning from bank connection pages
   useEffect(() => {
     const raw = sessionStorage.getItem(DRAFT_KEY)
@@ -193,11 +199,40 @@ export default function NewTransfer() {
     return n ? parseInt(n).toLocaleString(isOutward ? 'en-IN' : 'en-CA') : ''
   }
 
+  // Aggregate outward INR remittance during the current Indian FY (Apr-Mar).
+  // Feeds the 15CA Part A modal preview AND the backend's compliance gate.
+  function aggregateOutwardFyInr(): number {
+    const now = new Date()
+    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+    const fyStartIso  = `${fyStartYear}-04-01`
+    return useStore
+      .getState()
+      .transfers
+      .filter(t => t.direction !== 'inward' && t.status !== 'FAILED' && t.date >= fyStartIso)
+      .reduce((sum, t) => sum + (t.amountINR || 0), 0)
+  }
+
+  // Step-4 confirm entry point.  Sub-₹5L outward shows the Part A modal
+  // first; everything else goes straight to submitTransfer.  The modal's
+  // onSubmit calls submitTransfer with the filled-in form data.
   async function handleConfirm() {
+    if (isOutward && amt < 500_000) {
+      setShow15CA(true)
+      return
+    }
+    return submitTransfer()
+  }
+
+  async function submitTransfer(form15caData?: Form15CAPartAData) {
+    setShow15CA(false)
     setLoading(true)
     setTransferError(null)
     const ref = generateRef()
     setTxnRef(ref)
+
+    const form15ca: Form15CAPartASubmission | undefined = form15caData
+      ? { ...form15caData, beneficiaryCountry: 'CA' as const }
+      : undefined
 
     // Start the real API call immediately — runs concurrently with the animation
     const apiPromise = apiCreateTransfer({
@@ -211,6 +246,7 @@ export default function NewTransfer() {
       speed:         express ? 'express' : 'standard',
       reference:     ref,
       direction,
+      form15ca,
     })
 
     // Animate progress while the API call runs in parallel
