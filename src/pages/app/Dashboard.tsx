@@ -36,12 +36,17 @@ export default function Dashboard() {
   const totalCAD    = nonFailed.reduce((a, t) => a + (t.amountCAD || 0), 0)
   const thisYear    = nonFailed.filter(t => t.date >= fyStartIso).length
 
+  // Direction-split totals — all time, non-failed.
+  const outwardAll = nonFailed.filter(t => t.direction !== 'inward')
+  const inwardAll  = nonFailed.filter(t => t.direction === 'inward')
+  const outwardTotalCAD = outwardAll.reduce((a, t) => a + (t.amountCAD || 0), 0)
+  const inwardTotalCAD  = inwardAll.reduce((a, t) => a + (t.amountCAD || 0), 0)
+
   // Annual LRS usage = sum of OUTWARD (NRO repatriation) transfers this FY.
   // Inward transfers don't count toward LRS.
-  const outwardThisFY = nonFailed.filter(t => t.direction !== 'inward' && t.date >= fyStartIso)
+  const outwardThisFY = outwardAll.filter(t => t.date >= fyStartIso)
   const annualLimitUsedCAD = outwardThisFY.reduce((a, t) => a + (t.amountCAD || 0), 0)
   const limitPct       = annualLimitCAD > 0 ? (annualLimitUsedCAD / annualLimitCAD) * 100 : 0
-  const limitRemaining = Math.max(0, annualLimitCAD - annualLimitUsedCAD)
 
   const S = {
     page:    { padding: '2rem', maxWidth: 1100, margin: '0 auto' } as React.CSSProperties,
@@ -90,10 +95,30 @@ export default function Dashboard() {
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '1px', background: 'rgba(201,150,58,0.2)', border: '1px solid rgba(201,150,58,0.2)', marginBottom: '2rem' }}>
         {[
-          { label: 'Total Transferred', value: formatCAD(totalCAD), sub: 'All time — CAD', icon: '💰' },
-          { label: 'This Year', value: `${thisYear} transfers`, sub: `FY ${fyStartYear}-${String(fyEndYear).slice(-2)}`, icon: '📅' },
-          { label: 'Annual Limit Used', value: formatCAD(annualLimitUsedCAD), sub: `of ${formatCAD(annualLimitCAD)} (USD 250k)`, icon: '📊' },
-          { label: 'Limit Remaining', value: formatCAD(limitRemaining), sub: `${(100 - limitPct).toFixed(0)}% available`, icon: '✅' },
+          {
+            label: 'Total Transferred',
+            value: formatCAD(totalCAD),
+            sub: `of ${formatCAD(annualLimitCAD)} (USD 250k LRS)`,
+            icon: '💰',
+          },
+          {
+            label: 'This Year',
+            value: `${thisYear} transfer${thisYear === 1 ? '' : 's'}`,
+            sub: `FY ${fyStartYear}-${String(fyEndYear).slice(-2)}`,
+            icon: '📅',
+          },
+          {
+            label: 'Outward (India → Canada)',
+            value: formatCAD(outwardTotalCAD),
+            sub: `${outwardAll.length} transfer${outwardAll.length === 1 ? '' : 's'} · NRO repatriation`,
+            icon: '↗',
+          },
+          {
+            label: 'Inward (Canada → India)',
+            value: formatCAD(inwardTotalCAD),
+            sub: `${inwardAll.length} transfer${inwardAll.length === 1 ? '' : 's'} · Canada → India`,
+            icon: '↙',
+          },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#132233', padding: '1.5rem', transition: 'background 0.2s' }}>
             <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{stat.icon}</div>
