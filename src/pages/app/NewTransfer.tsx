@@ -212,11 +212,23 @@ export default function NewTransfer() {
       .reduce((sum, t) => sum + (t.amountINR || 0), 0)
   }
 
-  // Step-4 confirm entry point.  Sub-₹5L outward shows the Part A modal
-  // first; everything else goes straight to submitTransfer.  The modal's
-  // onSubmit calls submitTransfer with the filled-in form data.
+  // Step-4 confirm entry point.
+  //
+  // Part A 'fast lane' modal opens ONLY when:
+  //   1) outward direction, AND
+  //   2) this transfer is < ₹5L on its own, AND
+  //   3) cumulative FY outward (incl. this transfer) is <= ₹5L.
+  //
+  // Form 15CB (CA-certified) is triggered by EITHER a single >₹5L transfer
+  // OR cumulative FY > ₹5L — so once the customer is past the FY threshold,
+  // even a small transfer needs the standard CA-routed flow.  Routing them
+  // through the modal in that case would just disable the submit button
+  // and confuse them; better to skip the modal entirely and let the regular
+  // animated submit flow handle the CA queue logic.
   async function handleConfirm() {
-    if (isOutward && amt < 500_000) {
+    const fyAfter = aggregateOutwardFyInr() + amt
+    const inPartABand = isOutward && amt < 500_000 && fyAfter <= 500_000
+    if (inPartABand) {
       setShow15CA(true)
       return
     }
