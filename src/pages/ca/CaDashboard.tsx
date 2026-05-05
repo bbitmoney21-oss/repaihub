@@ -603,6 +603,7 @@ export default function CaDashboard() {
     <div style={S.page}>
       <div style={S.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <img src="/logo.png" alt="REPAIHUB logo" width={36} height={36} style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.4rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Repaihub</span>
           <span style={{ fontSize: '0.72rem', color: '#8BA0B4', letterSpacing: '0.1em', textTransform: 'uppercase' }}>CA Compliance Portal</span>
         </div>

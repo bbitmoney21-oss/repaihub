@@ -47,6 +47,7 @@ export default function Login() {
 
       <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <img src="/logo.png" alt="REPAIHUB logo" width={96} height={96} style={{ width: 96, height: 96, borderRadius: '50%', display: 'block', margin: '0 auto 1rem' }} />
           <Link to="/" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.15em', textTransform: 'uppercase', textDecoration: 'none' }}>
             Repaihub
           </Link>

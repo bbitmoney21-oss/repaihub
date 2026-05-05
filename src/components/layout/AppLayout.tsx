@@ -28,6 +28,7 @@ export default function AppLayout() {
         {/* Logo */}
         <div className="px-6 py-5 border-b" style={{ borderColor: 'rgba(201,150,58,0.15)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <img src="/logo.png" alt="REPAIHUB logo" width={32} height={32} style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
             <a href="/" className="font-head text-xl font-bold tracking-widest uppercase" style={{ color: '#E8B86D', fontFamily: "'Cormorant Garamond', serif" }}>
               Repaihub
             </a>
@@ -105,6 +106,7 @@ export default function AppLayout() {
         <header className="flex items-center justify-between px-6 py-4 border-b" style={{ background: '#071420', borderColor: 'rgba(201,150,58,0.15)' }}>
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2">
+            <img src="/logo.png" alt="REPAIHUB logo" width={28} height={28} style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
             <a href="/" className="font-head text-lg font-bold tracking-widest uppercase" style={{ color: '#E8B86D', fontFamily: "'Cormorant Garamond', serif" }}>
               Repaihub
             </a>
