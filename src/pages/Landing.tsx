@@ -4,8 +4,26 @@ import { useStore } from '../store/useStore'
 
 const FORMSPREE_ID = 'xjgpbqoy'
 
+// Track viewport width so the top nav can collapse on real mobile.
+// F12 emulation matches device-width but real mobile fonts/DPR sometimes
+// render differently; explicit responsive sizing keeps the nav clean
+// at both 320 and 1440 widths.
+function useIsMobile(threshold = 640) {
+  const [v, setV] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < threshold
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onResize = () => setV(window.innerWidth < threshold)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [threshold])
+  return v
+}
+
 export default function Landing() {
   const { isAuthenticated } = useStore()
+  const isMobile = useIsMobile()
   const [heroEmail, setHeroEmail]   = useState('')
   const [ctaEmail, setCtaEmail]     = useState('')
   const [heroSent, setHeroSent]     = useState(false)
@@ -63,42 +81,78 @@ export default function Landing() {
   return (
     <div style={{ background: '#0B1C2C', color: '#FAF6F0', fontFamily: "'DM Sans', system-ui, sans-serif" }} className="noise-bg">
 
-      {/* NAV */}
+      {/* NAV — responsive: tightens at <640px to fit on real mobile */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '1.25rem 3rem',
+        padding: isMobile ? '0.75rem 1rem' : '1.25rem 3rem',
         background: 'rgba(11,28,44,0.85)', backdropFilter: 'blur(16px)',
         borderBottom: '1px solid rgba(201,150,58,0.2)',
+        gap: '0.5rem',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <img src="/logo.png" alt="REPAIHUB logo" width={36} height={36} style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />
-          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.6rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.4rem' : '0.6rem', minWidth: 0 }}>
+          <img src="/logo.png" alt="REPAIHUB logo"
+            width={isMobile ? 28 : 36} height={isMobile ? 28 : 36}
+            style={{
+              width: isMobile ? 28 : 36, height: isMobile ? 28 : 36,
+              borderRadius: '50%', flexShrink: 0,
+            }} />
+          <span style={{
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: isMobile ? '1.05rem' : '1.6rem',
+            fontWeight: 700, color: '#E8B86D',
+            letterSpacing: isMobile ? '0.08em' : '0.12em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+          }}>
             Repaihub
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <Link to="/guide" style={{ color: '#8BA0B4', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#FAF6F0')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#8BA0B4')}>
-            NRI Guide
-          </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.6rem' : '1.5rem', flexShrink: 0 }}>
+          {/* NRI Guide hidden on mobile — still in footer.  Reduces nav width
+              by ~80px so the wordmark + CTA both fit at 320-430px viewports. */}
+          {!isMobile && (
+            <Link to="/guide" style={{ color: '#8BA0B4', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#FAF6F0')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#8BA0B4')}>
+              NRI Guide
+            </Link>
+          )}
           {isAuthenticated
-            ? <Link to="/app/dashboard" style={{ background: '#C9963A', color: '#0B1C2C', padding: '0.5rem 1.25rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s' }}
+            ? <Link to="/app/dashboard" style={{
+                background: '#C9963A', color: '#0B1C2C',
+                padding: isMobile ? '0.45rem 0.75rem' : '0.5rem 1.25rem',
+                fontSize: isMobile ? '0.7rem' : '0.78rem',
+                fontWeight: 700, letterSpacing: isMobile ? '0.05em' : '0.1em',
+                textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s',
+                whiteSpace: 'nowrap',
+              }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#E8B86D')}
                 onMouseLeave={e => (e.currentTarget.style.background = '#C9963A')}>
                 Dashboard
               </Link>
             : <>
-                <Link to="/login" style={{ color: '#8BA0B4', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
+                <Link to="/login" style={{
+                  color: '#8BA0B4',
+                  fontSize: isMobile ? '0.78rem' : '0.85rem',
+                  fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s',
+                  whiteSpace: 'nowrap',
+                }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#FAF6F0')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#8BA0B4')}>
                   Sign In
                 </Link>
-                <Link to="/signup" style={{ background: '#C9963A', color: '#0B1C2C', padding: '0.5rem 1.25rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s' }}
+                <Link to="/signup" style={{
+                  background: '#C9963A', color: '#0B1C2C',
+                  padding: isMobile ? '0.45rem 0.75rem' : '0.5rem 1.25rem',
+                  fontSize: isMobile ? '0.7rem' : '0.78rem',
+                  fontWeight: 700, letterSpacing: isMobile ? '0.05em' : '0.1em',
+                  textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s',
+                  whiteSpace: 'nowrap',
+                }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#E8B86D')}
                   onMouseLeave={e => (e.currentTarget.style.background = '#C9963A')}>
-                  Create Account
+                  {isMobile ? 'Sign Up' : 'Create Account'}
                 </Link>
               </>
           }
