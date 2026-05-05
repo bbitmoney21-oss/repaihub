@@ -71,9 +71,12 @@ export default function Landing() {
         background: 'rgba(11,28,44,0.85)', backdropFilter: 'blur(16px)',
         borderBottom: '1px solid rgba(201,150,58,0.2)',
       }}>
-        <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.6rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Repaihub
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <img src="/logo.png" alt="REPAIHUB logo" width={36} height={36} style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />
+          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.6rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            Repaihub
+          </span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <Link to="/guide" style={{ color: '#8BA0B4', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#FAF6F0')}
@@ -410,7 +413,10 @@ export default function Landing() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '2rem', marginBottom: '2rem' }}>
             <div>
-              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.4rem', fontWeight: 700, color: '#C9963A', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>Repaihub</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                <img src="/logo.png" alt="REPAIHUB logo" width={32} height={32} style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.4rem', fontWeight: 700, color: '#C9963A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Repaihub</span>
+              </div>
               <p style={{ fontSize: '0.8rem', color: '#8BA0B4', maxWidth: 260, lineHeight: 1.7 }}>Canada's first digital platform for NRO outward remittance. Legal. Simple. 24–48 hours.</p>
             </div>
             <div style={{ display: 'flex', gap: '4rem', flexWrap: 'wrap' }}>
