@@ -31,7 +31,7 @@ export default function Guide() {
   return (
     <div style={S.page}>
       <nav style={S.nav}>
-        <Link to="/" style={S.logo}>Repaihub</Link>
+        <Link to="/"><img src="/logo.png" alt="REPAIHUB" style={{ height: 48, width: 48, borderRadius: '50%', display: 'block' }} /></Link>
         <Link to="/signup" style={{ background: '#C9963A', color: '#0B1C2C', padding: '0.6rem 1.25rem', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none' }}>
           Get Started
         </Link>
