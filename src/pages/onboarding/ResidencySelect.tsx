@@ -35,7 +35,7 @@ export default function ResidencySelect() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.6rem', fontWeight: 700, color: '#E8B86D', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Repaihub</span>
+          <img src="/logo.png" alt="REPAIHUB" style={{ width: 80, height: 80, borderRadius: '50%', display: 'block', margin: '0 auto' }} />
         </div>
 
         {/* Progress */}
