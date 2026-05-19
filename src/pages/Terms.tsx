@@ -30,7 +30,7 @@ export default function Terms() {
 
         <h2 style={S.h2}>1. About REPAIHUB</h2>
         <p style={S.p}>
-          REPAIHUB Inc. is a Money Services Business (MSB) registered with the Financial Transactions and Reports Analysis Centre of Canada (FINTRAC). REPAIHUB provides a technology platform that facilitates the legal transfer of funds from NRO (Non-Resident Ordinary) bank accounts in India to overseas bank accounts, in compliance with FEMA (Foreign Exchange Management Act) and RBI guidelines.
+          REPAIHUB Inc. has submitted its pre-registration and MSB licence application with the Financial Transactions and Reports Analysis Centre of Canada (FINTRAC), which is currently in process. REPAIHUB provides a technology platform that facilitates the legal transfer of funds from NRO (Non-Resident Ordinary) bank accounts in India to overseas bank accounts, in compliance with FEMA (Foreign Exchange Management Act) and RBI guidelines.
         </p>
         <p style={{ ...S.p, fontWeight: 500, color: '#FAF6F0' }}>
           REPAIHUB is not a bank. We are a technology intermediary. Your funds are held and processed by our licensed banking partners (Setu / Razorpay and their correspondent banks), not by REPAIHUB directly.

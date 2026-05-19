@@ -35,7 +35,7 @@ function wrapHtml(body: string): string {
     <h1 style="color:#E8B86D;font-size:1.5rem;margin-bottom:8px;">REPAIHUB</h1>
     <p style="color:#8BA0B4;font-size:0.85rem;margin-bottom:24px;">NRI Remittance — Canada ↔ India</p>
     ${body}
-    <p style="font-size:0.75rem;color:#4A5568;margin-top:24px;">REPAIHUB is a FINTRAC registered Money Services Business.</p>
+    <p style="font-size:0.75rem;color:#4A5568;margin-top:24px;">REPAIHUB's FINTRAC pre-registration has been submitted. MSB licence application in process.</p>
   </div>`;
 }
 

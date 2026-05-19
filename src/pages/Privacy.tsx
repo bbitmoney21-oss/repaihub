@@ -51,7 +51,7 @@ export default function Privacy() {
             'To process and complete your NRO remittance transfers',
             'To file Form 145 with the Indian Income Tax portal on your behalf (IT Act 2025)',
             'To coordinate Form 146 certification with our CA partner network',
-            'To comply with FINTRAC reporting obligations as a registered MSB',
+            'To comply with FINTRAC reporting obligations (MSB licence application in process)',
             'To detect and prevent fraud and money laundering',
             'To send transfer status notifications and service updates',
             'To provide annual transaction summaries for your tax filing',
@@ -60,7 +60,7 @@ export default function Privacy() {
 
         <h2 style={S.h2}>3. FINTRAC Compliance</h2>
         <p style={S.p}>
-          As a FINTRAC-registered Money Services Business, REPAIHUB is required by the Proceeds of Crime (Money Laundering) and Terrorist Financing Act to collect and verify client identification information, report certain transactions, and maintain records for a minimum of 5 years. These obligations override standard privacy protections where required by law.
+          REPAIHUB has submitted its pre-registration and MSB licence application with FINTRAC under the Proceeds of Crime (Money Laundering) and Terrorist Financing Act. While our MSB licence is in process, REPAIHUB adheres to FINTRAC compliance obligations including client identification verification, reporting of certain transactions, and maintaining records for a minimum of 5 years. These obligations override standard privacy protections where required by law.
         </p>
 
         <h2 style={S.h2}>4. Data Sharing</h2>

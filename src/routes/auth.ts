@@ -62,7 +62,7 @@ function emailHtml(name: string, resetUrl: string): string {
         If you didn't request this, you can safely ignore this email.
       </p>
       <p style="font-size:0.75rem;color:#4A5568;margin-top:16px;">
-        REPAIHUB is a FINTRAC registered Money Services Business.
+        REPAIHUB's FINTRAC pre-registration has been submitted. MSB licence application in process.
       </p>
     </div>
   `;

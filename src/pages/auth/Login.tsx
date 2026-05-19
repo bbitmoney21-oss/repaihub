@@ -98,7 +98,7 @@ export default function Login() {
         </div>
 
         <p style={{ fontSize: '0.7rem', color: '#8BA0B4', textAlign: 'center', marginTop: '1.5rem', lineHeight: 1.6 }}>
-          REPAIHUB is a FINTRAC registered MSB. Your data is protected under PIPEDA.
+          REPAIHUB's FINTRAC MSB licence application is in process. Your data is protected under PIPEDA.
         </p>
         <div style={{ textAlign: 'center', marginTop: '1rem' }}>
           <Link to="/" style={{ fontSize: '0.75rem', color: '#8BA0B4', textDecoration: 'none' }}>← Back to Home</Link>

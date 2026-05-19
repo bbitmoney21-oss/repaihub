@@ -7,7 +7,7 @@ const FAQ_ITEMS = [
   { q: 'Does REPAIHUB store my passport or Aadhaar?', a: 'Never. Your account number and PAN are stored only as SHA-256 hashes. We store zero identity documents on our servers — ever.' },
   { q: 'Is TCS my money or a fee?', a: 'TCS is YOUR money — collected as a credit against your Indian tax liability. Claim it back when filing your Indian ITR. REPAIHUB shows you exactly when TCS applies before any transfer.' },
   { q: 'Will I owe tax in Canada on the transferred money?', a: 'The transfer itself is not a taxable event in Canada. However, the underlying income (rent, dividends) must be declared on your T1. The India-Canada DTAA protects you from double taxation. REPAIHUB provides annual summaries for your accountant.' },
-  { q: 'Is REPAIHUB regulated?', a: 'Yes. FINTRAC-registered Money Services Business in Canada. Full compliance with FEMA, RBI outward remittance guidelines, and PIPEDA.' },
+  { q: 'Is REPAIHUB regulated?', a: 'Yes. REPAIHUB operates as a Money Services Business (MSB) in Canada. Our FINTRAC pre-registration has been submitted and our MSB licence application is currently in process. We fully comply with FEMA, RBI outward remittance guidelines, and PIPEDA.' },
 ]
 
 export default function Guide() {
@@ -216,7 +216,7 @@ export default function Guide() {
           <Link to="/privacy" style={{ fontSize: '0.75rem', color: '#8BA0B4', textDecoration: 'none' }}>Privacy</Link>
           <Link to="/terms" style={{ fontSize: '0.75rem', color: '#8BA0B4', textDecoration: 'none' }}>Terms</Link>
         </div>
-        <p style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>© 2026 REPAIHUB Inc. · FINTRAC Registered MSB · Ontario, Canada</p>
+        <p style={{ fontSize: '0.72rem', color: '#8BA0B4' }}>© 2026 REPAIHUB Inc. · FINTRAC MSB Licence Application In Process · Ontario, Canada</p>
       </footer>
     </div>
   )

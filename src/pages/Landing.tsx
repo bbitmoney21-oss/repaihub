@@ -222,7 +222,7 @@ export default function Landing() {
 
           {/* Trust bar */}
           <div style={{ display: 'flex', gap: '2rem', marginTop: '3.5rem', animation: 'fadeUp 0.8s ease both 1.1s', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['FINTRAC Registered MSB', 'RBI Compliant', 'Zero Document Storage', 'Bank-Grade Security'].map(t => (
+            {['FINTRAC MSB Licence In Process', 'RBI Compliant', 'Zero Document Storage', 'Bank-Grade Security'].map(t => (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', fontWeight: 500, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8BA0B4' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9963A', opacity: 0.7 }} />
                 {t}
@@ -320,7 +320,7 @@ export default function Landing() {
             Every transfer is fully legal, reported, and protected. You get a complete audit trail.
           </p>
           <div ref={el => addReveal(el, 10)} className="reveal" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['🍁 FINTRAC Registered MSB','🇮🇳 RBI — FEMA Compliant','🔒 PIPEDA Protected','📋 Form 145 / 146 Automated (IT Act 2025)','🛡 Zero Document Storage','🏦 Bank-Verified Identity'].map(b => (
+            {['🍁 FINTRAC MSB Licence In Process','🇮🇳 RBI — FEMA Compliant','🔒 PIPEDA Protected','📋 Form 145 / 146 Automated (IT Act 2025)','🛡 Zero Document Storage','🏦 Bank-Verified Identity'].map(b => (
               <span key={b} className="badge">{b}</span>
             ))}
           </div>
@@ -514,7 +514,7 @@ export default function Landing() {
           </div>
           <div style={{ borderTop: '1px solid rgba(201,150,58,0.15)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <p style={{ fontSize: '0.72rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-              © 2026 REPAIHUB Inc. &nbsp;·&nbsp; FINTRAC Registered MSB &nbsp;·&nbsp; Ontario, Canada
+              © 2026 REPAIHUB Inc. &nbsp;·&nbsp; FINTRAC MSB Licence Application In Process &nbsp;·&nbsp; Ontario, Canada
             </p>
             <p style={{ fontSize: '0.72rem', color: '#8BA0B4', lineHeight: 1.6 }}>
               All transfers comply with FEMA regulations and RBI guidelines.
