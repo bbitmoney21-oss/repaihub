@@ -538,23 +538,47 @@ router.post('/compliance/:id/approve', caAuthMiddleware, async (req: CARequest, 
     return;
   }
 
-  const { data, error } = await supabaseAdmin
+  // Try with all IT Act 2025 columns; fall back to legacy columns if any are missing (code 42703)
+  const fullApproveUpdate: Record<string, unknown> = {
+    status:            'approved',
+    fifteen_cb_number: cbNumber,
+    form146_number:    cbNumber,
+    ca_remarks:        remarks,
+    ca_reviewed_by:    req.caUser?.name || 'CA',
+    ca_reviewed_at:    ts(),
+    ...(fifteen_ca_part ? { fifteen_ca_part, form145_part: fifteen_ca_part } : {}),
+    ...(udin ? { udin } : {}),
+  };
+  const baseApproveUpdate: Record<string, unknown> = {
+    status:            'approved',
+    fifteen_cb_number: cbNumber,
+    ca_remarks:        remarks,
+    ...(fifteen_ca_part ? { fifteen_ca_part } : {}),
+  };
+
+  let { data, error } = await supabaseAdmin
     .from('compliance_requests')
-    .update({
-      status:            'approved',
-      fifteen_cb_number: cbNumber,   // legacy column (always exists)
-      form146_number:    cbNumber,   // IT Act 2025 column (exists after migration 022)
-      ca_remarks:        remarks,
-      ca_reviewed_by:    req.caUser?.name || 'CA',
-      ca_reviewed_at:    ts(),
-      ...(fifteen_ca_part ? { fifteen_ca_part, form145_part: fifteen_ca_part } : {}),
-      ...(udin ? { udin } : {}),
-    })
+    .update(fullApproveUpdate)
     .eq('id', req.params.id)
     .select()
     .single();
 
-  if (error || !data) {
+  if (error?.code === '42703') {
+    const retry = await supabaseAdmin
+      .from('compliance_requests')
+      .update(baseApproveUpdate)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    data = retry.data; error = retry.error;
+  }
+
+  if (error) {
+    const status = error.code === 'PGRST116' ? 404 : 500;
+    res.status(status).json({ error: error.code === 'PGRST116' ? 'Compliance request not found' : error.message, timestamp: ts() });
+    return;
+  }
+  if (!data) {
     res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
     return;
   }
@@ -575,19 +599,42 @@ router.post('/compliance/:id/reject', caAuthMiddleware, async (req: CARequest, r
     return;
   }
 
-  const { data, error } = await supabaseAdmin
+  // Try with optional columns; fall back to guaranteed columns if any are missing (code 42703)
+  const fullRejectUpdate: Record<string, unknown> = {
+    status:           'rejected',
+    ca_remarks:       `REJECTED: ${reason}`,
+    rejection_reason: reason,
+    ca_reviewed_by:   req.caUser?.name || 'CA',
+    ca_reviewed_at:   ts(),
+  };
+  const baseRejectUpdate: Record<string, unknown> = {
+    status:     'rejected',
+    ca_remarks: `REJECTED: ${reason}`,
+  };
+
+  let { data, error } = await supabaseAdmin
     .from('compliance_requests')
-    .update({
-      status:           'rejected',
-      rejection_reason: reason,
-      ca_reviewed_by:   req.caUser?.name || 'CA',
-      ca_reviewed_at:   ts(),
-    })
+    .update(fullRejectUpdate)
     .eq('id', req.params.id)
     .select()
     .single();
 
-  if (error || !data) {
+  if (error?.code === '42703') {
+    const retry = await supabaseAdmin
+      .from('compliance_requests')
+      .update(baseRejectUpdate)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    data = retry.data; error = retry.error;
+  }
+
+  if (error) {
+    const status = error.code === 'PGRST116' ? 404 : 500;
+    res.status(status).json({ error: error.code === 'PGRST116' ? 'Compliance request not found' : error.message, timestamp: ts() });
+    return;
+  }
+  if (!data) {
     res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
     return;
   }
@@ -711,17 +758,29 @@ router.post('/compliance/:id/file-form145', caAuthMiddleware, async (req: CARequ
     return;
   }
 
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from('compliance_requests')
-    .update({
-      fifteen_ca_number: caNumber.trim(),  // legacy column (always exists)
-      form145_number:    caNumber.trim(),  // IT Act 2025 column (exists after migration 022)
-    })
+    .update({ fifteen_ca_number: caNumber.trim(), form145_number: caNumber.trim() })
     .eq('id', req.params.id)
     .select()
     .single();
 
-  if (error || !data) {
+  if (error?.code === '42703') {
+    const retry = await supabaseAdmin
+      .from('compliance_requests')
+      .update({ fifteen_ca_number: caNumber.trim() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    data = retry.data; error = retry.error;
+  }
+
+  if (error) {
+    const status = error.code === 'PGRST116' ? 404 : 500;
+    res.status(status).json({ error: error.code === 'PGRST116' ? 'Compliance request not found' : error.message, timestamp: ts() });
+    return;
+  }
+  if (!data) {
     res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
     return;
   }
@@ -740,20 +799,33 @@ router.post('/compliance/:id/file-15ca', caAuthMiddleware, async (req: CARequest
     res.status(503).json({ error: 'DB not configured', timestamp: ts() });
     return;
   }
-  const { data, error } = await supabaseAdmin
+  let { data: d2, error: e2 } = await supabaseAdmin
     .from('compliance_requests')
-    .update({
-      fifteen_ca_number: caNumber.trim(),
-      form145_number:    caNumber.trim(),
-    })
+    .update({ fifteen_ca_number: caNumber.trim(), form145_number: caNumber.trim() })
     .eq('id', req.params.id)
     .select()
     .single();
-  if (error || !data) {
+
+  if (e2?.code === '42703') {
+    const retry = await supabaseAdmin
+      .from('compliance_requests')
+      .update({ fifteen_ca_number: caNumber.trim() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    d2 = retry.data; e2 = retry.error;
+  }
+
+  if (e2) {
+    const status = e2.code === 'PGRST116' ? 404 : 500;
+    res.status(status).json({ error: e2.code === 'PGRST116' ? 'Compliance request not found' : e2.message, timestamp: ts() });
+    return;
+  }
+  if (!d2) {
     res.status(404).json({ error: 'Compliance request not found', timestamp: ts() });
     return;
   }
-  res.json({ request: data, message: 'Form 145 Ack number recorded', timestamp: ts() });
+  res.json({ request: d2, message: 'Form 145 Ack number recorded', timestamp: ts() });
 });
 
 // ── GET /ca/compliance/:id/wallet-doc/:tokenId/url ────────────────────────────
