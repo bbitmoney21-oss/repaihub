@@ -24,6 +24,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     .from('compliance_requests')
     .select(`
       *,
+      transfers (
+        id, amount_inr, amount_cad, source_of_funds, purpose_code, reference
+      ),
       wallet_documents(count)
     `)
     .eq('user_id', req.userId!)

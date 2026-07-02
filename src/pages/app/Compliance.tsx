@@ -54,7 +54,20 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   '15cb_pdf':       'Form 146',
   '145_pdf':        'Form 145',
   '146_pdf':        'Form 146',
+  form145_pdf:      'Form 145',
+  form146_pdf:      'Form 146',
   other:            'Other',
+}
+
+function safeCaRemarks(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && typeof parsed.summary === 'string') {
+      return parsed.summary
+    }
+  } catch { /* plain text */ }
+  return raw
 }
 
 function formatINR(n: number) {
@@ -261,7 +274,7 @@ function ComplianceCard({ request, onDownload }: {
           <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#27AE60', marginBottom: '0.4rem' }}>CA Approved</div>
           {request.fifteen_cb_number && <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>Form 146 No: <strong>{request.fifteen_cb_number}</strong></div>}
           {request.fifteen_ca_number && <div style={{ fontSize: '0.82rem', color: '#FAF6F0' }}>Form 145 No: <strong>{request.fifteen_ca_number}</strong></div>}
-          {request.ca_remarks && <div style={{ fontSize: '0.82rem', color: '#8BA0B4', marginTop: '0.3rem' }}>{request.ca_remarks}</div>}
+          {safeCaRemarks(request.ca_remarks) && <div style={{ fontSize: '0.82rem', color: '#8BA0B4', marginTop: '0.3rem' }}>{safeCaRemarks(request.ca_remarks)}</div>}
         </div>
       )}
       {request.status === 'rejected' && (

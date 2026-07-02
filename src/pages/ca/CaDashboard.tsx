@@ -130,6 +130,17 @@ function StatusBadge({ status }: { status: string }) {
 
 const UDIN_REGEX = /^\d{18}$/
 
+function safeCaRemarks(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && typeof parsed.summary === 'string') {
+      return parsed.summary
+    }
+  } catch { /* plain text */ }
+  return raw
+}
+
 // ── Approve modal ─────────────────────────────────────────────────────────────
 function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void; onDone: () => void }) {
   const [cbNumber, setCbNumber] = useState('')
@@ -503,9 +514,14 @@ function RequestRow({ request, onRefresh }: { request: ComplianceRequest; onRefr
             {request.rejection_reason}
           </div>
         )}
-        {request.status === 'approved' && request.ca_remarks && (
+        {request.status === 'approved' && request.ca_remarks && safeCaRemarks(request.ca_remarks) && (
           <div style={{ marginTop: '0.75rem', background: 'rgba(39,174,96,0.06)', border: '1px solid rgba(39,174,96,0.2)', padding: '0.65rem', fontSize: '0.82rem', color: '#8BA0B4' }}>
-            {request.ca_remarks}
+            {safeCaRemarks(request.ca_remarks)}
+          </div>
+        )}
+        {request.status === 'pending' && request.ca_remarks && safeCaRemarks(request.ca_remarks)?.startsWith('AUDIT_REVIEW') && (
+          <div style={{ marginTop: '0.75rem', background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '0.65rem', fontSize: '0.78rem', color: '#C9963A' }}>
+            <strong>Audit Review:</strong> {safeCaRemarks(request.ca_remarks)}
           </div>
         )}
 

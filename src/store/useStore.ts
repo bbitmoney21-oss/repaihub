@@ -53,8 +53,13 @@ const STATUS_MAP: Record<string, TransferStatus> = {
   '15cb_certified':    '15CB_CERTIFIED',
   // IT Act 2025 names
   form146_requested:   'KYC_VERIFIED',
+  form146_received:    '15CB_CERTIFIED',
   form145_filed:       '15CA_FILED',
   form146_certified:   '15CB_CERTIFIED',
+  // Other statuses from DB
+  processing:          'BANK_PROCESSING',
+  fintrac_review:      'BANK_PROCESSING',
+  cancelled:           'FAILED',
   bank_processing:     'BANK_PROCESSING',
   swift_sent:          'SWIFT_SENT',
   completed:           'COMPLETED',
