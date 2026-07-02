@@ -32,7 +32,7 @@ function errBody(userMessage: string, debugCause?: unknown): Record<string, unkn
 }
 
 function issueToken(userId: string, email: string): string {
-  return jwt.sign({ id: userId, email }, JWT_SECRET(), { expiresIn: '7d' });
+  return jwt.sign({ id: userId, email }, JWT_SECRET(), { expiresIn: '30d' });
 }
 
 function issueRefreshToken(userId: string): string {
