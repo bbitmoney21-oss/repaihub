@@ -32,7 +32,7 @@ function errBody(userMessage: string, debugCause?: unknown): Record<string, unkn
 }
 
 function issueToken(userId: string, email: string): string {
-  return jwt.sign({ id: userId, email }, JWT_SECRET(), { expiresIn: '7d' });
+  return jwt.sign({ id: userId, email }, JWT_SECRET(), { expiresIn: '30d' });
 }
 
 function issueRefreshToken(userId: string): string {
@@ -62,7 +62,7 @@ function emailHtml(name: string, resetUrl: string): string {
         If you didn't request this, you can safely ignore this email.
       </p>
       <p style="font-size:0.75rem;color:#4A5568;margin-top:16px;">
-        REPAIHUB is a FINTRAC registered Money Services Business.
+        REPAIHUB's FINTRAC pre-registration has been submitted. MSB licence application in process.
       </p>
     </div>
   `;

@@ -11,7 +11,7 @@ function authHeaders(): Record<string, string> {
 }
 
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(path, {
+  const res = await fetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -19,6 +19,13 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
       ...(init.headers as Record<string, string> | undefined),
     },
   });
+  // If a stored token is rejected by the server it has expired.
+  // Clear it and send the user to login so they don't sit on a broken session.
+  if (res.status === 401 && getToken()) {
+    clearToken();
+    window.location.href = '/auth/login';
+  }
+  return res;
 }
 
 async function parseError(res: Response): Promise<string> {

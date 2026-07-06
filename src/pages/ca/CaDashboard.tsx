@@ -83,7 +83,7 @@ function downloadWinmanExport(request: ComplianceRequest) {
     `CURRENCY_CODE: CAD`,
     `COUNTRY_OF_REMITTANCE: Canada`,
     `AD_BANK: Fable Fintech (AD Cat-I bank)`,
-    `PURPOSE_CODE: ${t?.purpose_code ?? 'P1301'}`,
+    `PURPOSE_CODE: ${t?.purpose_code ?? 'S0014'}`,
     `TDS_SECTION: 397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]`,
     `TDS_RATE: [Check Form 26AS for actual TDS rate]`,
     `TDS_AMOUNT_INR: [Check Form 26AS]`,
@@ -129,6 +129,17 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const UDIN_REGEX = /^\d{18}$/
+
+function safeCaRemarks(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && typeof parsed.summary === 'string') {
+      return parsed.summary
+    }
+  } catch { /* plain text */ }
+  return raw
+}
 
 // ── Approve modal ─────────────────────────────────────────────────────────────
 function ApproveModal({ id, onClose, onDone }: { id: string; onClose: () => void; onDone: () => void }) {
@@ -503,9 +514,14 @@ function RequestRow({ request, onRefresh }: { request: ComplianceRequest; onRefr
             {request.rejection_reason}
           </div>
         )}
-        {request.status === 'approved' && request.ca_remarks && (
+        {request.status === 'approved' && request.ca_remarks && safeCaRemarks(request.ca_remarks) && (
           <div style={{ marginTop: '0.75rem', background: 'rgba(39,174,96,0.06)', border: '1px solid rgba(39,174,96,0.2)', padding: '0.65rem', fontSize: '0.82rem', color: '#8BA0B4' }}>
-            {request.ca_remarks}
+            {safeCaRemarks(request.ca_remarks)}
+          </div>
+        )}
+        {request.status === 'pending' && request.ca_remarks && safeCaRemarks(request.ca_remarks)?.startsWith('AUDIT_REVIEW') && (
+          <div style={{ marginTop: '0.75rem', background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '0.65rem', fontSize: '0.78rem', color: '#C9963A' }}>
+            <strong>Audit Review:</strong> {safeCaRemarks(request.ca_remarks)}
           </div>
         )}
 

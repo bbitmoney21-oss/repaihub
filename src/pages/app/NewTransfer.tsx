@@ -22,8 +22,8 @@ type Direction = 'outward' | 'inward'
 // Fallback commission rate used until live tiers (from /fees/tiers) load.
 // Live tiers come from outward_fee_tiers in Supabase — see migration 025.
 const COMMISSION_RATE_FALLBACK = 0.018
-const FEE_FLAT_STD   = 24.99   // outward standard flat fee CAD
-const FEE_FLAT_EXP   = 49.99   // outward express flat fee (incl. \$25 surcharge)
+const FEE_FLAT_STD   = 25      // outward standard flat fee CAD — spec: CAD $25 flat (REQ-06)
+const FEE_FLAT_EXP   = 49      // outward express flat fee (std $25 + $24 surcharge)
 // Inward fee model: profit comes from FX spread, not from explicit fees.
 // We charge a small-transfer fee of \$1.99 when the CAD amount is below \$500.
 // Above \$500: no fee at all. Express vs Standard does NOT change the price.
@@ -42,14 +42,16 @@ const PURPOSES = [
 ]
 
 // RBI purpose codes — must match RBIPurposeCode type and RBI_PURPOSE_CODES_ENABLED env
+// S0014 = repatriation of non-resident deposits (correct RBI code for NRO outward, REQ-03)
+// P1301 was wrong — removed. P1302 used for NRE path.
 const PURPOSE_CODES: Record<string, string> = {
-  'Repatriation of savings': 'P1301',
-  'Rental income':           'P1301',
-  'Pension / salary':        'P1301',
-  'Property sale proceeds':  'P1301',
+  'Repatriation of savings': 'S0014',
+  'Rental income':           'S0014',
+  'Pension / salary':        'S0014',
+  'Property sale proceeds':  'S0014',
   'Investment returns':      'P0001',
   'Family maintenance':      'P1101',
-  'Other':                   'P1301',
+  'Other':                   'S0014',
 }
 
 // SourceOfFunds type values — must match SourceOfFunds union in types/compliance.ts
@@ -108,6 +110,12 @@ export default function NewTransfer() {
   // Form 15CA Part A modal — opened at Step-4 confirm for sub-₹5L outward
   // transfers.  When closed, submitTransfer is called with the form data.
   const [show15CA, setShow15CA] = useState(false)
+
+  // REQ-02: Account type question (NRO | NRE) — asked once per outward session.
+  // REQ-07: NRE self-declaration checkbox — submit disabled until checked.
+  const [accountType, setAccountType] = useState<'NRO' | 'NRE' | ''>('')
+  const [tempAccountType, setTempAccountType] = useState<'NRO' | 'NRE' | ''>('')
+  const [nreDeclaration, setNreDeclaration] = useState(false)
 
   // Restore draft state after returning from bank connection pages
   useEffect(() => {
@@ -175,10 +183,9 @@ export default function NewTransfer() {
   const inwardTotalCAD = !isOutward ? amt + inwardFee : 0
   const receiveINR     = isOutward ? 0 : amt * rate
 
-  // RBI annual outward (NRO repatriation) cap per user — USD 250k
-  // Convert to CAD using the live rate so the gate moves with FX, matching
-  // how Dashboard renders the same limit.
-  const LRS_LIMIT_USD = 250_000
+  // FEMA Section 6(4): NRO repatriation cap = USD 1,000,000 per Indian FY (Apr–Mar). REQ-05
+  // NRE path has no annual cap — this limit applies to NRO only.
+  const LRS_LIMIT_USD = 1_000_000
   const USD_INR_RATE_DEFAULT = 83
   const annualLimitCAD = Math.round((LRS_LIMIT_USD * USD_INR_RATE_DEFAULT) / (rate || 63.42))
   const limitRemaining = annualLimitCAD - (user?.annualLimitUsed || 0)
@@ -263,7 +270,7 @@ export default function NewTransfer() {
       amountFrom:    isOutward ? amt : amt,
       exchangeRate:  rate,
       feeCad:        isOutward ? totalFees : 0,
-      purposeCode:   isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301',
+      purposeCode:   isOutward ? (accountType === 'NRE' ? 'P1302' : (PURPOSE_CODES[purpose] ?? 'S0014')) : 'S0014',
       sourceOfFunds: isOutward ? (SOURCE_OF_FUNDS[purpose] ?? 'other') : 'other',
       speed:         express ? 'express' : 'standard',
       reference:     ref,
@@ -363,7 +370,7 @@ export default function NewTransfer() {
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' as const, color: '#8BA0B4', marginBottom: '0.25rem' }}>From</div>
         <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#FAF6F0' }}>{isOutward ? '🇮🇳 India' : '🇨🇦 Canada'}</div>
-        <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{isOutward ? 'NRO Account (INR)' : 'Chequing Account (CAD)'}</div>
+        <div style={{ fontSize: '0.75rem', color: '#8BA0B4' }}>{isOutward ? `${accountType || 'NRO'} Account (INR)` : 'Chequing Account (CAD)'}</div>
       </div>
       <button
         onClick={flipDirection}
@@ -466,6 +473,49 @@ export default function NewTransfer() {
     )
   }
 
+  // ── REQ-02: Account type picker (outward only, asked once per session) ─────────
+  if (!residencyPicker && isOutward && !accountType) {
+    return (
+      <div style={{ ...S.page, maxWidth: 520 }}>
+        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => nav('/app/dashboard')} style={{ background: 'none', border: 'none', color: '#8BA0B4', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', padding: 0 }}>
+            <ArrowLeft size={16} /> Back
+          </button>
+          <div>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.8rem', fontWeight: 600, color: '#FFFFFF', lineHeight: 1 }}>Account Type</h1>
+            <p style={{ fontSize: '0.8rem', color: '#8BA0B4', marginTop: '0.2rem' }}>Which India account are you repatriating from?</p>
+          </div>
+        </div>
+        <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '2rem' }}>
+          <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            Your account type determines the compliance route — NRO requires CA-certified forms, NRE is freely repatriable under FEMA.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            {([
+              { id: 'NRO' as const, title: 'NRO — Non-Resident Ordinary', desc: 'Taxable Indian income. Requires Form 145/146 CA certification and is subject to the USD 1M FEMA annual cap.' },
+              { id: 'NRE' as const, title: 'NRE — Non-Resident External', desc: 'Tax-free, freely repatriable under FEMA. No Form 145/146. No annual cap. Self-declaration required.' },
+            ] as const).map(opt => (
+              <div key={opt.id} onClick={() => setTempAccountType(opt.id)}
+                style={{ border: `1px solid ${tempAccountType === opt.id ? '#C9963A' : 'rgba(201,150,58,0.2)'}`, background: tempAccountType === opt.id ? 'rgba(201,150,58,0.08)' : '#0B1C2C', padding: '1rem 1.25rem', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 2, border: `1px solid ${tempAccountType === opt.id ? '#C9963A' : 'rgba(201,150,58,0.3)'}`, background: tempAccountType === opt.id ? '#C9963A' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {tempAccountType === opt.id && <Check size={10} color="#0B1C2C" />}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#FAF6F0', fontSize: '0.9rem', marginBottom: '0.2rem' }}>{opt.title}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#8BA0B4', lineHeight: 1.5 }}>{opt.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setAccountType(tempAccountType as 'NRO' | 'NRE')} disabled={!tempAccountType}
+            style={{ width: '100%', background: tempAccountType ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: tempAccountType ? 'pointer' : 'not-allowed' }}>
+            Continue →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={S.page}>
       {/* Header */}
@@ -491,7 +541,12 @@ export default function NewTransfer() {
         <div style={S.card}>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>Enter Amount</h2>
           <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '2rem' }}>
-            {isOutward ? `Minimum ₹10,000 · Annual limit: ${formatCAD(limitRemaining)} remaining` : 'Minimum CAD 100'}
+            {isOutward
+            ? accountType === 'NRE'
+              ? 'Minimum ₹10,000 · No annual cap (NRE account)'
+              : `Minimum ₹10,000 · NRO annual limit: ${formatCAD(limitRemaining)} remaining`
+            : 'Minimum CAD 100'
+          }
           </p>
 
           <div style={{ marginBottom: '1.5rem' }}>
@@ -747,16 +802,40 @@ export default function NewTransfer() {
             </div>
           </div>
 
-          {isOutward && (
+          {isOutward && accountType === 'NRO' && (
             <div style={{ background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-              By confirming, you authorise REPAIHUB to file Form 145 on your behalf under IT Act 2025 and engage our CA partner to certify Form 146. This transfer complies with RBI FEMA regulations.
+              By confirming, you authorise REPAIHUB to file Form 145 on your behalf under IT Act 2025 and engage our CA partner to certify Form 146 (purpose code S0014). This transfer complies with RBI FEMA regulations.
             </div>
           )}
 
-          <button onClick={() => setStep(4)} disabled={isOutward && !purpose}
-            style={{ width: '100%', background: isOutward && !purpose ? 'rgba(201,150,58,0.3)' : '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: isOutward && !purpose ? 'not-allowed' : 'pointer' }}>
-            Looks Good — Confirm →
-          </button>
+          {/* REQ-07: NRE self-declaration — mandatory before submit */}
+          {isOutward && accountType === 'NRE' && (
+            <div style={{ background: 'rgba(39,174,96,0.06)', border: '1px solid rgba(39,174,96,0.25)', padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={nreDeclaration}
+                  onChange={e => setNreDeclaration(e.target.checked)}
+                  style={{ marginTop: 3, flexShrink: 0, accentColor: '#27AE60' }}
+                />
+                <span style={{ fontSize: '0.82rem', color: '#8BA0B4', lineHeight: 1.6 }}>
+                  I declare that the funds being repatriated are held in my <strong style={{ color: '#FAF6F0' }}>NRE (Non-Resident External)</strong> account, represent income earned outside India, and are freely repatriable under FEMA. No Form 145/146 is required for NRE repatriation. I accept full responsibility for this declaration.
+                </span>
+              </label>
+            </div>
+          )}
+
+          {(() => {
+            const needsDecl = isOutward && accountType === 'NRE' && !nreDeclaration
+            const needsPurpose = isOutward && accountType === 'NRO' && !purpose
+            const disabled = needsDecl || needsPurpose
+            return (
+              <button onClick={() => setStep(4)} disabled={disabled}
+                style={{ width: '100%', background: disabled ? 'rgba(201,150,58,0.3)' : '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: disabled ? 'not-allowed' : 'pointer' }}>
+                Looks Good — Confirm →
+              </button>
+            )
+          })()}
         </div>
       )}
 
@@ -931,7 +1010,7 @@ export default function NewTransfer() {
         amountInr={amt}
         amountCad={amtCAD > 0 ? amtCAD : 0}
         exchangeRate={rate}
-        purposeCode={isOutward ? (PURPOSE_CODES[purpose] ?? 'P1301') : 'P1301'}
+        purposeCode={isOutward ? (accountType === 'NRE' ? 'P1302' : (PURPOSE_CODES[purpose] ?? 'S0014')) : 'S0014'}
         remitterName={user?.name ?? ''}
         remitterPAN={(user as { pan?: string | null } | null | undefined)?.pan ?? null}
         remitterEmail={user?.email ?? ''}

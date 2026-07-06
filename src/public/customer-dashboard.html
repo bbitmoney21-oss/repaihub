@@ -251,7 +251,7 @@
       </p>
     </div>
     <p style="font-size:0.7rem;color:var(--muted);text-align:center;margin-top:1.5rem;line-height:1.6">
-      REPAIHUB is a FINTRAC registered MSB. Your data is protected under PIPEDA.
+      REPAIHUB's FINTRAC MSB registration in progress. Your data is protected under PIPEDA.
     </p>
   </div>
 </div>
@@ -387,7 +387,7 @@
               <div class="field">
                 <label>Purpose Code (RBI)</label>
                 <select id="nt-purpose">
-                  <option value="P1301">P1301 — Repatriation of NRO Funds</option>
+                  <option value="S0014">S0014 — Repatriation of NRO Deposits (outward NRO)</option>
                   <option value="P1302">P1302 — Repatriation of NRE Funds</option>
                   <option value="P1101">P1101 — Family Maintenance</option>
                   <option value="P0001">P0001 — Indian Investment Abroad</option>
@@ -563,8 +563,8 @@ let selectedInwardSpeed = 'standard';
 let currentRate = 0.01610;       // INR→CAD (outward)
 let currentInwardRate = 62.50;   // CAD→INR (inward)
 let selectedRecipientId = null;
-const FEE_STANDARD = 25;
-const FEE_EXPRESS = 45;
+const FEE_STANDARD = 25;   // REQ-06: CAD $25 flat (standard)
+const FEE_EXPRESS = 49;    // REQ-06: CAD $25 + $24 express surcharge
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function apiCall(path, opts = {}) {
@@ -916,7 +916,7 @@ function updateOutwardAccountNote() {
   } else {
     note.textContent = 'NRO: Subject to Form 145/146 compliance (IT Act 2025, Section 397(3)(d)). FEMA annual limit USD 1,000,000 (≈₹8.3 crore). CA review required above ₹5L.';
     note.style.color = 'var(--muted)';
-    document.getElementById('nt-purpose').value = 'P1301';
+    document.getElementById('nt-purpose').value = 'S0014';
   }
   calcRate();
 }

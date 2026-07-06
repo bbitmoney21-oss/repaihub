@@ -37,11 +37,12 @@ export type SourceOfFunds =
   | 'other';
 
 export type RBIPurposeCode =
-  | 'P1301'  // Repatriation of NRO funds
+  | 'S0014'  // Repatriation of non-resident deposits (correct RBI code for NRO outward — REQ-03)
   | 'P1302'  // Repatriation of NRE funds
   | 'P0001'  // Indian investment abroad
   | 'S0001'  // Software services
   | 'P1101'; // Family maintenance
+// NOTE: P1301 was a legacy wrong code. All NRO outward transfers must use S0014.
 
 export interface SourceBreakdownItem {
   type: SourceOfFunds;

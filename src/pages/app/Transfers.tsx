@@ -9,12 +9,16 @@ export default function Transfers() {
   const { transfers, setTransfers, isAuthenticated } = useStore()
   const nav = useNavigate()
   const [apiError, setApiError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) return
+    setLoading(true)
+    setApiError('')
     apiGetTransfers()
       .then(ts => setTransfers(ts.map(mapDbTransfer)))
       .catch(e => setApiError(e.message || 'Failed to load transfers'))
+      .finally(() => setLoading(false))
   }, [isAuthenticated])
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [search, setSearch] = useState('')
@@ -72,7 +76,11 @@ export default function Transfers() {
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#132233', border: '1px solid rgba(201,150,58,0.2)', color: '#8BA0B4', fontSize: '0.88rem' }}>
+          Loading transfer history…
+        </div>
+      ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#132233', border: '1px solid rgba(201,150,58,0.2)' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💸</div>
           <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', color: '#FFFFFF', marginBottom: '0.5rem' }}>No transfers yet</h3>
