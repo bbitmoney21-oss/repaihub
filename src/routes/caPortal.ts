@@ -39,7 +39,7 @@ const SOURCE_LABELS: Record<SourceOfFunds, string> = {
 };
 
 const PURPOSE_DESCRIPTIONS: Record<RBIPurposeCode, string> = {
-  P1301: 'Repatriation of NRO funds — FEMA Section 6(4)',
+  S0014: 'Repatriation of NRO deposits — FEMA Section 6(4) / AP Dir RBI',
   P1302: 'Repatriation of NRE funds — FEMA Section 6(4)',
   P0001: 'Indian investment abroad',
   S0001: 'Software services',

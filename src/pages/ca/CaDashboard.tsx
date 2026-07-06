@@ -83,7 +83,7 @@ function downloadWinmanExport(request: ComplianceRequest) {
     `CURRENCY_CODE: CAD`,
     `COUNTRY_OF_REMITTANCE: Canada`,
     `AD_BANK: Fable Fintech (AD Cat-I bank)`,
-    `PURPOSE_CODE: ${t?.purpose_code ?? 'P1301'}`,
+    `PURPOSE_CODE: ${t?.purpose_code ?? 'S0014'}`,
     `TDS_SECTION: 397(3)(d) [IT Act 2025] / 195 [IT Act 1961 — legacy]`,
     `TDS_RATE: [Check Form 26AS for actual TDS rate]`,
     `TDS_AMOUNT_INR: [Check Form 26AS]`,

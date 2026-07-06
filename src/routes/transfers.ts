@@ -36,12 +36,12 @@ const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
 // Source-of-funds → required supporting doc type + suggested purpose code
 const SOURCE_OF_FUNDS_MAP: Record<string, { purposeCode: string; docType: string; label: string }> = {
-  rental_income:       { purposeCode: 'P1301', docType: 'bank_statement',  label: 'Rental Income' },
+  rental_income:       { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Rental Income' },
   pension_income:      { purposeCode: 'P1101', docType: 'bank_statement',  label: 'Pension Income' },
   dividend_income:     { purposeCode: 'P0001', docType: 'investment_proof', label: 'Dividend Income' },
-  property_sale:       { purposeCode: 'P1301', docType: 'property_deed',   label: 'Property Sale Proceeds' },
-  bank_interest:       { purposeCode: 'P1301', docType: 'bank_statement',  label: 'Bank Interest' },
-  accumulated_savings: { purposeCode: 'P1301', docType: 'bank_statement',  label: 'Accumulated Savings' },
+  property_sale:       { purposeCode: 'S0014', docType: 'property_deed',   label: 'Property Sale Proceeds' },
+  bank_interest:       { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Bank Interest' },
+  accumulated_savings: { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Accumulated Savings' },
   business_income:     { purposeCode: 'S0001', docType: 'bank_statement',  label: 'Business Income' },
 };
 

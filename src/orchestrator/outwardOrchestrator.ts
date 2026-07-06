@@ -180,7 +180,7 @@ async function executeViaFable(
       nroBranchCity: (transfer.nro_branch_city ?? transfer.nroBranchCity ?? 'Mumbai') as string,
       form145Number: (transfer.form145_number ?? transfer.fifteen_ca_number ?? '') as string,
       form146Number: (transfer.form146_number ?? transfer.fifteen_cb_number ?? '') as string,
-      purposeCode: (transfer.purpose_code ?? 'P1301') as string,
+      purposeCode: (transfer.purpose_code ?? 'S0014') as string,
       exchangeRate: Number(transfer.exchange_rate ?? 0.0160),
       beneficiaryCAD: {
         bankName: (canadaBank?.institution ?? 'RBC') as string,
