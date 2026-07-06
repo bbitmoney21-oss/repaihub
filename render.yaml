@@ -83,7 +83,7 @@ services:
       - key: RBI_FY_START_MONTH
         value: "3"
       - key: RBI_PURPOSE_CODES_ENABLED
-        value: "P1301,P1302,P0001,S0001,P1101"
+        value: "S0014,P1302,P0001,S0001,P1101"
 
   # ── Production service ────────────────────────────────────────────────────────
   - type: web
@@ -169,4 +169,4 @@ services:
       - key: RBI_FY_START_MONTH
         value: "3"
       - key: RBI_PURPOSE_CODES_ENABLED
-        value: "P1301,P1302,P0001,S0001,P1101"
+        value: "S0014,P1302,P0001,S0001,P1101"

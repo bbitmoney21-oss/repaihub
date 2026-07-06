@@ -27,28 +27,32 @@ export interface StatusDetail {
   actionRequired?: { kind: ActionKind; message: string; href?: string }
 }
 
+// REQ-09: Status timeline — Submitted → Forms certified/filed (NRO only) →
+// Bank verification → FX conversion & SWIFT → Credited.
+// NRE skips the forms state (no Form 145/146 required).
 const OUTWARD: Partial<Record<TransferStatus, StatusDetail>> = {
-  INITIATED:        { step: 1, totalSteps: 5, label: 'Verifying KYC',                       etaHint: 'A few minutes' },
-  KYC_VERIFIED:     { step: 2, totalSteps: 5, label: 'Filing Form 15CA',                    etaHint: '~30 minutes' },
-  '15CA_FILED':     { step: 3, totalSteps: 5, label: 'Form 15CA filed · CA reviewing 15CB', etaHint: 'Within 1 business day' },
-  '15CB_CERTIFIED': { step: 4, totalSteps: 5, label: 'CA certified · queued for bank',      etaHint: '~1–2 hours' },
-  BANK_PROCESSING:  { step: 5, totalSteps: 5, label: 'Bank processing transfer',            etaHint: 'Within 1–2 business days' },
-  SWIFT_SENT:       { step: 5, totalSteps: 5, label: 'SWIFT sent · awaiting delivery',      etaHint: 'Within 1 business day' },
+  INITIATED:           { step: 1, totalSteps: 5, label: 'Submitted — verifying KYC',              etaHint: 'A few minutes' },
+  KYC_VERIFIED:        { step: 2, totalSteps: 5, label: 'Filing Form 145',                        etaHint: '~30 minutes' },
+  FORM145_FILED:       { step: 3, totalSteps: 5, label: 'Form 145 filed · CA certifying Form 146', etaHint: 'Within 1 business day' },
+  FORM146_RECEIVED:    { step: 4, totalSteps: 5, label: 'Forms certified — bank verification',    etaHint: '~1–2 hours' },
+  BANK_PROCESSING:     { step: 4, totalSteps: 5, label: 'Bank verification · FX conversion',      etaHint: 'Within 1–2 business days' },
+  SWIFT_SENT:          { step: 5, totalSteps: 5, label: 'SWIFT sent · awaiting credit',            etaHint: 'Within 1 business day' },
+  // Legacy IT Act 1961 status names — backward compat with existing DB rows
+  '15CA_FILED':        { step: 3, totalSteps: 5, label: 'Form 145 filed · CA certifying Form 146', etaHint: 'Within 1 business day' },
+  '15CB_CERTIFIED':    { step: 4, totalSteps: 5, label: 'Forms certified — bank verification',    etaHint: '~1–2 hours' },
 }
 
-// Inward = Canada -> India.  No 15CA / 15CB required (those are Indian
-// IT-Act forms gating OUTWARD remittance from India). Only check is FINTRAC
-// for amounts >= CAD 10,000 — above that, status = 'fintrac_review' until ops
-// clears the transfer.  Below the threshold, the backend marks the transfer
-// 'completed' immediately, so the entries below are reached only when a
-// transfer is actually in flight (FINTRAC review or stuck for any reason).
+// Inward = Canada → India. No Form 145/146 required (Indian IT-Act forms
+// gate OUTWARD remittance only). FINTRAC review for amounts ≥ CAD 10,000.
 const INWARD: Partial<Record<TransferStatus, StatusDetail>> = {
-  INITIATED:        { step: 1, totalSteps: 3, label: 'Transfer initiated',          etaHint: 'A few seconds' },
-  KYC_VERIFIED:     { step: 2, totalSteps: 3, label: 'FINTRAC review',              etaHint: 'Within 1 business day' },
-  BANK_PROCESSING:  { step: 2, totalSteps: 3, label: 'FINTRAC review · ops queue',  etaHint: 'Within 1 business day' },
-  '15CA_FILED':     { step: 2, totalSteps: 3, label: 'FINTRAC review',              etaHint: 'Within 1 business day' },
-  '15CB_CERTIFIED': { step: 3, totalSteps: 3, label: 'Routing to recipient bank',   etaHint: 'Minutes' },
-  SWIFT_SENT:       { step: 3, totalSteps: 3, label: 'Payout to recipient bank',    etaHint: 'Minutes' },
+  INITIATED:        { step: 1, totalSteps: 3, label: 'Transfer initiated',           etaHint: 'A few seconds' },
+  KYC_VERIFIED:     { step: 2, totalSteps: 3, label: 'Bank verification',             etaHint: 'Within 1 business day' },
+  BANK_PROCESSING:  { step: 2, totalSteps: 3, label: 'Bank verification · ops queue', etaHint: 'Within 1 business day' },
+  FORM145_FILED:    { step: 2, totalSteps: 3, label: 'Bank verification',             etaHint: 'Within 1 business day' },
+  FORM146_RECEIVED: { step: 3, totalSteps: 3, label: 'FX conversion · routing',      etaHint: 'Minutes' },
+  SWIFT_SENT:       { step: 3, totalSteps: 3, label: 'Credited to recipient account', etaHint: 'Minutes' },
+  '15CA_FILED':     { step: 2, totalSteps: 3, label: 'Bank verification',             etaHint: 'Within 1 business day' },
+  '15CB_CERTIFIED': { step: 3, totalSteps: 3, label: 'FX conversion · routing',      etaHint: 'Minutes' },
 }
 
 export function getStatusDetail(

@@ -27,7 +27,7 @@ export interface OutwardInstruction {
   nroBranchCity: string;
   form145Number: string;       // required for NRO, not for NRE (IT Act 2025 — was 15CA)
   form146Number: string;       // required when Part C, not for NRE (IT Act 2025 — was 15CB)
-  purposeCode: string;         // P1301
+  purposeCode: string;         // S0014 for NRO outward, P1302 for NRE
   exchangeRate: number;
   beneficiaryCAD: {
     bankName: string;
