@@ -219,12 +219,15 @@ router.post('/kyc/canada', authMiddleware, async (req: AuthRequest, res: Respons
     return;
   }
 
+  // Submitting bank details is NOT verification. canada_verified is set only
+  // by kycService.updateKYCStatus() from a signature-checked provider result.
+  // Ensure a kyc_submissions row exists without touching any flag.
   await supabaseAdmin.from('kyc_submissions').upsert(
-    { user_id: userId, canada_verified: true, canada_verified_at: ts() },
-    { onConflict: 'user_id' },
+    { user_id: userId },
+    { onConflict: 'user_id', ignoreDuplicates: true },
   );
 
-  res.json({ message: 'Canada KYC submitted', timestamp: ts() });
+  res.json({ message: 'Canada bank details submitted; verification pending', verified: false, timestamp: ts() });
 });
 
 // ── POST /users/kyc/india ─────────────────────────────────────────────────────
@@ -254,9 +257,10 @@ router.post('/kyc/india', authMiddleware, async (req: AuthRequest, res: Response
     return;
   }
 
+  // Submitting NRO details is NOT verification (see /kyc/canada above).
   await supabaseAdmin.from('kyc_submissions').upsert(
-    { user_id: userId, india_verified: true, india_verified_at: ts() },
-    { onConflict: 'user_id' },
+    { user_id: userId },
+    { onConflict: 'user_id', ignoreDuplicates: true },
   );
 
   // Mark signup as fully complete now that all four steps are done.
@@ -270,7 +274,7 @@ router.post('/kyc/india', authMiddleware, async (req: AuthRequest, res: Response
     console.warn('[Users] signup_complete update skipped (apply migration 014):', completeErr.message);
   }
 
-  res.json({ message: 'India KYC submitted', timestamp: ts() });
+  res.json({ message: 'India bank details submitted; verification pending', verified: false, timestamp: ts() });
 });
 
 // ── GET /users/referral ───────────────────────────────────────────────────────

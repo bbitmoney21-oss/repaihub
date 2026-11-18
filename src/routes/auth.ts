@@ -7,6 +7,7 @@ import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 import { supabase } from '../lib/supabaseClient';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { createReferralCode, recordReferralSignup } from '../services/referralService';
+import { getVerifiedKycStateOrUnverified } from '../services/kycState';
 
 const router = Router();
 
@@ -369,8 +370,11 @@ router.post('/login', async (req: Request, res: Response) => {
   // missing KYC/bank rows just mean the customer hasn't completed those
   // steps yet (typical for fresh signups).
   type SettledRow = { data: Record<string, unknown> | null; error: { message: string } | null } | undefined;
+  // Verification flags come ONLY from the authoritative, server-written
+  // profile state (kycState.ts) — never from kyc_submissions, which users
+  // could write directly before migration 028.
+  const kycState = await getVerifiedKycStateOrUnverified(profile.id, 'login');
   const settled = await Promise.allSettled([
-    supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', profile.id).maybeSingle(),
     supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', profile.id)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', profile.id)
@@ -389,9 +393,8 @@ router.post('/login', async (req: Request, res: Response) => {
     }
     return { data: v?.data ?? null };
   };
-  const kycRes    = safeSettled(0);
-  const canadaRes = safeSettled(1);
-  const indiaRes  = safeSettled(2);
+  const canadaRes = safeSettled(0);
+  const indiaRes  = safeSettled(1);
 
   const token = issueToken(profile.id, email);
   res.json({
@@ -402,8 +405,8 @@ router.post('/login', async (req: Request, res: Response) => {
       name: profile.full_name,
       phone: profile.phone,
       residency: profile.residency ?? profile.residency_type ?? null,
-      canadaBankVerified: kycRes.data?.canada_verified ?? false,
-      indiaNROVerified: kycRes.data?.india_verified ?? false,
+      canadaBankVerified: kycState.canadaVerified,
+      indiaNROVerified: kycState.indiaVerified,
       canadaBank: canadaRes.data
         ? { institution: canadaRes.data.institution, holderName: canadaRes.data.holder_name, accountType: canadaRes.data.account_type }
         : null,
@@ -549,7 +552,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const settled = await Promise.allSettled([
       supabaseAdmin.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabaseAdmin.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+      getVerifiedKycStateOrUnverified(userId, 'GET /auth/me'),
       supabaseAdmin.from('canada_bank_accounts').select('*').eq('user_id', userId)
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabaseAdmin.from('india_nro_accounts').select('*').eq('user_id', userId)
@@ -580,7 +583,11 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     };
 
     const profile = extract(0);
-    const kyc = extract(1) as Record<string, unknown> | null;
+    // index 1 is the authoritative KYC state (never rejects; degrades to unverified)
+    const kycState = settled[1].status === 'fulfilled'
+      ? (settled[1].value as Awaited<ReturnType<typeof getVerifiedKycStateOrUnverified>>)
+      : { canadaVerified: false, indiaVerified: false };
+    debug.push({ table: 'kyc', status: 'ok' });
     const canada = extract(2) as Record<string, unknown> | null;
     const india = extract(3) as Record<string, unknown> | null;
 
@@ -600,8 +607,8 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
         name: profile.full_name,
         phone: profile.phone,
         residency: profile.residency ?? profile.residency_type ?? null,
-        canadaBankVerified: (kyc?.canada_verified as boolean | undefined) ?? false,
-        indiaNROVerified: (kyc?.india_verified as boolean | undefined) ?? false,
+        canadaBankVerified: kycState.canadaVerified,
+        indiaNROVerified: kycState.indiaVerified,
         canadaBank: canada
           ? { institution: canada.institution, holderName: canada.holder_name, accountType: canada.account_type }
           : null,

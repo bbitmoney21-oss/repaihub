@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+> **Contributing / database changes:** see [CONTRIBUTING.md](CONTRIBUTING.md#database-changes). All schema changes go through numbered migrations in `supabase/migrations/`, never the Supabase dashboard Table Editor.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
