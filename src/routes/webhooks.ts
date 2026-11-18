@@ -147,14 +147,11 @@ router.post('/fable/kyc', async (req: Request, res: Response) => {
 
   try {
     if (status === 'verified') {
-      await supabaseAdmin.from('kyc_submissions').upsert({
-        user_id: userId,
-        canada_verified: true,
-        india_verified: true,
-        kyc_verified_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-      console.log(`[GREY] KYC_VERIFIED — user: ${userId}`);
-      void log('KYC_VERIFIED', 'system', { userId, metadata: { source: 'fable_webhook' } });
+      // This endpoint is NOT signature-verified, so it must never change
+      // verification state (anyone can POST here). Verified results are only
+      // accepted via POST /kyc/fable/callback (HMAC-checked, kycService).
+      console.warn(`[GREY] KYC_VERIFIED_IGNORED — unsigned /webhooks/fable/kyc for user: ${userId}`);
+      void log('KYC_WEBHOOK_IGNORED', 'system', { userId, metadata: { source: 'fable_webhook_unsigned', status } });
     } else {
       console.log(`[GREY] KYC_FAILED — user: ${userId}`);
       void log('KYC_FAILED', 'system', { userId, metadata: { status } });
@@ -195,13 +192,9 @@ async function handleKYCVerified(payload: Record<string, unknown>): Promise<void
   const userId = String(payload['userId'] ?? '');
   if (!userId || !supabaseAdminConfigured) return;
 
-  try {
-    await supabaseAdmin.from('profiles').update({
-      kyc_status: 'verified',
-    }).eq('id', userId);
-  } catch { /* non-critical */ }
-
-  void log('KYC_VERIFIED', 'system', { userId, metadata: { source: 'fable_outward_webhook' } });
+  // Not trusted: the outward webhook does not carry a verified KYC result for
+  // the profile, so it must not write verification state. Log only.
+  void log('KYC_WEBHOOK_IGNORED', 'system', { userId, metadata: { source: 'fable_outward_webhook' } });
 }
 
 export default router;

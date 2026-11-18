@@ -14,6 +14,7 @@ import { determineAccountRoute } from '../compliance/accountTypeService';
 import { checkFemaLimit, FEMA_MAX_INR } from '../compliance/femaService';
 import { orchestrateOutwardTransfer } from '../orchestrator/outwardOrchestrator';
 import { log } from '../services/auditService';
+import { getVerifiedKycStateOrUnverified } from '../services/kycState';
 import { getRBIRules, getComplianceRequirements, getComplianceSummary, getFYStartDate } from '../config/rbiRules';
 import type { RBIPurposeCode, SourceOfFunds } from '../types/compliance';
 
@@ -456,17 +457,14 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   // .single() → .maybeSingle() removes the throw-on-no-row footgun, so we can
   // drop the 4th round-trip entirely. One less network hop = ~100-300 ms off
   // the /initiate latency on Supabase cloud.
-  const [historyRes, kycRes, profileRes] = await Promise.all([
+  const [historyRes, kycState, profileRes] = await Promise.all([
     supabaseAdmin
       .from('transfers')
       .select('id, amount_inr, created_at, status')
       .eq('user_id', userId)
       .order('created_at', { ascending: false }),
-    supabaseAdmin
-      .from('kyc_submissions')
-      .select('canada_verified, india_verified')
-      .eq('user_id', userId)
-      .maybeSingle(),
+    // Authoritative, server-written KYC state; a DB error counts as unverified.
+    getVerifiedKycStateOrUnverified(userId, 'POST /transfers/initiate'),
     supabaseAdmin
       .from('profiles')
       .select('full_name, email, residency_type')
@@ -508,7 +506,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   // Source-of-funds doc type lookup
   const sofKey    = (sourceOfFunds as string) ?? 'other';
   const sofInfo   = SOURCE_OF_FUNDS_MAP[sofKey] ?? null;
-  const isKYCVerified      = (kycRes.data?.canada_verified ?? false) && (kycRes.data?.india_verified ?? false);
+  const isKYCVerified      = kycState.fullyVerified;
   const docsProvided       = documents ?? [];
   const tdsDeductedBool    = tdsDeducted ?? false;
   const tdsAmountInrNum    = tdsAmountInr ?? 0;
