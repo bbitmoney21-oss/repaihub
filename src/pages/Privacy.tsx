@@ -22,10 +22,10 @@ export default function Privacy() {
       <div style={S.wrap}>
         <span style={S.label}>Legal</span>
         <h1 style={S.h1}>Privacy Policy</h1>
-        <p style={{ ...S.p, fontSize: '0.82rem', color: '#C9963A' }}>Last updated: April 13, 2026 · REPAIHUB Inc., Ontario, Canada</p>
+        <p style={{ ...S.p, fontSize: '0.82rem', color: '#C9963A' }}>Last updated: April 13, 2026 · REPAIHUB Remittance Inc., Ontario, Canada</p>
 
         <p style={S.p}>
-          REPAIHUB Inc. ("REPAIHUB", "we", "us", "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information in accordance with the Personal Information Protection and Electronic Documents Act (PIPEDA) and applicable Canadian privacy law.
+          REPAIHUB Remittance Inc. ("REPAIHUB", "we", "us", "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information in accordance with the Personal Information Protection and Electronic Documents Act (PIPEDA) and applicable Canadian privacy law.
         </p>
 
         <h2 style={S.h2}>1. Information We Collect</h2>
@@ -51,7 +51,7 @@ export default function Privacy() {
             'To process and complete your NRO remittance transfers',
             'To file Form 145 with the Indian Income Tax portal on your behalf (IT Act 2025)',
             'To coordinate Form 146 certification with our CA partner network',
-            'To comply with FINTRAC reporting obligations (MSB licence application in process)',
+            'To comply with FINTRAC reporting obligations (FINTRAC MSB No. N300002485)',
             'To detect and prevent fraud and money laundering',
             'To send transfer status notifications and service updates',
             'To provide annual transaction summaries for your tax filing',
@@ -60,7 +60,7 @@ export default function Privacy() {
 
         <h2 style={S.h2}>3. FINTRAC Compliance</h2>
         <p style={S.p}>
-          REPAIHUB has submitted its pre-registration and MSB licence application with FINTRAC under the Proceeds of Crime (Money Laundering) and Terrorist Financing Act. While our MSB licence is in process, REPAIHUB adheres to FINTRAC compliance obligations including client identification verification, reporting of certain transactions, and maintaining records for a minimum of 5 years. These obligations override standard privacy protections where required by law.
+          REPAIHUB is registered with FINTRAC as a Money Services Business (No. N300002485) under the Proceeds of Crime (Money Laundering) and Terrorist Financing Act. REPAIHUB adheres to FINTRAC compliance obligations including client identification verification, reporting of certain transactions, and maintaining records for a minimum of 5 years. These obligations override standard privacy protections where required by law.
         </p>
 
         <h2 style={S.h2}>4. Data Sharing</h2>
@@ -77,7 +77,7 @@ export default function Privacy() {
 
         <h2 style={S.h2}>5. Data Security</h2>
         <p style={S.p}>
-          We employ bank-grade encryption (AES-256) for data at rest and TLS 1.3 for data in transit. Account numbers and PAN are stored only as SHA-256 hashes — they cannot be reversed. Our infrastructure is hosted in Canada-region data centres compliant with ISO 27001.
+          We employ bank-grade encryption (AES-256) for data at rest and TLS 1.3 for data in transit. Account numbers and PAN are stored only as SHA-256 hashes — they cannot be reversed. Our application servers are hosted by third-party cloud providers, currently in the United States, so your information may be processed and stored outside Canada and be subject to the laws of that country.
         </p>
 
         <h2 style={S.h2}>6. Your Rights Under PIPEDA</h2>
@@ -87,7 +87,7 @@ export default function Privacy() {
         <p style={S.p}>Transfer records and compliance documentation are retained for a minimum of 5 years as required by FINTRAC. Account information is retained for the duration of your relationship with REPAIHUB and for up to 7 years after account closure for regulatory purposes.</p>
 
         <h2 style={S.h2}>8. Contact</h2>
-        <p style={S.p}>Privacy Officer: <a href="mailto:founder@repaihub.com" style={{ color: '#C9963A' }}>founder@repaihub.com</a> &nbsp;·&nbsp; REPAIHUB Inc., Toronto, Ontario, Canada</p>
+        <p style={S.p}>Privacy Officer: <a href="mailto:founder@repaihub.com" style={{ color: '#C9963A' }}>founder@repaihub.com</a> &nbsp;·&nbsp; REPAIHUB Remittance Inc., Ontario, Canada</p>
 
         <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid rgba(201,150,58,0.2)', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <Link to="/terms" style={{ fontSize: '0.85rem', color: '#8BA0B4', textDecoration: 'none' }}>Terms of Service →</Link>

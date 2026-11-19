@@ -1,0 +1,13 @@
+{
+  "id": "P047",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "timing",
+  "reason": "The money has sat in NRO for years and I keep saying I'll sort it out on my next trip. A site I've just seen won't change that this month, and I'd want my parents and my own CA in India to look at it before I started anything.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something, and my money is in limbo while I'm in Canada and can't walk into a branch? With a large amount, the refund of a CAD fee doesn't help me if the principal is stuck.",
+  "would_change_my_mind": "A real person I can call who walks me through the whole process for a lump sum, plus proof, such as references from other property sellers, that large transfers have gone through cleanly.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 300,
+  "price_too_expensive": 600
+}

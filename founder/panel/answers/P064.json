@@ -1,0 +1,13 @@
+{
+  "id": "P064",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "It sounds sensible and the free CA call helps, but I have never heard of REPAIHUB and this is my flat money, so I would not hand it to a new company on a first look. My instinct is still to sort it out on my next India trip or through my own CA.",
+  "objection": "I don't know if I can trust a company I just found with a six-figure property sale. If the TDS or T1135 side goes wrong, I carry the risk, not them. Their CA is also not my CA.",
+  "would_change_my_mind": "My own CA or a friend who has used them confirms it works, and the TDS and Form 145/146 handling for a flat sale is explained clearly, ideally with a few real customer reviews.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P040",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I only trust my big Indian bank and its NRI desk with money this size, and my parents already help me with the paperwork. I'd rather do it on my next trip to India than hand a new company a process involving my savings.",
+  "objection": "I've never heard of REPAIHUB. Even with an RBI-authorised bank named on the receipt, I don't want a small outfit sitting in the middle of my NRO savings or handling my tax paperwork.",
+  "would_change_my_mind": "My own Indian bank's NRI desk offering or recommending this service directly, or a bank I already know putting its name on it.",
+  "price_too_cheap": 30,
+  "price_cheap": 90,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

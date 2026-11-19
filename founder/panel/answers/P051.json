@@ -1,0 +1,13 @@
+{
+  "id": "P051",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My NRO balance is small, under 5 lakh, and I would rather do it through my own Indian bank on my next trip. I do not know this company and I do not hand my savings to a new outfit I just saw online.",
+  "objection": "I have never heard of REPAIHUB. My money is going through a company I do not know, and I only trust big banks. The fee also feels like a lot for a small balance when I can just walk into my branch.",
+  "would_change_my_mind": "My own Indian bank or my Canadian bank recommending or offering this service, so a name I already trust is handling the money.",
+  "price_too_cheap": 20,
+  "price_cheap": 60,
+  "price_expensive": 150,
+  "price_too_expensive": 280
+}

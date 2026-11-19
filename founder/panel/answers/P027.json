@@ -1,0 +1,13 @@
+{
+  "id": "P027",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB, and my NRO balance is under 5 lakh, so I'd be handing a stranger my savings to save a bit of hassle. I'd rather ask my family's CA in India for the 15CB, which costs me a few thousand rupees, and compare the bank's rate with Wise myself.",
+  "objection": "I don't know these people. A FINTRAC number on their own site is not enough for me to trust a new startup with my money when I can't see who is behind it. Also the fee is on top of the partner bank's rate, and I can't tell how much margin is hidden in that rate.",
+  "would_change_my_mind": "Reviews from people in my community groups who moved money with them and got it on time, plus a rate comparison showing the all-in cost against Wise and my own bank.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 190,
+  "price_too_expensive": 300
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'm not handing a lump sum from a property sale to a company that isn't even FINTRAC-registered yet and can't launch till 2027. My cousin in India already handles this through his CA and I know who I'm dealing with.",
+  "objection": "Which bank actually holds my money, and is this regulated? 'Registration in process' and 'a regulated Indian partner bank' with no name tells me nothing. If it goes wrong I have no one to call.",
+  "would_change_my_mind": "FINTRAC registration actually completed, the named partner bank and CA firm disclosed, and a few months of real track record with transfers of my size.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 300,
+  "price_too_expensive": 480
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P026",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "This is a lot of money from a property sale and I'd never move it on the strength of an ad. My cousin in India already handles things and my community accountant knows my file, so a stranger company has to beat that, and I can't tell from this page that it does.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? A refund of their fee doesn't help if my lakhs are sitting in limbo and I'm chasing people across two countries.",
+  "would_change_my_mind": "My own accountant checking them out and confirming the FINTRAC registration and the partner bank, plus a few people from my community who moved a similar lump sum with them. A small test transfer first would also help.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 450
+}

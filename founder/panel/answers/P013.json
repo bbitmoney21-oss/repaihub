@@ -1,0 +1,13 @@
+{
+  "id": "P013",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "Fee only on arrival plus the refund guarantee takes most of the risk off me, and the free CA call is what I'd want anyway. At about 1.25% to skip the forms and an India trip, I'd try it once with ten lakh before moving more.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? The guarantee returns their fee, not my time or my money sitting in limbo, and I've never heard of them.",
+  "would_change_my_mind": "Seeing the FINTRAC registration check out and the partner bank named up front, plus a clear written answer on what happens to my money if the transfer stalls.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 280,
+  "price_too_expensive": 450
+}

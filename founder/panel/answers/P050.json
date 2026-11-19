@@ -1,0 +1,13 @@
+{
+  "id": "P050",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My cousin in India already handles this kind of thing for me and I trust him with the flat money more than a company I've just seen an ad for. The fee is fine, but I would not hand a lump sum to a new outfit without someone I know vouching for it.",
+  "objection": "I'm not sure about the tax side in India and Canada, and I don't know this company. A free CA call helps, but it is their CA, and if the tax is wrong on a flat sale I'm the one who pays.",
+  "would_change_my_mind": "A friend or relative who has actually moved a flat-sale amount through them, or my own CA in India or Canada confirming the paperwork and tax position independently.",
+  "price_too_cheap": 40,
+  "price_cheap": 110,
+  "price_expensive": 250,
+  "price_too_expensive": 450
+}

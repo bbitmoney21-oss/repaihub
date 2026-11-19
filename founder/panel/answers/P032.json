@@ -1,0 +1,13 @@
+{
+  "id": "P032",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I have never heard of REPAIHUB, and I am not putting lakhs through a startup when my own bank's NRI desk can do the same job. A FINTRAC number and a named partner bank are good signs, but I would want to check them myself first.",
+  "objection": "I've never heard of REPAIHUB. Why would I trust a new startup with ₹20 lakh when a big bank already has my money and my history?",
+  "would_change_my_mind": "A recommendation from my own Indian bank or my Canadian accountant. Alternatively, a long track record I can check, or a first transfer of a small amount that I can watch arrive before I send more.",
+  "price_too_cheap": 30,
+  "price_cheap": 80,
+  "price_expensive": 200,
+  "price_too_expensive": 350
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P066",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "The free call with a CA and the Form 145/146 filing are exactly what I'm scared of getting wrong with TDS and T1135, and fee-only-on-arrival means little risk for a first small transfer. I'd start with the Essential tier on my own balance and see how it goes.",
+  "objection": "My Indian bank will still call me or ask me to come in, and then I'm back to square one. I'd also want to confirm the CA is real and that the registration number checks out before I trust it with my money.",
+  "would_change_my_mind": "If the CA on the call told me my bank will definitely accept this without a branch visit or verification call, I'd go ahead. If the bank still needs me in person, I'd say no.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

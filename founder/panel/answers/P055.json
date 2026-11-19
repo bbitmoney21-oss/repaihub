@@ -1,0 +1,13 @@
+{
+  "id": "P055",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "I don't want to deal with forms, a CA's time zone or a trip to India, and my balance is small enough that $79 is fine. They only take the fee when the money lands, a named Canadian support person is a plus, and the RBI bank and FINTRAC registration give me something I can check.",
+  "objection": "I've never heard of REPAIHUB. Before I move anything I'd want to look up that FINTRAC number and see that the bank on the receipt is a real one.",
+  "would_change_my_mind": "If the FINTRAC number didn't check out, or my community accountant told me not to use them, I'd drop it.",
+  "price_too_cheap": 40,
+  "price_cheap": 99,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

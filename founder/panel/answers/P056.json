@@ -1,0 +1,13 @@
+{
+  "id": "P056",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "CAD $199 to move 10 lakh when my bank's NRI desk charges a few hundred rupees is hard to justify. I'd rather put up with a branch visit or a couple of forms than pay that to a company I've never heard of.",
+  "objection": "I only trust big banks with a large sum like a flat sale, and this is a new company in the middle. The fee is also many times what my own bank charges.",
+  "would_change_my_mind": "If my bank refused to do it remotely and a known bank or my own CA vouched for them, and the fee came down to around CAD $60-80 for 10 lakh.",
+  "price_too_cheap": 15,
+  "price_cheap": 40,
+  "price_expensive": 90,
+  "price_too_expensive": 140
+}

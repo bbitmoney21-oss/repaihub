@@ -1,0 +1,13 @@
+{
+  "id": "P009",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB and my NRO money has sat there for years. I haven't even logged into SBI in months, so I'm not going to start a transfer with a new startup this month. Maybe on the next trip, like always.",
+  "objection": "I've never heard of REPAIHUB. Why would I trust a new startup with my savings when I can't check them out myself?",
+  "would_change_my_mind": "Someone I trust, like a friend or relative who already moved NRO money this way, telling me it worked. A fee I only pay after the money lands, and being able to verify the FINTRAC registration and the named bank.",
+  "price_too_cheap": 30,
+  "price_cheap": 90,
+  "price_expensive": 250,
+  "price_too_expensive": 450
+}

@@ -32,14 +32,12 @@ export default function Landing() {
   const revealRefs = useRef<(HTMLElement | null)[]>([])
 
   // FX Calculator state
-  const LIVE_RATE = 63.42 // INR per CAD
+  const LIVE_RATE = 63.42 // INR per CAD — indicative reference rate, not live
   const [calcINR, setCalcINR] = useState('500000')
   const calcAmt = parseFloat(calcINR.replace(/,/g,'')) || 0
-  const tcsApplies = calcAmt > 700000
-  const tcsAmt = tcsApplies ? calcAmt * 0.05 : 0
-  const netINR = calcAmt - tcsAmt
-  const grossCAD = netINR / LIVE_RATE
-  const feeCAD = calcAmt <= 200000 ? 8 : calcAmt <= 500000 ? 12 : 15
+  const grossCAD = calcAmt / LIVE_RATE
+  // Proposed beta pricing (founder/pricing.md): flat fee by amount band
+  const feeCAD = calcAmt <= 500000 ? 79 : calcAmt <= 2500000 ? 199 : 499
   const youGetCAD = Math.max(0, grossCAD - feeCAD)
   const formatINRCalc = (v: string) => { const n = v.replace(/\D/g,''); return n ? parseInt(n).toLocaleString('en-IN') : '' }
   const handleCalcInput = useCallback((v: string) => setCalcINR(v.replace(/,/g,'')), [])
@@ -181,9 +179,8 @@ export default function Landing() {
           </p>
 
           <p style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(1.1rem, 2.5vw, 1.7rem)', fontWeight: 500, letterSpacing: '0.08em', color: '#C9963A', marginBottom: '3rem', animation: 'fadeUp 0.8s ease both 0.7s' }}>
-            Hours <span style={{ margin: '0 0.6rem', opacity: 0.5, fontWeight: 300 }}>·</span>
-            Not Days <span style={{ margin: '0 0.6rem', opacity: 0.5, fontWeight: 300 }}>·</span>
-            No Branch Visit. Ever.
+            Paperwork Handled <span style={{ margin: '0 0.6rem', opacity: 0.5, fontWeight: 300 }}>·</span>
+            No Branch Visit
           </p>
 
           {/* Waitlist form */}
@@ -216,13 +213,13 @@ export default function Landing() {
           <div style={{ marginTop: '1.5rem', animation: 'fadeUp 0.8s ease both 1.0s' }}>
             <Link to={isAuthenticated ? '/app/dashboard' : '/signup'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#E8B86D', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', borderBottom: '1px solid rgba(232,184,109,0.4)', paddingBottom: '2px', transition: 'all 0.2s' }}>
-              {isAuthenticated ? 'Go to Dashboard →' : 'Try the demo app →'}
+              {isAuthenticated ? 'Go to Dashboard →' : 'Try the demo app (no real money) →'}
             </Link>
           </div>
 
           {/* Trust bar */}
           <div style={{ display: 'flex', gap: '2rem', marginTop: '3.5rem', animation: 'fadeUp 0.8s ease both 1.1s', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['FINTRAC MSB Licence In Process', 'RBI Compliant', 'Zero Document Storage', 'Bank-Grade Security'].map(t => (
+            {['Beta Preview', 'FINTRAC-Registered MSB', 'Partner CA Certifies Form 146', 'Bank-Verified Identity'].map(t => (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', fontWeight: 500, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8BA0B4' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9963A', opacity: 0.7 }} />
                 {t}
@@ -243,7 +240,7 @@ export default function Landing() {
           So you ask a friend. Everyone does.
         </p>
         <p ref={el => addReveal(el, 2)} className="reveal" style={{ fontSize: '1rem', color: '#8BA0B4', maxWidth: 560, margin: '0 auto', lineHeight: 1.75 }}>
-          Over $9 billion CAD moves informally between India and Canada every year — not because people want to break rules, but because no simple legal option existed. Until now.
+          Many people wait for their next trip to India, or ask a relative to sort it out — not because they want to break rules, but because there has been no simple, legal, online option. We are building one.
         </p>
       </section>
 
@@ -257,9 +254,9 @@ export default function Landing() {
         </div>
         <div ref={el => addReveal(el, 4)} className="reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5px', background: 'rgba(201,150,58,0.2)', border: '1px solid rgba(201,150,58,0.2)' }}>
           {[
-            { n: '01', title: 'Set Up Once', tag: 'One Time Only', text: 'Connect your Canadian bank account and Indian NRO account. Verify through your bank — we never store documents. Takes 20 minutes. Never again after this.' },
+            { n: '01', title: 'Set Up Once', tag: 'One Time Only', text: 'Connect your Canadian bank account and Indian NRO account. Verify your identity online through your bank and DigiLocker. One-time setup.' },
             { n: '02', title: 'Transfer in 90 Seconds', tag: 'Every Transfer', text: 'Enter the amount, see the live INR to CAD rate, confirm with Face ID. We handle Form 145, Form 146, and all compliance automatically. You just tap.' },
-            { n: '03', title: 'CAD in Your Account', tag: '24–48 Hours', text: 'Track your transfer live. Push notification at every step. Standard transfers arrive within 48 hours. Express within 8–12 hours. Rate locked at confirmation.' },
+            { n: '03', title: 'CAD in Your Account', tag: '24–48 Hours', text: 'Track your transfer at every step. Our target is 24–48 hours after your documents are accepted. Rate locked at confirmation.' },
           ].map(c => (
             <div key={c.n} style={{ background: '#132233', padding: '2.5rem 2rem', transition: 'background 0.3s' }}
               onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = '#1C3147')}
@@ -294,8 +291,8 @@ export default function Landing() {
               'No branch visit. No physical forms. No fax.',
               'Form 145 filed automatically on your behalf (IT Act 2025).',
               'CA partner certifies Form 146 — we handle it.',
-              'We explain TCS, FEMA, and FINTRAC in plain English.',
-              'Your documents are never stored on our servers — ever.',
+              'We explain TDS, FEMA, and FINTRAC rules in plain English.',
+              'We collect only what Indian and Canadian rules require, and encrypt it.',
               'Annual tax summary report for your ITR filing.',
               'Push notification at every single step.',
               'Canadian customer support that understands NRO rules.',
@@ -320,7 +317,7 @@ export default function Landing() {
             Every transfer is fully legal, reported, and protected. You get a complete audit trail.
           </p>
           <div ref={el => addReveal(el, 10)} className="reveal" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['🍁 FINTRAC MSB Licence In Process','🇮🇳 RBI — FEMA Compliant','🔒 PIPEDA Protected','📋 Form 145 / 146 Automated (IT Act 2025)','🛡 Zero Document Storage','🏦 Bank-Verified Identity'].map(b => (
+            {['🍁 FINTRAC-Registered MSB · No. N300002485','🇮🇳 Transfers via a Regulated Indian Partner Bank','🔒 PIPEDA Privacy Obligations','📋 Form 145 / 146 Handled (IT Act 2025)','🏦 Bank-Verified Identity'].map(b => (
               <span key={b} className="badge">{b}</span>
             ))}
           </div>
@@ -331,10 +328,10 @@ export default function Landing() {
       <section style={{ padding: '3rem 2rem', borderTop: '1px solid rgba(201,150,58,0.2)', borderBottom: '1px solid rgba(201,150,58,0.2)' }}>
         <div style={{ maxWidth: 800, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '2rem', textAlign: 'center' }}>
           {[
-            { n: '$9B', label: 'CAD moves informally/year', sub: 'Canada ↔ India' },
-            { n: '1.8M', label: 'Indians in Canada', sub: 'Potential users' },
-            { n: '24h', label: 'Standard transfer', sub: 'vs. days at a branch' },
-            { n: '0', label: 'Documents stored', sub: 'Zero. Ever.' },
+            { n: '2.6M', label: 'South Asian Canadians', sub: 'Statistics Canada, 2021 Census' },
+            { n: 'USD 1M', label: 'Yearly NRO repatriation limit', sub: 'Per person, per financial year' },
+            { n: '24–48h', label: 'Target delivery', sub: 'After documents are accepted' },
+            { n: '145 / 146', label: 'Forms handled for you', sub: 'With a partner CA' },
           ].map((s, si) => (
             <div key={s.n} ref={el => addReveal(el, 11 + si)} className="reveal">
               <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 700, color: '#E8B86D', lineHeight: 1 }}>{s.n}</div>
@@ -351,9 +348,9 @@ export default function Landing() {
       <section style={{ padding: '6rem 2rem', background: '#071420' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#C9963A', display: 'block', marginBottom: '0.75rem' }}>Live Rate Calculator</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#C9963A', display: 'block', marginBottom: '0.75rem' }}>Fee Estimator</span>
             <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.5rem' }}>See exactly what you'll receive</h2>
-            <p style={{ color: '#8BA0B4', fontSize: '0.9rem' }}>Live rate: 1 CAD = ₹{LIVE_RATE.toFixed(2)} &nbsp;·&nbsp; No hidden fees. No surprises.</p>
+            <p style={{ color: '#8BA0B4', fontSize: '0.9rem' }}>Indicative rate (not live): 1 CAD = ₹{LIVE_RATE.toFixed(2)} &nbsp;·&nbsp; Proposed beta pricing, subject to change.</p>
           </div>
 
           {/* Calculator card */}
@@ -391,9 +388,8 @@ export default function Landing() {
             <div style={{ background: '#0B1C2C', border: '1px solid rgba(201,150,58,0.15)', padding: '1.25rem', marginBottom: '1rem' }}>
               {[
                 { label: 'Transfer amount', value: `₹${calcAmt.toLocaleString('en-IN')}`, dim: false },
-                ...(tcsApplies ? [{ label: 'TCS deducted (5%) — Indian govt', value: `−₹${tcsAmt.toLocaleString('en-IN')}`, dim: true }] : []),
-                { label: `FX conversion at ₹${LIVE_RATE}`, value: `CAD $${grossCAD.toFixed(2)}`, dim: false },
-                { label: 'REPAIHUB flat fee', value: `−CAD $${feeCAD}`, dim: true },
+                { label: `FX conversion at ₹${LIVE_RATE} (indicative)`, value: `CAD $${grossCAD.toFixed(2)}`, dim: false },
+                { label: 'REPAIHUB flat fee (proposed)', value: `−CAD $${feeCAD}`, dim: true },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(201,150,58,0.08)', fontSize: '0.88rem' }}>
                   <span style={{ color: row.dim ? '#8BA0B4' : '#FAF6F0' }}>{row.label}</span>
@@ -408,11 +404,9 @@ export default function Landing() {
               </div>
             </div>
 
-            {tcsApplies && (
-              <p style={{ fontSize: '0.75rem', color: '#8BA0B4', marginBottom: '1rem', lineHeight: 1.6 }}>
-                ℹ️ TCS of 5% applies to transfers above ₹7 lakh under Indian tax law. This is not an REPAIHUB fee — it's deducted by the Indian government. You can claim TCS credit when filing your Indian ITR.
-              </p>
-            )}
+            <p style={{ fontSize: '0.75rem', color: '#8BA0B4', marginBottom: '1rem', lineHeight: 1.6 }}>
+              ℹ️ Estimate only. The final rate is the partner bank's rate, shown before you confirm. Indian tax (TDS) on your NRO income is settled before repatriation; our partner CA confirms your position.
+            </p>
 
             <Link to="/signup" style={{ display: 'block', textAlign: 'center', background: '#C9963A', color: '#0B1C2C', padding: '1rem', fontFamily: "'DM Sans'", fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#E8B86D')}
@@ -471,7 +465,7 @@ export default function Landing() {
                 <img src="/logo.png" alt="REPAIHUB logo" width={32} height={32} style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
                 <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.4rem', fontWeight: 700, color: '#C9963A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Repaihub</span>
               </div>
-              <p style={{ fontSize: '0.8rem', color: '#8BA0B4', maxWidth: 260, lineHeight: 1.7 }}>Canada's first digital platform for NRO outward remittance. Legal. Simple. 24–48 hours.</p>
+              <p style={{ fontSize: '0.8rem', color: '#8BA0B4', maxWidth: 260, lineHeight: 1.7 }}>Digital NRO repatriation for Indian-origin Canadians. Beta preview.</p>
             </div>
             <div style={{ display: 'flex', gap: '4rem', flexWrap: 'wrap' }}>
               <div>
@@ -480,6 +474,7 @@ export default function Landing() {
                   { to: '/guide', label: 'NRI Guide' },
                   { to: '/login', label: 'Sign In' },
                   { to: '/signup', label: 'Get Started' },
+                  { to: '/property', label: 'Selling Property? (Phase 2)' },
                 ].map(l => (
                   <div key={l.to} style={{ marginBottom: '0.6rem' }}>
                     <Link to={l.to} style={{ fontSize: '0.82rem', color: '#8BA0B4', textDecoration: 'none', transition: 'color 0.2s' }}
@@ -514,10 +509,10 @@ export default function Landing() {
           </div>
           <div style={{ borderTop: '1px solid rgba(201,150,58,0.15)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <p style={{ fontSize: '0.72rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-              © 2026 REPAIHUB Inc. &nbsp;·&nbsp; FINTRAC MSB Licence Application In Process &nbsp;·&nbsp; Ontario, Canada
+              © 2026 REPAIHUB Remittance Inc. &nbsp;·&nbsp; FINTRAC MSB No. N300002485 &nbsp;·&nbsp; Ontario, Canada
             </p>
             <p style={{ fontSize: '0.72rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-              All transfers comply with FEMA regulations and RBI guidelines.
+              Transfers will be executed by a regulated Indian partner bank under FEMA rules.
             </p>
           </div>
         </div>

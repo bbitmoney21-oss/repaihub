@@ -1,0 +1,13 @@
+{
+  "id": "P048",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I'll just sort it on my next trip to India, my own CA there already handles my TDS and I've never moved money through a startup I found online. It's not urgent, so I'd rather wait than try something new with my savings.",
+  "objection": "I don't know this company. If the 15CA/15CB or TDS is wrong, I'm the one answerable to the Indian tax department and to CRA over T1135, not them. A free call with their partner CA isn't the same as my own CA vouching for it.",
+  "would_change_my_mind": "My own CA in India and my Canadian accountant both confirming the process, plus a few verified reviews from other NRIs who moved ₹5L-₹20L this way.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

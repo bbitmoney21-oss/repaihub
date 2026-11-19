@@ -1,0 +1,13 @@
+{
+  "id": "P052",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I would not hand a property-sale sum to a company I have never heard of, however tidy the fees look. I would sooner sit down with the SBI NRI desk or my Canadian bank, even if it takes longer.",
+  "objection": "Which bank actually holds my money, and is this regulated? The offer says a partner bank is named on the receipt, but it does not tell me which one before I start. I have no history with REPAIHUB, and a FINTRAC number does not tell me my lakhs are safe.",
+  "would_change_my_mind": "Naming the partner AD Category-I bank up front, a big bank or a CA firm I already know vouching for it, and a first transfer of a small amount to test it.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 300,
+  "price_too_expensive": 600
+}

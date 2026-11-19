@@ -1,0 +1,116 @@
+{
+  "business": "REPAIHUB Safe Passage — flat-fee NRO to Canada repatriation (v2 offer; one unit = one completed transfer)",
+  "unit": "transfer",
+  "price": 187.0,
+  "variable": [
+    {
+      "label": "AD-bank transfer fee ~₹1,000 flat; bank earns its FX spread (ESTIMATE — to be quoted)",
+      "cost": 16
+    },
+    {
+      "label": "Correspondent/nostro charge absorbed ₹1,180 (BookMyForex published figure, proxy)",
+      "cost": 19
+    },
+    {
+      "label": "Partner CA Form 146 ₹3,000 x 65% of transfers (Standard + Concierge) (ESTIMATE)",
+      "cost": 31
+    },
+    {
+      "label": "Free 15-min CA pre-check call ₹800 per transfer (ESTIMATE)",
+      "cost": 13
+    },
+    {
+      "label": "Concierge extra: CA tax-position review ₹5,000 + 1h support, x10% of transfers (ESTIMATE)",
+      "cost": 10
+    },
+    {
+      "label": "Guarantee: fee refund at 3% claim rate x $187 (ESTIMATE)",
+      "cost": 6
+    },
+    {
+      "label": "KYC + PAN + reverse penny drop + bank-link API calls (ESTIMATE)",
+      "cost": 4
+    },
+    {
+      "label": "Canadian payout via Fable EFT (ESTIMATE)",
+      "cost": 2
+    },
+    {
+      "label": "Support / exception handling, outsourced ~$25/h x 12 min (ESTIMATE)",
+      "cost": 5
+    }
+  ],
+  "fixed_monthly": [
+    {
+      "label": "Hosting: Render + Supabase paid tiers (ESTIMATE)",
+      "cost": 100
+    },
+    {
+      "label": "Software, AI tools, email, domain (ESTIMATE)",
+      "cost": 180
+    },
+    {
+      "label": "Outsourced AML compliance officer support (ESTIMATE)",
+      "cost": 500
+    },
+    {
+      "label": "E&O + cyber insurance (ESTIMATE)",
+      "cost": 250
+    },
+    {
+      "label": "Bookkeeping (ESTIMATE)",
+      "cost": 150
+    },
+    {
+      "label": "Legal retainer (ESTIMATE)",
+      "cost": 200
+    },
+    {
+      "label": "Always-on marketing: content + community sponsorships (ESTIMATE)",
+      "cost": 500
+    }
+  ],
+  "startup": [
+    {
+      "label": "Legal review: AD-bank, CA and Fable agreements; terms and privacy (ESTIMATE)",
+      "cost": 5000
+    },
+    {
+      "label": "AML/ATF compliance program + policies + risk assessment (ESTIMATE)",
+      "cost": 3000
+    },
+    {
+      "label": "Security penetration test before handling real money (ESTIMATE)",
+      "cost": 3000
+    },
+    {
+      "label": "AD-bank integration / onboarding (UNKNOWN — placeholder)",
+      "cost": 5000
+    },
+    {
+      "label": "Trademark filing CIPO (ESTIMATE)",
+      "cost": 1000
+    },
+    {
+      "label": "Launch marketing (ESTIMATE)",
+      "cost": 3000
+    }
+  ],
+  "days_per_month": 30,
+  "capacity_per_day": 10,
+  "plan_per_day": 2,
+  "ramp_per_day": [
+    0.1,
+    0.17,
+    0.27,
+    0.4,
+    0.53,
+    0.67,
+    0.83,
+    1.0,
+    1.17,
+    1.33,
+    1.5,
+    1.67
+  ]
+}

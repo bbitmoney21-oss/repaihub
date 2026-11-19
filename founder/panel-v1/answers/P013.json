@@ -1,0 +1,13 @@
+{
+  "id": "P013",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd hate the forms and CA running around, so the idea appeals, but this isn't launched and the FINTRAC registration is still 'in process'. I'm not putting lakhs through a company that has no track record yet.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? Who do I call, and who is on the hook for my money while it's in limbo, when they aren't even registered yet?",
+  "would_change_my_mind": "FINTRAC registration confirmed, a few months of live track record with reviews from people I know, and a clear written guarantee on what happens to the money if a transfer or Form 146 gets stuck or rejected.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 300,
+  "price_too_expensive": 450
+}

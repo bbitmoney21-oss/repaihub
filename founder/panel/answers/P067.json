@@ -1,0 +1,13 @@
+{
+  "id": "P067",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "$199 on a ten lakh move is about 1.25% and my bank charges a few hundred rupees for the remittance, so I'd do the paperwork myself or with my own CA. I also can't see the real exchange rate until the confirm screen, so I can't compare it to the paisa.",
+  "objection": "The flat fee is far above what my bank charges, and 'partner bank's published rate' hides the FX margin, which is the number I actually compare. I'd have to run the whole thing against my bank and a CA I already know first.",
+  "would_change_my_mind": "A total all-in cost (fee plus FX margin) clearly under what my bank and my own CA cost, shown as a live quote before I sign up, and a fee closer to CAD $60-80 for ten lakh.",
+  "price_too_cheap": 25,
+  "price_cheap": 60,
+  "price_expensive": 120,
+  "price_too_expensive": 199
+}

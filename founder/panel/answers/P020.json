@@ -1,0 +1,13 @@
+{
+  "id": "P020",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "I have a lump sum sitting in NRO and I am scared of getting the TDS and 15CA/15CB paperwork wrong, so a CA call before anything moves and a fee taken only on arrival lowers the risk enough to try it. I would still check the FINTRAC number and the bank name myself, and probably send one tranche first.",
+  "objection": "I have never heard of REPAIHUB and this is ₹20 lakh or more. I need to be sure the money moves through the named RBI-authorised bank and not through them, and that the CA is a real, verifiable person.",
+  "would_change_my_mind": "Seeing the FINTRAC registration verify on the public registry, and the named partner bank and CA confirmed independently, or a reference from someone I trust in an NRI forum.",
+  "price_too_cheap": 50,
+  "price_cheap": 120,
+  "price_expensive": 260,
+  "price_too_expensive": 450
+}

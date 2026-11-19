@@ -1,0 +1,13 @@
+{
+  "id": "P036",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My nephew in India handles these things and I usually just wait for my next trip to sort the bank. I have never paid a stranger online to move big money, and a flat sale is not something I rush.",
+  "objection": "Why pay a company when family already does it for nothing? And with flat-sale money I would want to know who exactly holds it in between, and who I phone if something goes wrong.",
+  "would_change_my_mind": "If my nephew could not do it, or my CA told me this exact route is the proper way for flat sale proceeds and a person I could phone confirmed it, I would try it.",
+  "price_too_cheap": 25,
+  "price_cheap": 70,
+  "price_expensive": 160,
+  "price_too_expensive": 300
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P016",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "The regulated bank and CA details are reassuring, but I compare to the paisa and $199 on ten lakh is about 1.25% before I even see the exchange rate. I visit India every two years and can do some of this at my own branch, so I would not move money this month.",
+  "objection": "Which bank actually holds my money, and what is the all-in cost once the partner bank's rate is applied? A flat fee on top of an unknown rate is not something I can compare to Wise, Remitly or my own bank.",
+  "would_change_my_mind": "A live quote showing the exact rate and total cost in CAD against my bank and Wise, with the named partner bank visible up front, and a fee near $99 for ten lakh.",
+  "price_too_cheap": 40,
+  "price_cheap": 99,
+  "price_expensive": 199,
+  "price_too_expensive": 349
+}

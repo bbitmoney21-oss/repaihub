@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I have never heard of REPAIHUB and I only move money through my own bank's NRI desk. My NRO balance is small, so I would not risk it with a new company over a few hundred dollars of savings.",
+  "objection": "I am not sure about the tax side in India and Canada, and I do not want a company I do not know touching my money. Even with the free CA call, I would rather ask my own bank or my own accountant.",
+  "would_change_my_mind": "If my own Indian bank or a big Canadian bank referred me to them or offered the service itself, and a CA I could check confirmed in writing what tax I owe in India and what I must report in Canada.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 320
+}

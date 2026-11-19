@@ -1,0 +1,7 @@
+REPAIHUB Safe Passage: your Indian NRO savings in your Canadian bank account, without visiting a branch in India. Works with your existing Indian bank.
+We file Form 145 (formerly 15CA) and our partner Chartered Accountant certifies Form 146 (formerly 15CB). Every transfer starts with a free 15-minute call with that CA to confirm your tax position before anything moves. Transfers are executed by our partner, an RBI-authorised (AD Category-I) Indian bank, named on every receipt. REPAIHUB is a FINTRAC-registered Money Services Business (registration number on our site). Live status tracking, and a named Canadian support person who answers on Canadian hours.
+Flat fees, nothing up front — our fee is taken only when your money arrives: Essential (up to ₹5 lakh) CAD $79 · Standard (₹5L–₹25L, CA certificate included) CAD $199 · Lump-Sum Concierge (₹25L to the USD 1M yearly limit, for property sales and inheritances) CAD $499. Currency conversion at the partner bank's published rate, shown before you confirm; no extra margin from us.
+Guarantee: if your bank rejects our paperwork we redo it free, and if the money is not in your account within 5 business days of your documents being accepted, we refund our fee.
+Founding 100 customers: Standard at CAD $149. You also get a year-end summary of your transfers for your Canadian accountant.
+Example: moving ₹10 lakh (about CAD $15,900) costs CAD $199 (or $149 as a founding customer).
+(Panel note for the four price answers: give each as the total fee in CAD you would pay to move ₹10 lakh.)

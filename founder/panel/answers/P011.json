@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My cousin in India already handles this kind of thing for me and doesn't charge a rupee. Paying $199 to a company I've never heard of, when I have a person I trust, doesn't make sense to me.",
+  "objection": "Why pay anyone when my relative sorts it out for free? And I don't know this company, so I'd be handing a stranger my NRO details and ₹10 lakh.",
+  "would_change_my_mind": "If my relative could no longer do it, or if the tax paperwork (Form 145/146) became too complex or risky for him to handle, and I could verify the company through someone I know who has used it.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 180,
+  "price_too_expensive": 300
+}

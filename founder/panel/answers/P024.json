@@ -1,0 +1,13 @@
+{
+  "id": "P024",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "I am about to sell the flat, and the free CA call plus the named bank and FINTRAC number are what I would actually need to feel safe about the tax side. The fee is only taken when the money lands, so I would try it. I would still compare the bank's rate against Wise and Remitly first.",
+  "objection": "I am not sure about the tax side in India and Canada. I do not know if a 15CB certificate and TDS on the sale will be handled right. The fee is flat, but the exchange rate is the partner bank's and I cannot tell if it is competitive.",
+  "would_change_my_mind": "Seeing the partner bank's actual rate against mid-market for a real transfer before I commit, plus the CA call confirming my capital gains and TDS position in writing.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 230,
+  "price_too_expensive": 350
+}

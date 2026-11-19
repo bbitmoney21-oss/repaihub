@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My cousin in Pune handles these things for me and I'm going back next year anyway, so I'd sort it out then. It's not that $199 is a lot, I just don't have a reason to change how I've always done it.",
+  "objection": "I already have someone I trust who handles it, and I'd be handing a company I've never heard of lakhs of rupees plus my bank details. A website saying 'FINTRAC-registered' doesn't mean much to me until someone I know has used it.",
+  "would_change_my_mind": "A friend my age in Canada who has actually moved money with them and tells me it arrived without trouble, or my cousin saying the paperwork has become too much for him to manage.",
+  "price_too_cheap": 30,
+  "price_cheap": 80,
+  "price_expensive": 250,
+  "price_too_expensive": 450
+}

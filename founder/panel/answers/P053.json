@@ -1,0 +1,13 @@
+{
+  "id": "P053",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I have never heard of this company and nobody in our community WhatsApp group has used it, so I would not move money through it on my own. I haven't even logged into my SBI NRO account in months, so I'm not in a hurry.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? A refund of their fee doesn't help if my lakhs are stuck in India.",
+  "would_change_my_mind": "Two or three people in my temple or association group telling me they moved similar money with them without trouble.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 350
+}

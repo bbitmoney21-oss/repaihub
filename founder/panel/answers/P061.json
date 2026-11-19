@@ -1,0 +1,13 @@
+{
+  "id": "P061",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My NRO balance is small, under 5 lakh, and my relative in India can sort out the bank side for free. Paying $79 or more to move a few lakh feels like a lot when I already have people for this.",
+  "objection": "A relative can do this for free, and on a small balance a flat fee eats a noticeable percent. I also don't know if I can trust a new company with my money and my tax paperwork.",
+  "would_change_my_mind": "My accountant telling me they have used it and it saved me real hassle, or a much larger balance after a property sale or inheritance where a mistake would cost far more than the fee.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 320
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P034",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I only trust big banks with my money, and I have never heard of REPAIHUB. My NRO balance is small, so I'll just sort it out through my bank's NRI desk or on my next trip to India.",
+  "objection": "A new company I found online is moving my savings across borders. Even with the bank named on the receipt, I don't know them, and I'd rather deal with my own bank's NRI desk.",
+  "would_change_my_mind": "If my own Indian bank's NRI desk or a big Canadian bank recommended or partnered with them, or if someone in my family WhatsApp group had already used them and the money arrived safely.",
+  "price_too_cheap": 25,
+  "price_cheap": 70,
+  "price_expensive": 200,
+  "price_too_expensive": 350
+}

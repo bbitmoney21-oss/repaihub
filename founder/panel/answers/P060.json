@@ -1,0 +1,13 @@
+{
+  "id": "P060",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My NRO balance is small and I'm not sure about the tax side in India and Canada, so I wouldn't move money with a company I've never heard of on a first look. I'd ask my accountant first, and I'm in no rush.",
+  "objection": "I'm not sure about the tax side in India and Canada, and a 15-minute call with their CA isn't the same as my own accountant saying it's fine.",
+  "would_change_my_mind": "My own accountant or someone in my community who has used them telling me it went smoothly and the tax was handled correctly.",
+  "price_too_cheap": 60,
+  "price_cheap": 120,
+  "price_expensive": 230,
+  "price_too_expensive": 350
+}

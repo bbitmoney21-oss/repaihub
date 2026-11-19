@@ -1,0 +1,13 @@
+{
+  "id": "P037",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB and this is a lot of money to hand to a new startup. My parents already help me with the bank paperwork in India, so I would rather pay a bit of hassle than a $199 fee to people I don't know.",
+  "objection": "I've never heard of them. Why would I trust a new startup with ₹20 lakh? Fee is nothing up front, fine, but the exchange rate is the partner bank's rate and I can't see the real margin until I compare it to Wise and my bank.",
+  "would_change_my_mind": "A name I recognise vouching for them, or reviews from other NRO customers who moved lakhs of rupees. A sample receipt showing the actual rate against mid-market, and a fee under about CAD $100 for 10 lakh.",
+  "price_too_cheap": 25,
+  "price_cheap": 60,
+  "price_expensive": 130,
+  "price_too_expensive": 200
+}
