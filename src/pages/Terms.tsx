@@ -56,9 +56,9 @@ export default function Terms() {
         <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}>
           {[
             'The FX rate is locked at the time you confirm a transfer. Market movements after confirmation do not affect your transfer.',
-            'Flat fees range from CAD $8 to CAD $15 depending on transfer size. Express upgrades cost an additional CAD $15.',
-            'Our FX spread is 0.6–0.8% below mid-market rate. The exact rate is displayed before you confirm.',
-            'TCS (Tax Collected at Source) at 5% applies to transfers above ₹7,00,000 under Indian tax law. This is an Indian government requirement, not an REPAIHUB fee.',
+            'Proposed beta fees are a flat CAD $79 (up to ₹5 lakh), CAD $199 (₹5–25 lakh) or CAD $499 (above ₹25 lakh). Final fees are shown before you confirm any transfer.',
+            'Currency conversion uses our partner bank\'s rate. The exact rate and the mid-market rate are displayed before you confirm.',
+            'Tax deducted at source (TDS) on your Indian income must be settled before repatriation. REPAIHUB does not give tax advice; our partner Chartered Accountant confirms your position.',
           ].map((item, i) => <li key={i} style={S.li}>{item}</li>)}
         </ul>
 

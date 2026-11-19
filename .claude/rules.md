@@ -96,3 +96,12 @@ If the error is reproducible and consistent, it is a code bug — investigate.
 This file is the canonical workflow reference for this project.
 Update it when the user requests a workflow change.
 Read it at the start of every coding session.
+
+## Autonomy for business work (set by the user, 2026-11-19)
+
+For the founder pack (`founder/`), the 11 founder skills, bank outreach and
+website copy: act without asking, EXCEPT anything involving money —
+spending, prices/fees, contracts, NDAs, bank terms, volumes or financial
+commitments. Those always need the user's explicit approval.
+Code still follows the dev-branch workflow above; nothing merges to main
+without "CONFIRMED — MERGE TO MAIN".

@@ -5,7 +5,7 @@ const FAQ_ITEMS = [
   { q: 'Can I transfer without going to India?', a: 'Yes — 100% digital. REPAIHUB handles Form 145 filing, Form 146 certification (IT Act 2025), and the actual transfer from your phone in Canada. No branch visit required.' },
   { q: 'My Indian mobile number is inactive. Can I still verify?', a: 'Yes. We use Email OTP as our primary method (your bank-registered email, works globally), then netbanking login as backup. ~60% of NRIs have inactive Indian SIMs — we designed around this reality from day one.' },
   { q: 'Does REPAIHUB store my passport or Aadhaar?', a: 'Never. Your account number and PAN are stored only as SHA-256 hashes. We store zero identity documents on our servers — ever.' },
-  { q: 'Is TCS my money or a fee?', a: 'TCS is YOUR money — collected as a credit against your Indian tax liability. Claim it back when filing your Indian ITR. REPAIHUB shows you exactly when TCS applies before any transfer.' },
+  { q: 'Does TCS apply to my NRO repatriation?', a: 'Generally no. TCS (Tax Collected at Source) applies to remittances by Indian residents under the Liberalised Remittance Scheme. NRO repatriation by NRIs is not an LRS remittance. What matters is TDS: tax on your NRO income must be settled before repatriation, which our partner CA confirms in Form 146.' },
   { q: 'Will I owe tax in Canada on the transferred money?', a: 'The transfer itself is not a taxable event in Canada. However, the underlying income (rent, dividends) must be declared on your T1. The India-Canada DTAA protects you from double taxation. REPAIHUB provides annual summaries for your accountant.' },
   { q: 'Is REPAIHUB regulated?', a: 'Yes. REPAIHUB Remittance Inc. is registered with FINTRAC as a Money Services Business (MSB), registration number N300002485. Live transfers start once our Indian partner bank agreement is in place. Transfers will be executed by a regulated Indian partner bank under FEMA rules, and we follow PIPEDA for your personal information.' },
 ]
@@ -129,18 +129,12 @@ export default function Guide() {
         {/* 4. TCS */}
         <section style={{ marginBottom: '4rem' }}>
           <span style={S.sLabel}>Section 4</span>
-          <h2 style={S.h2}>What is TCS? Will It Apply to Me?</h2>
-          <p style={S.p}>TCS stands for Tax Collected at Source. It's an Indian tax rule — NOT a fee we charge.</p>
-          <table style={S.table}>
-            <thead><tr><th style={S.th}>Transfer Amount (Annual)</th><th style={S.th}>TCS Rate</th><th style={S.th}>What Happens</th></tr></thead>
-            <tbody>
-              <tr><td style={S.tdGold}>Below ₹7 lakh/year</td><td style={S.td}>0% — No TCS</td><td style={S.td}>Transfer proceeds normally</td></tr>
-              <tr style={{ background: 'rgba(201,150,58,0.04)' }}><td style={S.tdGold}>Above ₹7 lakh/year</td><td style={S.td}>5% TCS collected</td><td style={S.td}>Indian bank collects 5% — <strong style={{ color: '#E8B86D' }}>you get it back in your ITR filing</strong></td></tr>
-            </tbody>
-          </table>
+          <h2 style={S.h2}>TCS or TDS — Which One Applies to Me?</h2>
+          <p style={S.p}>TCS (Tax Collected at Source) applies to money sent abroad by Indian residents under the Liberalised Remittance Scheme (LRS). As an NRI repatriating from your NRO account, you are generally not using LRS, so TCS does not apply.</p>
+          <p style={S.p}>What does apply is TDS (Tax Deducted at Source) on your Indian income — interest, rent, sale proceeds. That tax must be settled before the money leaves India. Our partner Chartered Accountant checks this and certifies it in Form 146.</p>
           <div style={S.infoBox}>
             <p style={{ fontSize: '0.9rem', color: '#FAF6F0', lineHeight: 1.7, margin: 0 }}>
-              <strong style={{ color: '#E8B86D' }}>TCS is YOUR money.</strong> It's collected as a credit against your Indian tax liability. You claim it back when you file your Indian Income Tax Return. REPAIHUB will show you exactly when TCS applies before you confirm any transfer.
+              <strong style={{ color: '#E8B86D' }}>Every situation is different.</strong> Your free pre-check call with our partner CA confirms your exact tax position before anything moves. This guide is general information, not tax advice.
             </p>
           </div>
         </section>
