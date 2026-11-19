@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I have a cousin in India who handles these things for me, and I'm there every couple of years anyway, so I'd sort it out on my next trip. Paying about CAD 340 to move 10 lakh when my family does it for next to nothing doesn't make sense, and it isn't even launched yet.",
+  "objection": "I already have a person I trust who handles my money in India, and I'd pay close to nothing that way. Why would I pay 2% to a company that isn't even registered yet?",
+  "would_change_my_mind": "A fee under about CAD 150 for 10 lakh, and FINTRAC registration finished, with proof that real people have moved money through them without the money getting stuck.",
+  "price_too_cheap": 50,
+  "price_cheap": 110,
+  "price_expensive": 230,
+  "price_too_expensive": 340
+}

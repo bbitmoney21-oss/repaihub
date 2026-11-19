@@ -1,0 +1,13 @@
+{
+  "id": "P005",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "About CAD $342 to move ten lakh is a lot when I compare it to Wise or my bank, and my relative in India can handle the paperwork for free. It's also not even launched yet, so there's nothing for me to try.",
+  "objection": "2% plus a flat fee is far above what I would pay on a big transfer, and I would be trusting an unlaunched company with my pension money while FINTRAC registration is still only 'in process'.",
+  "would_change_my_mind": "A total cost under about CAD $120 for ten lakh, plus being fully FINTRAC-registered with real reviews from people I know in my community.",
+  "price_too_cheap": 20,
+  "price_cheap": 60,
+  "price_expensive": 150,
+  "price_too_expensive": 250
+}

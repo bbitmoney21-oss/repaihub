@@ -1,0 +1,13 @@
+{
+  "id": "P041",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "I have a property sale lump sum sitting in NRO and the tax side in India and Canada worries me, so a free CA call before anything moves, a named AD bank and a fee only when the money lands lowers my risk. I would still check the rate against Wise and my own bank before confirming.",
+  "objection": "Their 'published rate, no extra margin' may still be worse than what Wise or my bank gives, and on a big lump sum a rate gap would cost me far more than the CAD $199 fee.",
+  "would_change_my_mind": "If the partner bank's rate shown before confirming was visibly worse than the mid-market rate by more than about 0.5 percent, or the free CA call turned out to be a sales pitch rather than a real tax-position check, I would walk away.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

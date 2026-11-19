@@ -1,0 +1,13 @@
+{
+  "id": "P009",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB, and it isn't even registered yet, so I won't hand a new startup my money. My NRO balance is small, I haven't logged into SBI in months, and I've put this off for years anyway.",
+  "objection": "I've never heard of REPAIHUB. Why would I trust a new startup that has no FINTRAC registration yet with my savings? And at about CAD $340 to move ten lakh, that's a lot when I could just do it on my next trip.",
+  "would_change_my_mind": "FINTRAC registration completed, plus the partner bank named and a few reviews from people I know or a community I trust. A lower fee for small amounts would help too.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd be sending a big lump sum through a company I've never heard of, and I only trust big banks with that kind of money. The Indian bank partner is nice to see, but I'd want my own bank's NRI desk and my accountant to say it's fine first.",
+  "objection": "I'm not sure about the tax side in India and Canada, and I don't know this company. A mistake on a large property-sale transfer would cost far more than the fee saves.",
+  "would_change_my_mind": "My Canadian accountant and my Indian bank's NRI desk both confirming this route is fine, plus a named big bank handling the funds and a way to check the FINTRAC registration myself.",
+  "price_too_cheap": 40,
+  "price_cheap": 110,
+  "price_expensive": 260,
+  "price_too_expensive": 450
+}

@@ -1,0 +1,41 @@
+{
+  "business": "REPAIHUB: online service that moves money from an Indian NRO account to a Canadian bank account, with the Indian tax forms and CA certificate handled",
+  "target": "Indian-origin adults living in Canada (PRs, new citizens with OCI, long-term work-permit holders) who hold savings in an Indian NRO account and want some or all of it in Canada",
+  "where": "Canada-wide, mostly the GTA, Greater Vancouver, Calgary/Edmonton, Montreal, Ottawa",
+  "age": [28, 68],
+  "segments": [
+    {"name": "Property seller / inheritor with a lump sum (₹20L-₹1Cr waiting in NRO)", "share": 0.25, "income": [70000, 220000]},
+    {"name": "Settled mid-career professional with old FDs, rent or savings in NRO (₹5L-₹20L)", "share": 0.35, "income": [80000, 180000]},
+    {"name": "Newer immigrant (PR < 5 yrs) with modest NRO balance (under ₹5L)", "share": 0.25, "income": [40000, 90000]},
+    {"name": "Retiree / parent-age with Indian pension or rental income (₹3L-₹15L a year)", "share": 0.15, "income": [30000, 80000]}
+  ],
+  "behaviours": [
+    {"name": "Trusts only big banks", "share": 0.20, "how": "Uses their Indian bank's NRI desk or a branch; suspicious of new apps holding large sums."},
+    {"name": "Family-network fixer", "share": 0.18, "how": "Has a relative or friend in India who 'handles things', including informal money swaps."},
+    {"name": "Price comparer", "share": 0.15, "how": "Compares Wise, Remitly and bank rates to the paisa before moving money."},
+    {"name": "Busy, pays for convenience", "share": 0.15, "how": "Will pay to not deal with forms, CAs, time zones or a trip to India."},
+    {"name": "Procrastinator", "share": 0.12, "how": "Money has sat in NRO for years; keeps meaning to deal with it 'on the next trip'."},
+    {"name": "Asks the WhatsApp group first", "share": 0.10, "how": "Acts only after people in their community group or temple/association vouch for something."},
+    {"name": "Tax-anxious", "share": 0.10, "how": "Worried about Indian TDS, Canadian reporting (T1135) and doing something wrong; wants a CA involved."}
+  ],
+  "objections": [
+    "I've never heard of REPAIHUB — why would I trust a new startup with ₹20 lakh?",
+    "1-2% plus $25 is a lot when my bank charges a few hundred rupees",
+    "Which bank actually holds my money, and is this regulated?",
+    "My Indian bank will still call me or ask me to come in",
+    "My relative in India can sort this out for free",
+    "I'll do it on my next trip to India",
+    "What if the transfer gets stuck halfway or the CA rejects something?",
+    "I'm not sure about the tax side in India and Canada"
+  ],
+  "habits": [
+    "you visit India roughly once every two years",
+    "your NRO account is with SBI and you haven't logged in for months",
+    "you are in three family WhatsApp groups and one community group",
+    "you sold (or are about to sell) a flat in India",
+    "you use Wise or Remitly to send money to your parents",
+    "you file your Canadian taxes with an accountant from your community",
+    "your parents in India help you with bank paperwork",
+    "you watch Indian finance YouTube channels about NRI rules"
+  ]
+}

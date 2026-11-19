@@ -1,0 +1,13 @@
+{
+  "id": "P031",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB, and moving a big chunk of my NRO money through a new startup is not something I'll do on a whim. The fee is fine, but I've left this money alone for years and I'd keep putting it off.",
+  "objection": "I don't know these people. A registration number on their website and a partner bank named on a receipt doesn't tell me they will still be around, or that my lakhs won't get stuck, if something goes wrong.",
+  "would_change_my_mind": "Reviews from other NRIs in Canada I can check, or a respected Indian finance YouTuber covering them. A first transfer of a small amount to test it, with the fee taken only after the money arrives.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

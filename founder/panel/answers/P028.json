@@ -1,0 +1,13 @@
+{
+  "id": "P028",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "I'm selling the flat and the CA certificate, the free call before anything moves, and the named AD bank on the receipt are exactly what make me feel I won't get something wrong with TDS. The fee is small next to the amount, so I would try it for the big transfer.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? The guarantee only refunds their fee, not my time or any TDS problem, and I have never heard of this company.",
+  "would_change_my_mind": "Seeing the FINTRAC registration number and the CA's name and ICAI membership checked on their site, plus a plain statement of who is responsible if the bank or tax office flags the transfer.",
+  "price_too_cheap": 60,
+  "price_cheap": 120,
+  "price_expensive": 280,
+  "price_too_expensive": 450
+}

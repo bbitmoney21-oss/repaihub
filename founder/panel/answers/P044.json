@@ -1,0 +1,13 @@
+{
+  "id": "P044",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My cousin in India can walk the paperwork through my bank for free, and I would still compare this against my bank's own NRO remittance desk before moving flat-sale money. The flat fee is fine, but 'the partner bank's published rate' could hide a wide spread, and I have never heard of you.",
+  "objection": "The fee is flat, but the real cost is the exchange rate. If the partner bank's rate is 1% off mid-market, I lose more than your fee, and I would be trusting a company I just met with a six-figure CAD transfer.",
+  "would_change_my_mind": "Showing the exact rate against the mid-market rate on a sample transfer, naming the partner bank up front, and a verifiable FINTRAC number I can check. A reference from another flat-sale customer would also help.",
+  "price_too_cheap": 40,
+  "price_cheap": 99,
+  "price_expensive": 220,
+  "price_too_expensive": 350
+}

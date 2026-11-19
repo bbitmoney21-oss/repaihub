@@ -1,0 +1,13 @@
+{
+  "id": "P018",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "About $317 to move ten lakh is way too much when my Indian bank charges a few hundred rupees for the same remittance. I'd pay for convenience, but not 2%, and it isn't even live until 2027.",
+  "objection": "2% plus a flat fee is a lot when my bank charges a few hundred rupees. FINTRAC registration is still only 'in process' and I'd be handing over lakhs to a company that hasn't launched.",
+  "would_change_my_mind": "A fee under about 0.5% (roughly CAD $80 on 10 lakh), plus the FINTRAC registration done and some track record.",
+  "price_too_cheap": 40,
+  "price_cheap": 80,
+  "price_expensive": 160,
+  "price_too_expensive": 250
+}

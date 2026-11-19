@@ -1,0 +1,13 @@
+{
+  "id": "P038",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I am moving a lot of money from a property sale, and I would rather deal with my Indian bank's NRI desk, even if it is slower. I have never heard of REPAIHUB, and a partner CA plus a partner bank is two more parties who can hold things up.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? Then my lakhs are sitting in limbo with a company I do not know, and a fee refund does not fix that.",
+  "would_change_my_mind": "My own Indian bank or my own CA confirming they work with REPAIHUB, plus a few verifiable reviews from people who moved more than 25 lakh. A written guarantee that the money is never held by REPAIHUB would also help.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 200,
+  "price_too_expensive": 350
+}

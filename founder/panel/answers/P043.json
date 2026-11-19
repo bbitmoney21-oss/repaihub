@@ -1,0 +1,13 @@
+{
+  "id": "P043",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason": "I have a few lakh sitting in NRO and I don't want to deal with forms, a CA in India or a trip. Fee only taken when the money lands, plus a free CA call and a refund if it's late, makes it low risk to try once with my smaller balance.",
+  "reason_code": "convenience",
+  "objection": "Which bank actually holds my money while it moves, and is it really regulated? The bank is only named on the receipt, so I'd want to see it and the FINTRAC number before I give any documents.",
+  "would_change_my_mind": "Seeing the partner bank named up front and the FINTRAC registration checkable on the site, or a recommendation from someone in my community who has used it.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

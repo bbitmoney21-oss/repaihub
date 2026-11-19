@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason": "My lump sum from the property is big enough that I don't want to gamble it on a cousin's informal swap. A named RBI-authorised bank, a FINTRAC number and fee-only-on-arrival is what I'd want, and the fee is small next to the amount.",
+  "reason_code": "trust",
+  "objection": "I'd want to check the FINTRAC number and the partner bank myself, and see that my parents can handle the paperwork at my Indian bank without a branch visit. Until I've checked, it's just a nice-looking page.",
+  "would_change_my_mind": "If the FINTRAC registration or the named bank didn't check out, or if my own Indian bank wouldn't deal with the paperwork, I'd go back to my relative.",
+  "price_too_cheap": 40,
+  "price_cheap": 110,
+  "price_expensive": 280,
+  "price_too_expensive": 500
+}

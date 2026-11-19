@@ -1,0 +1,13 @@
+{
+  "id": "P023",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "I have a pile of money sitting in an SBI NRO account I never log into, and I'd happily pay a few hundred dollars not to deal with forms, a CA and time zones. Fee only when the money lands plus a refund guarantee makes it low-risk to try.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something, and I'm left chasing it on my own with my money in limbo?",
+  "would_change_my_mind": "If I couldn't confirm the FINTRAC registration and the named partner bank, or if the CA call turned up a big tax hit or hidden extra charges.",
+  "price_too_cheap": 25,
+  "price_cheap": 99,
+  "price_expensive": 250,
+  "price_too_expensive": 500
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P021",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "I don't want to chase forms, a CA in India or a trip, and nothing is charged until the money lands, so the downside is small. The free CA call before anything moves is what gets me past my tax worry.",
+  "objection": "I'm not sure about the tax side in India and Canada. Their CA covers the Indian side, but I still don't know what I report on my Canadian return, and I'd want my own accountant to confirm it.",
+  "would_change_my_mind": "If the free CA call turned out to be a sales pitch, or my own accountant said the Canadian reporting made it not worth doing.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

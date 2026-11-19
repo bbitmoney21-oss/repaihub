@@ -1,0 +1,13 @@
+{
+  "id": "P005",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My cousin in India can walk the forms through the bank branch for free, and I already know Wise and my own bank's rates to the paisa. CAD $199 on top of the bank's exchange rate for a company I have never heard of is hard to justify.",
+  "objection": "I cannot verify an unknown company with my life savings, and the fee is on top of whatever the partner bank's rate costs me. I do not see what I am getting that my relative and my accountant cannot do for nothing.",
+  "would_change_my_mind": "Hearing from someone in my community who has moved a similar amount through them without trouble, plus a live side-by-side showing the total landed CAD against my relative doing it, with the fee at about $100 or under.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 180,
+  "price_too_expensive": 280
+}

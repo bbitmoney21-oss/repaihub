@@ -1,0 +1,13 @@
+{
+  "id": "P017",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "It isn't live until 2027 and FINTRAC registration is still 'in process', so I'd be trusting an unregistered company with lakhs of rupees. My cousin in India already handles this for me through people he knows, and I'd ask him before a stranger's site.",
+  "objection": "Which bank actually holds my money while it moves, and is this company regulated yet? 'In process' isn't registered. Also about $340 to move 10 lakh feels steep when family does it for almost nothing.",
+  "would_change_my_mind": "FINTRAC registration confirmed, the named Indian partner bank disclosed, and a few people in my community group vouching that they moved money with it without problems. A lower all-in fee on 10 lakh would help too.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

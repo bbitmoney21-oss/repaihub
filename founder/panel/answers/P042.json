@@ -1,0 +1,13 @@
+{
+  "id": "P042",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "timing",
+  "reason": "It reads sensible and the fee is small next to the money, but my NRO has sat for years because I keep saying 'next trip'. I'd bookmark it and not start a transfer this month.",
+  "objection": "Which bank actually holds my money while it moves, and is this regulated? They name an RBI-authorised bank and a FINTRAC number, but I'd want to check both myself before sending lakhs, and I'd probably ask in the family group first. That checking is what I keep putting off.",
+  "would_change_my_mind": "A deadline from outside, like a property sale closing or an inheritance paperwork date, plus the FINTRAC number and the partner bank's name shown up front so I can verify them in ten minutes without a call.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 300,
+  "price_too_expensive": 600
+}

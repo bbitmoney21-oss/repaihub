@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I only move money through my own bank's NRI desk, and I would not hand my NRO savings to a brand-new company that is still waiting on its FINTRAC registration. It also is not even launched yet, and I only go to India every couple of years.",
+  "objection": "I'm not sure about the tax side in India and Canada, and I do not know who is responsible if the Form 145 or 146 is wrong. A new app holding my money with no track record worries me, and the fee looks high compared to what my bank would charge.",
+  "would_change_my_mind": "My own Indian bank or a big Canadian bank endorsing or partnering with it, FINTRAC registration completed, a year or more of track record, and a clear written explanation of the Canadian and Indian tax treatment.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 320
+}

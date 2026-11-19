@@ -1,0 +1,13 @@
+{
+  "id": "P017",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "My first question is always which bank holds the money and whether it's regulated, and this names an RBI-authorised bank on every receipt, a FINTRAC registration and a CA call first. Fee only on arrival means I'm not risking anything up front, so I'd try it with my 10 lakh instead of leaning on my cousin's informal route.",
+  "objection": "I can't tell if the FINTRAC number and the partner bank are real until I check them myself, and nobody in my family WhatsApp groups has used this. If it goes wrong with my own money in the middle, a refund of a CAD $149 fee doesn't help me.",
+  "would_change_my_mind": "If the FINTRAC registration or the named bank didn't check out, or if someone in my family or community groups had a bad experience with it, I'd drop it. A good word from someone I know would make me comfortable moving more.",
+  "price_too_cheap": 60,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

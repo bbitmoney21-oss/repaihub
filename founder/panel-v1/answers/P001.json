@@ -1,0 +1,13 @@
+{
+  "id": "P001",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My NRO money has sat there for years and I keep telling myself I'll sort it on my next trip. It isn't launching until 2027 and I won't act on a waitlist, so a signup now is just a polite maybe.",
+  "objection": "They're not even FINTRAC-registered yet, and I'd be handing a stranger a six-figure rupee transfer with paperwork like Form 145 and 146. About CAD $317 on ₹10 lakh is real money for something I could do in person with no urgency.",
+  "would_change_my_mind": "FINTRAC registration done, a few real reviews from people who moved a similar amount, and a total fee under about CAD $200 on ₹10 lakh.",
+  "price_too_cheap": 60,
+  "price_cheap": 150,
+  "price_expensive": 300,
+  "price_too_expensive": 450
+}

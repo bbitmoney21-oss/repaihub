@@ -1,0 +1,13 @@
+{
+  "id": "P015",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I have a cousin in India who handles these things for me, and I go over every couple of years anyway, so I'd just sort it out then. Paying about $340 to move ten lakh, to a company that isn't even registered yet, doesn't make sense to me.",
+  "objection": "They are not registered with FINTRAC yet and haven't launched, and I would be handing over my retirement savings. The fee is also well above what I think a bank or my cousin's arrangement would cost.",
+  "would_change_my_mind": "Being fully FINTRAC registered with a track record and real customer reviews, plus a fee under about CAD $150 for ten lakh.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 320
+}

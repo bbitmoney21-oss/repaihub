@@ -1,0 +1,13 @@
+{
+  "id": "P059",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My Indian bank's NRI desk does this for a few hundred rupees in charges, and I would not hand a lakh-sized transfer to a company I have never heard of. $149 to $199 on top of the CA fee I already pay my own accountant feels like a lot.",
+  "objection": "I do not know this company, and paying $149-$199 to move money my own bank will move for a few hundred rupees looks like paying for something I can do myself.",
+  "would_change_my_mind": "My own Indian bank or my Canadian bank recommending it, or the fee being under about $60 for a 10 lakh transfer, with the CA certificate included.",
+  "price_too_cheap": 20,
+  "price_cheap": 45,
+  "price_expensive": 90,
+  "price_too_expensive": 140
+}

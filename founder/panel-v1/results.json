@@ -1,0 +1,470 @@
+{
+ "business": "REPAIHUB: online service that moves money from an Indian NRO account to a Canadian bank account, with the Indian tax forms and CA certificate handled",
+ "seed": 2027,
+ "dealt": 100,
+ "answered": 20,
+ "skipped": [
+  [
+   "P021",
+   "missing"
+  ],
+  [
+   "P022",
+   "missing"
+  ],
+  [
+   "P023",
+   "missing"
+  ],
+  [
+   "P024",
+   "missing"
+  ],
+  [
+   "P025",
+   "missing"
+  ],
+  [
+   "P026",
+   "missing"
+  ],
+  [
+   "P027",
+   "missing"
+  ],
+  [
+   "P028",
+   "missing"
+  ],
+  [
+   "P029",
+   "missing"
+  ],
+  [
+   "P030",
+   "missing"
+  ],
+  [
+   "P031",
+   "missing"
+  ],
+  [
+   "P032",
+   "missing"
+  ],
+  [
+   "P033",
+   "missing"
+  ],
+  [
+   "P034",
+   "missing"
+  ],
+  [
+   "P035",
+   "missing"
+  ],
+  [
+   "P036",
+   "missing"
+  ],
+  [
+   "P037",
+   "missing"
+  ],
+  [
+   "P038",
+   "missing"
+  ],
+  [
+   "P039",
+   "missing"
+  ],
+  [
+   "P040",
+   "missing"
+  ],
+  [
+   "P041",
+   "missing"
+  ],
+  [
+   "P042",
+   "missing"
+  ],
+  [
+   "P043",
+   "missing"
+  ],
+  [
+   "P044",
+   "missing"
+  ],
+  [
+   "P045",
+   "missing"
+  ],
+  [
+   "P046",
+   "missing"
+  ],
+  [
+   "P047",
+   "missing"
+  ],
+  [
+   "P048",
+   "missing"
+  ],
+  [
+   "P049",
+   "missing"
+  ],
+  [
+   "P050",
+   "missing"
+  ],
+  [
+   "P051",
+   "missing"
+  ],
+  [
+   "P052",
+   "missing"
+  ],
+  [
+   "P053",
+   "missing"
+  ],
+  [
+   "P054",
+   "missing"
+  ],
+  [
+   "P055",
+   "missing"
+  ],
+  [
+   "P056",
+   "missing"
+  ],
+  [
+   "P057",
+   "missing"
+  ],
+  [
+   "P058",
+   "missing"
+  ],
+  [
+   "P059",
+   "missing"
+  ],
+  [
+   "P060",
+   "missing"
+  ],
+  [
+   "P061",
+   "missing"
+  ],
+  [
+   "P062",
+   "missing"
+  ],
+  [
+   "P063",
+   "missing"
+  ],
+  [
+   "P064",
+   "missing"
+  ],
+  [
+   "P065",
+   "missing"
+  ],
+  [
+   "P066",
+   "missing"
+  ],
+  [
+   "P067",
+   "missing"
+  ],
+  [
+   "P068",
+   "missing"
+  ],
+  [
+   "P069",
+   "missing"
+  ],
+  [
+   "P070",
+   "missing"
+  ],
+  [
+   "P071",
+   "missing"
+  ],
+  [
+   "P072",
+   "missing"
+  ],
+  [
+   "P073",
+   "missing"
+  ],
+  [
+   "P074",
+   "missing"
+  ],
+  [
+   "P075",
+   "missing"
+  ],
+  [
+   "P076",
+   "missing"
+  ],
+  [
+   "P077",
+   "missing"
+  ],
+  [
+   "P078",
+   "missing"
+  ],
+  [
+   "P079",
+   "missing"
+  ],
+  [
+   "P080",
+   "missing"
+  ],
+  [
+   "P081",
+   "missing"
+  ],
+  [
+   "P082",
+   "missing"
+  ],
+  [
+   "P083",
+   "missing"
+  ],
+  [
+   "P084",
+   "missing"
+  ],
+  [
+   "P085",
+   "missing"
+  ],
+  [
+   "P086",
+   "missing"
+  ],
+  [
+   "P087",
+   "missing"
+  ],
+  [
+   "P088",
+   "missing"
+  ],
+  [
+   "P089",
+   "missing"
+  ],
+  [
+   "P090",
+   "missing"
+  ],
+  [
+   "P091",
+   "missing"
+  ],
+  [
+   "P092",
+   "missing"
+  ],
+  [
+   "P093",
+   "missing"
+  ],
+  [
+   "P094",
+   "missing"
+  ],
+  [
+   "P095",
+   "missing"
+  ],
+  [
+   "P096",
+   "missing"
+  ],
+  [
+   "P097",
+   "missing"
+  ],
+  [
+   "P098",
+   "missing"
+  ],
+  [
+   "P099",
+   "missing"
+  ],
+  [
+   "P100",
+   "missing"
+  ]
+ ],
+ "buys": 0,
+ "passes": 20,
+ "buy_rate": 0.0,
+ "by_segment": [
+  [
+   "Settled mid-career professional with old FDs, rent or savings in NRO (₹5L-₹20L)",
+   7,
+   0.0
+  ],
+  [
+   "Newer immigrant (PR < 5 yrs) with modest NRO balance (under ₹5L)",
+   4,
+   0.0
+  ],
+  [
+   "Property seller / inheritor with a lump sum (₹20L-₹1Cr waiting in NRO)",
+   4,
+   0.0
+  ],
+  [
+   "Retiree / parent-age with Indian pension or rental income (₹3L-₹15L a year)",
+   5,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Procrastinator",
+   3,
+   0.0
+  ],
+  [
+   "Trusts only big banks",
+   3,
+   0.0
+  ],
+  [
+   "Family-network fixer",
+   5,
+   0.0
+  ],
+  [
+   "Asks the WhatsApp group first",
+   3,
+   0.0
+  ],
+  [
+   "Price comparer",
+   3,
+   0.0
+  ],
+  [
+   "Busy, pays for convenience",
+   2,
+   0.0
+  ],
+  [
+   "Tax-anxious",
+   1,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$69,000 to $147,000",
+   7,
+   0.0
+  ],
+  [
+   "under $69,000",
+   6,
+   0.0
+  ],
+  [
+   "$147,000 and up",
+   7,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "trust",
+   14,
+   [
+    "I only move money through my own bank's NRI desk, and I would not hand my NRO savings to a brand-new company that is still waiting on its FINTRAC registration. It also is not even launched yet, and I only go to India every couple of years.",
+    "I'm not handing a lump sum from a property sale to a company that isn't even FINTRAC-registered yet and can't launch till 2027. My cousin in India already handles this through his CA and I know who I'm dealing with."
+   ],
+   [
+    "P002",
+    "P003"
+   ]
+  ],
+  [
+   "habit",
+   3,
+   [
+    "My NRO money has sat there for years and I keep telling myself I'll sort it on my next trip. It isn't launching until 2027 and I won't act on a waitlist, so a signup now is just a polite maybe.",
+    "My cousin in India already handles this for me through his CA, and it costs me next to nothing. Paying about CAD $340 to move 10 lakh doesn't make sense when I earn well and already have a way that works."
+   ],
+   [
+    "P001",
+    "P011"
+   ]
+  ],
+  [
+   "price",
+   3,
+   [
+    "About CAD $342 to move ten lakh is a lot when I compare it to Wise or my bank, and my relative in India can handle the paperwork for free. It's also not even launched yet, so there's nothing for me to try.",
+    "About CAD $342 to move 10 lakh (317 if first transfer is free) is a lot when my relative in India can handle the paperwork for free, or a CA there charges a few thousand rupees. It is also not launched and FINTRAC is only 'in process', so I would not put savings through it."
+   ],
+   [
+    "P005",
+    "P010"
+   ]
+  ]
+ ],
+ "why_yes": [],
+ "flip": [
+  "FINTRAC registration done, a few real reviews from people who moved a similar amount, and a total fee under about CAD $200 on ₹10 lakh.",
+  "My own Indian bank or a big Canadian bank endorsing or partnering with it, FINTRAC registration completed, a year or more of track record, and a clear written explanation of the Canadian and Indian tax treatment.",
+  "FINTRAC registration actually completed, the named partner bank and CA firm disclosed, and a few months of real track record with transfers of my size.",
+  "Several people in my community group saying they moved money with them without trouble, plus FINTRAC registration completed and a clear explanation of the tax filing on both sides.",
+  "A total cost under about CAD $120 for ten lakh, plus being fully FINTRAC-registered with real reviews from people I know in my community.",
+  "Several people in my community group saying they moved money with them safely, plus FINTRAC registration done and a much lower fee, around 0.5% or less.",
+  "FINTRAC registration done, a track record of a year or more, and my own CA confirming the tax treatment and the Form 145/146 filings are correct.",
+  "Several people in my community group or temple association vouching that they moved money with them and it arrived, plus the FINTRAC registration completed and confirmation that my Indian bank will not need me to visit.",
+  "FINTRAC registration completed, plus the partner bank named and a few reviews from people I know or a community I trust. A lower fee for small amounts would help too.",
+  "A fee under about 0.5% all-in, FINTRAC registration completed, and a few months of real customer track record.",
+  "A fee under about 0.7% with FINTRAC registration done and a track record from real customers. Or if my cousin stopped being able to help.",
+  "Finished FINTRAC registration, a few real reviews from people in my community, and my own accountant saying he has seen it work.",
+  "FINTRAC registration confirmed, a few months of live track record with reviews from people I know, and a clear written guarantee on what happens to the money if a transfer or Form 146 gets stuck or rejected.",
+  "Completed FINTRAC registration, a well-known Indian bank clearly named as the partner, and my accountant confirming they're comfortable with the paperwork.",
+  "Being fully FINTRAC registered with a track record and real customer reviews, plus a fee under about CAD $150 for ten lakh.",
+  "Completed FINTRAC registration, a named Indian partner bank, and a total fee under about 1 percent (roughly CAD 160 on 10 lakh), shown as a live rate against Wise.",
+  "FINTRAC registration confirmed, the named Indian partner bank disclosed, and a few people in my community group vouching that they moved money with it without problems. A lower all-in fee on 10 lakh would help too.",
+  "A fee under about 0.5% (roughly CAD $80 on 10 lakh), plus the FINTRAC registration done and some track record.",
+  "A fee under about CAD 150 for 10 lakh, and FINTRAC registration finished, with proof that real people have moved money through them without the money getting stuck.",
+  "FINTRAC registration confirmed, the partner bank and CA named so I can check them, my own CA agreeing to work with them, and reviews from other NRIs who moved a lakh-plus amount."
+ ],
+ "purchases_first_month_per_buyer": null,
+ "price_answers": 20
+}

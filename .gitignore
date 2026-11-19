@@ -4,7 +4,9 @@ dist-server/
 *.zip
 .env
 .env.local
-.claude/
+.claude/*
+!.claude/rules.md
+!.claude/skills/
 
 # Logs
 *.log
@@ -22,3 +24,7 @@ Thumbs.db
 
 # Local Render / deploy outputs
 *.local.yml
+
+# Python bytecode
+__pycache__/
+*.pyc

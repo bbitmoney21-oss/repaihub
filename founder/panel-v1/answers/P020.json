@@ -1,0 +1,13 @@
+{
+  "id": "P020",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB and they're still waiting on FINTRAC registration. I'm not handing a brand-new startup my property money, and it can't even launch until 2027.",
+  "objection": "They're not registered with FINTRAC yet, and I don't know who the partner bank or the CA are. If a Form 145/146 or TDS is filed wrong, the tax problem is mine, not theirs.",
+  "would_change_my_mind": "FINTRAC registration confirmed, the partner bank and CA named so I can check them, my own CA agreeing to work with them, and reviews from other NRIs who moved a lakh-plus amount.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 250,
+  "price_too_expensive": 420
+}

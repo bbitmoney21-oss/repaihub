@@ -1,0 +1,13 @@
+{
+  "id": "P046",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I have a cousin back home who handles this sort of thing, and my own bank's NRO desk charges a few hundred rupees for the remittance. Paying $199 on ten lakh sounds like a lot for something I can get done through family or my bank, even if the paperwork is neat.",
+  "objection": "$199 to move ten lakh is more than I'd pay my bank, and I already have someone in India who chases the CA and forms for me. I don't know why I'd pay a stranger for what family does.",
+  "would_change_my_mind": "A much lower flat fee, about $100 or less for ten lakh, or proof that my cousin's route would cost me more in tax mistakes or a bad exchange rate than this does.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 140,
+  "price_too_expensive": 220
+}

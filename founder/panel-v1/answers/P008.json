@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "It is not even live yet and the registration is still 'in process'. I would not move my pension and rental money through a company nobody in our WhatsApp group has used.",
+  "objection": "My Indian bank will still call me or ask me to come in, so how is this really no branch visit? And who is this company, with FINTRAC still pending? If the money gets stuck I have nobody to chase.",
+  "would_change_my_mind": "Several people in my community group or temple association vouching that they moved money with them and it arrived, plus the FINTRAC registration completed and confirmation that my Indian bank will not need me to visit.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 300,
+  "price_too_expensive": 450
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P030",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "The free CA call before anything moves and the named AD Category-I bank on the receipt are what I'd want, since I'm scared of getting TDS or the 15CA/15CB wrong. Paying CAD $199 on about $15,900 is small next to the cost of a mistake, and nothing is charged until the money lands.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? The refund only returns their fee, not my time or the tax mess, and I haven't even logged into SBI in months.",
+  "would_change_my_mind": "Seeing the actual FINTRAC number and the partner bank's name before I commit, and a CA who will put in writing what my TDS and T1135 position is. If any of that looked vague I'd walk away.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 280,
+  "price_too_expensive": 450
+}

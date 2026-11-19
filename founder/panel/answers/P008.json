@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I have never heard of this company and nobody in my WhatsApp group has used it. I do not move lakhs on the word of an ad, I wait until people in the community say they got their money.",
+  "objection": "My Indian bank will still call me or ask me to come in, so how are you really different from doing it myself? I have no one vouching for you, and this is my pension and rental savings.",
+  "would_change_my_mind": "Two or three people in my community WhatsApp group or temple association saying they moved money with you and it arrived, plus proof my Indian bank will not need a branch visit.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 200,
+  "price_too_expensive": 350
+}

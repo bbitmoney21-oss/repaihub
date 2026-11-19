@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd never put a lump sum from a property sale through a new app that isn't even registered with FINTRAC yet and doesn't launch until 2027. I'd go through my Indian bank's NRI desk and let my accountant handle the Form 15CA/CB and tax side.",
+  "objection": "A new unregistered company holding a large sum of my money, and I'm not sure about the tax side in India and Canada. Who is liable if the paperwork is wrong?",
+  "would_change_my_mind": "Completed FINTRAC registration, a well-known Indian bank clearly named as the partner, and my accountant confirming they're comfortable with the paperwork.",
+  "price_too_cheap": 60,
+  "price_cheap": 130,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

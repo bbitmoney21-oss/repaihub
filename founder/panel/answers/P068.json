@@ -1,0 +1,13 @@
+{
+  "id": "P068",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "With a flat sale, the 15CA/15CB paperwork and CA hunting is exactly what I don't have time for, and $199 is small against the amount moving. The fee only comes out when the money lands and the CA call is free, so I can try it with little risk.",
+  "objection": "My Indian bank will still call me or ask me to come in, and then I've paid for a service that doesn't actually save me the trip.",
+  "would_change_my_mind": "A clear statement, in writing, that my bank will not need me to visit or phone in, ideally with a named example of my bank working this way.",
+  "price_too_cheap": 40,
+  "price_cheap": 110,
+  "price_expensive": 300,
+  "price_too_expensive": 550
+}

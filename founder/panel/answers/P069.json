@@ -1,0 +1,13 @@
+{
+  "id": "P069",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "My first thought is that my relative could do this for free, but I am nervous about TDS and T1135 and I do not want him getting it wrong on my behalf. A CA on the call before anything moves and no fee until the money lands takes most of the risk off me, so I would try it once with my NRO money.",
+  "objection": "I cannot verify the CA or the partner bank from a page like this, and I still do not know if the CA will tell me what to report in Canada or only handle the Indian side. If something goes wrong with the tax filing, I am the one who answers for it.",
+  "would_change_my_mind": "Seeing the CA's name and credentials plus the bank name up front, a confirmed FINTRAC registration I can look up myself, and a clear statement of what the CA covers on the Canadian reporting side.",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

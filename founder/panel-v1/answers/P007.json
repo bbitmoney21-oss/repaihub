@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd be moving a lump sum from a property sale, and I only trust my Indian bank's NRI desk for that. A new app that isn't even launched and doesn't have FINTRAC registration yet isn't getting my money.",
+  "objection": "I'm not sure about the tax side in India and Canada, and I'm not handing a large sum to a company that isn't registered yet and I've never heard of.",
+  "would_change_my_mind": "FINTRAC registration done, a track record of a year or more, and my own CA confirming the tax treatment and the Form 145/146 filings are correct.",
+  "price_too_cheap": 60,
+  "price_cheap": 150,
+  "price_expensive": 320,
+  "price_too_expensive": 480
+}

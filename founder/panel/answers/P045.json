@@ -1,0 +1,13 @@
+{
+  "id": "P045",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I would not move money this week on a first look. My Indian bank can still call me or ask me to come in no matter who files the forms, and I have not seen the actual exchange rate, so I cannot compare it to the paisa.",
+  "objection": "My Indian bank will still call me or ask me to come in, so I do not see what this really saves me. I also cannot judge the real cost until I see the rate, since the fee is only part of it.",
+  "would_change_my_mind": "A clear written statement of what my bank will and will not still require from me, plus a sample rate quote I can compare against my bank and Wise before I commit.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 220,
+  "price_too_expensive": 350
+}

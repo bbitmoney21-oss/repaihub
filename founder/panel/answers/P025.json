@@ -1,0 +1,13 @@
+{
+  "id": "P025",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My NRO balance is small and my parents already help me with the bank paperwork, so I would first compare this against doing it through them and the bank's own rates. A company I have never heard of holding up my transfer is not something I will try without seeing real customer experiences.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? The refund of your fee is nice, but it does not bring back my time or tell me where my money is sitting.",
+  "would_change_my_mind": "Reviews or references from other NRO customers who completed a transfer, plus a sample receipt showing the exact exchange rate compared with Wise, so I can see the total cost to the paisa.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 320
+}
