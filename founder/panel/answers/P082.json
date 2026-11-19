@@ -1,0 +1,13 @@
+{
+  "id": "P082",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I don't know this company, and I'm not putting my savings through a new outfit just because the fee looks fair. I'd ask my own Indian bank's NRI desk first, and my accountant would have a view too.",
+  "objection": "Which bank actually holds my money while it moves, and is this company really regulated? A registration number on a website is easy to put up. I'd have to check it myself, and I have never heard of them.",
+  "would_change_my_mind": "My accountant or someone in my community who has already used them tells me it worked. Also, I'd want to see my own Indian bank confirm the partner bank on the receipt, and have the FINTRAC registration checked.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

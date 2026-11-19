@@ -5,7 +5,7 @@
 - ✓ Each transfer earns $81.00 before fixed costs (43% contribution).
 - ✓ Year 1 operating profit: $865.
 - ✓ Break-even is 1 transfers a day against a capacity of 10.
-- ✗ 15 of 69 simulated buyers buy (22%, the bar is 25%).
+- ✗ 20 of 100 simulated buyers buy (20%, the bar is 25%).
 
 | key number | |
 | --- | ---: |
@@ -16,7 +16,7 @@
 | Startup spend | $20,000 |
 | Cash needed before it pays for itself | $26,080 |
 | Startup money earned back | not in year 1 |
-| Buyer panel | 15 buy · 54 pass |
+| Buyer panel | 20 buy · 80 pass |
 
 ## The idea
 
@@ -40,7 +40,7 @@
 
 ## Summary
 
-**Verdict: NOT YET** (computed by `compile.py`). Three of four checks pass. The one that fails: **22% of simulated buyers buy (15 of 69), below the 25% bar.** Simulated buy rates are an upper bound, so the real number is likely lower.
+**Verdict: NOT YET** (computed by `compile.py`). Three of four checks pass. The one that fails: **20% of simulated buyers buy (20 of 100), below the 25% bar.** Simulated buy rates are an upper bound, so the real number is likely lower.
 
 **What has to change:** build *proof*, not product. The remaining "no" reason is "nobody I know has used it" (trust, 31 of 54 passes). That is fixed by real completed customers and accountants vouching for the service, not by more features. Next steps: `/founder-launch` (Paperwork-Only Pilot), then re-run `/founder-consumer` with real pilot proof in the pitch.
 
@@ -50,7 +50,7 @@
 
 **Board vs panel:**
 - Board: 3 × FUND IF, average 4.7/10.
-- They agree on trust. Both say the bank partner, the single price and proof are what's missing. Changing the offer moved the panel from 0% (v1) to 22% (v2).
+- They agree on trust. Both say the bank partner, the single price and proof are what's missing. Changing the offer moved the panel from 0% (v1) to 20% (v2).
 - They disagree on scope. The board's Product lens wants a narrower v1. The panel's best buyers are tax-anxious (71%) and busy (60%) people, a *service* audience, which supports deepening the service (CA call, guarantee) rather than adding features.
 
 **Biggest risk:** no AD Category-I bank partner. Without one, nothing legally moves. Plan: pitch 6 banks now and run a paperwork-only pilot to show demand. The pilot needs counsel's sign-off first.
@@ -162,9 +162,7 @@ All themes are marked thin: they come from guides, not counted reviews. **Next r
 
 ## The buyer panel
 
-**15 buy · 54 pass** (22% buy) out of 69 simulated buyers. Seed 2027, so the same cards can be dealt again.
-
-31 of 100 buyers have no valid answer and are left out: P062 (missing), P071 (missing), P072 (missing), P073 (missing), P074 (missing), P075 (missing), P076 (missing), P077 (missing), P078 (missing), P079 (missing).
+**20 buy · 80 pass** (20% buy) out of 100 simulated buyers. Seed 2027, so the same cards can be dealt again.
 
 These are simulated buyers, not customers. Use this to find objections and weak spots, then confirm the big ones with real people before you spend.
 
@@ -172,47 +170,47 @@ These are simulated buyers, not customers. Use this to find objections and weak 
 
 | group | buyers | buy rate |
 | --- | ---: | ---: |
-| Newer immigrant (PR < 5 yrs) with modest NRO balance (under ₹5L) | 17 | 29% |
-| Property seller / inheritor with a lump sum (₹20L-₹1Cr waiting in NRO) | 17 | 24% |
-| Retiree / parent-age with Indian pension or rental income (₹3L-₹15L a year) | 11 | 18% |
-| Settled mid-career professional with old FDs, rent or savings in NRO (₹5L-₹20L) | 24 | 17% |
+| Property seller / inheritor with a lump sum (₹20L-₹1Cr waiting in NRO) | 25 | 32% |
+| Newer immigrant (PR < 5 yrs) with modest NRO balance (under ₹5L) | 25 | 20% |
+| Settled mid-career professional with old FDs, rent or savings in NRO (₹5L-₹20L) | 35 | 14% |
+| Retiree / parent-age with Indian pension or rental income (₹3L-₹15L a year) | 15 | 13% |
 
 ### By buying behaviour
 
 | group | buyers | buy rate |
 | --- | ---: | ---: |
-| Tax-anxious | 7 | 71%  (thin) |
-| Busy, pays for convenience | 10 | 60% |
-| Family-network fixer | 11 | 18% |
-| Price comparer | 12 | 17% |
-| Procrastinator | 8 | 0% |
-| Trusts only big banks | 15 | 0% |
-| Asks the WhatsApp group first | 6 | 0%  (thin) |
+| Busy, pays for convenience | 15 | 67% |
+| Tax-anxious | 10 | 50% |
+| Price comparer | 15 | 13% |
+| Family-network fixer | 18 | 11% |
+| Procrastinator | 12 | 8% |
+| Trusts only big banks | 20 | 0% |
+| Asks the WhatsApp group first | 10 | 0% |
 
 ### By income
 
 | group | buyers | buy rate |
 | --- | ---: | ---: |
-| under $81,000 | 23 | 26% |
-| $129,000 and up | 23 | 26% |
-| $81,000 to $129,000 | 23 | 13% |
+| $129,000 and up | 34 | 26% |
+| under $76,000 | 33 | 18% |
+| $76,000 to $129,000 | 33 | 15% |
 
 ### Why they pass
 
 | reason | buyers | in their words |
 | --- | ---: | --- |
-| trust | 31 | "I have never heard of REPAIHUB and I only move money through my own bank's NRI desk. My NRO balance is small, so I would not risk it with a new company over a few hundred dollars of savings." (P002) · "I have never heard of them and nobody in our WhatsApp group or temple association has used them. I do not move money on a stranger's advertisement, however nice the guarantee sounds." (P004) |
-| habit | 13 | "My cousin in India already handles this kind of thing for me and doesn't charge a rupee. Paying $199 to a company I've never heard of, when I have a person I trust, doesn't make sense to me." (P011) · "The money has sat in NRO for years and I keep saying I'll sort it on the next trip. It sounds sensible, but I wouldn't actually get around to it this month, and I'd want to check it with my accountant first." (P012) |
-| price | 6 | "My relative in India can sort this out for free, and I compare everything to the paisa. Paying CAD $149-199 on top of the bank's rate to move a sum my family could help me with does not add up for me." (P010) · "The regulated bank and CA details are reassuring, but I compare to the paisa and $199 on ten lakh is about 1.25% before I even see the exchange rate. I visit India every two years and can do some of this at my own branch, so I would not move money this month." (P016) |
-| timing | 4 | "It sounds sensible, but I've let this money sit for years and I'd just say I'll sort it on my next trip. Nothing about it makes me act this month." (P001) · "It reads sensible and the fee is small next to the money, but my NRO has sat for years because I keep saying 'next trip'. I'd bookmark it and not start a transfer this month." (P042) |
+| trust | 46 | "I have never heard of REPAIHUB and I only move money through my own bank's NRI desk. My NRO balance is small, so I would not risk it with a new company over a few hundred dollars of savings." (P002) · "I have never heard of them and nobody in our WhatsApp group or temple association has used them. I do not move money on a stranger's advertisement, however nice the guarantee sounds." (P004) |
+| habit | 21 | "My cousin in India already handles this kind of thing for me and doesn't charge a rupee. Paying $199 to a company I've never heard of, when I have a person I trust, doesn't make sense to me." (P011) · "The money has sat in NRO for years and I keep saying I'll sort it on the next trip. It sounds sensible, but I wouldn't actually get around to it this month, and I'd want to check it with my accountant first." (P012) |
+| price | 8 | "My relative in India can sort this out for free, and I compare everything to the paisa. Paying CAD $149-199 on top of the bank's rate to move a sum my family could help me with does not add up for me." (P010) · "The regulated bank and CA details are reassuring, but I compare to the paisa and $199 on ten lakh is about 1.25% before I even see the exchange rate. I visit India every two years and can do some of this at my own branch, so I would not move money this month." (P016) |
+| timing | 5 | "It sounds sensible, but I've let this money sit for years and I'd just say I'll sort it on my next trip. Nothing about it makes me act this month." (P001) · "It reads sensible and the fee is small next to the money, but my NRO has sat for years because I keep saying 'next trip'. I'd bookmark it and not start a transfer this month." (P042) |
 
 ### Why they buy
 
 | reason | buyers | in their words |
 | --- | ---: | --- |
+| convenience | 9 | "I don't want to chase forms, a CA in India or a trip, and nothing is charged until the money lands, so the downside is small. The free CA call before anything moves is what gets me past my tax worry." (P021) · "I have a pile of money sitting in an SBI NRO account I never log into, and I'd happily pay a few hundred dollars not to deal with forms, a CA and time zones. Fee only when the money lands plus a refund guarantee makes it low-risk to try." (P023) |
 | trust | 8 | "My lump sum from the property is big enough that I don't want to gamble it on a cousin's informal swap. A named RBI-authorised bank, a FINTRAC number and fee-only-on-arrival is what I'd want, and the fee is small next to the amount." (P003) · "Fee only on arrival plus the refund guarantee takes most of the risk off me, and the free CA call is what I'd want anyway. At about 1.25% to skip the forms and an India trip, I'd try it once with ten lakh before moving more." (P013) |
-| convenience | 5 | "I don't want to chase forms, a CA in India or a trip, and nothing is charged until the money lands, so the downside is small. The free CA call before anything moves is what gets me past my tax worry." (P021) · "I have a pile of money sitting in an SBI NRO account I never log into, and I'd happily pay a few hundred dollars not to deal with forms, a CA and time zones. Fee only when the money lands plus a refund guarantee makes it low-risk to try." (P023) |
-| need | 2 | "I have a lump sum sitting in NRO and I am scared of getting the TDS and 15CA/15CB paperwork wrong, so a CA call before anything moves and a fee taken only on arrival lowers the risk enough to try it. I would still check the FINTRAC number and the bank name myself, and probably send one tranche first." (P020) · "The free call with a CA and the Form 145/146 filing are exactly what I'm scared of getting wrong with TDS and T1135, and fee-only-on-arrival means little risk for a first small transfer. I'd start with the Essential tier on my own balance and see how it goes." (P066) |
+| need | 3 | "I have a lump sum sitting in NRO and I am scared of getting the TDS and 15CA/15CB paperwork wrong, so a CA call before anything moves and a fee taken only on arrival lowers the risk enough to try it. I would still check the FINTRAC number and the bank name myself, and probably send one tranche first." (P020) · "The free call with a CA and the Form 145/146 filing are exactly what I'm scared of getting wrong with TDS and T1135, and fee-only-on-arrival means little risk for a first small transfer. I'd start with the Essential tier on my own balance and see how it goes." (P066) |
 
 ### What would flip a no
 
@@ -231,20 +229,20 @@ These are simulated buyers, not customers. Use this to find objections and weak 
 
 Buyers say they would buy **1.0 times** in the first month on average.
 
-69 buyers gave all four price answers. Run founder-pricing's van_westendorp.py on the answers folder.
+100 buyers gave all four price answers. Run founder-pricing's van_westendorp.py on the answers folder.
 
 ## Pricing
 
-Inputs: `pricing-curve-v1.md` (20 buyers, original pitch), `pricing-curve.md` (69 buyers, offer v2), `competitors.md`, `numbers.json` / `cfo.md`. All price answers are **the total CAD fee a buyer would pay to move ₹10 lakh**. Simulated buyers pick what to test; they are not proof.
+Inputs: `pricing-curve-v1.md` (20 buyers, original pitch), `pricing-curve.md` (100 buyers, offer v2), `competitors.md`, `numbers.json` / `cfo.md`. All price answers are **the total CAD fee a buyer would pay to move ₹10 lakh**. Simulated buyers pick what to test; they are not proof.
 
 ### What buyers said
 
-| | v1 panel (20) | v2 panel (69) |
+| | v1 panel (20) | v2 panel (100) |
 |---|---:|---:|
-| Too cheap below (PMC) | $60.80 | $59.24 |
+| Too cheap below (PMC) | $60.80 | $59.31 |
 | Least resistance (OPP) | $81.20 | $60.26 |
-| Indifference (IPP) | $150.50 | $119.69 |
-| Too expensive above (PME) | $300.32 | $259.55 |
+| Indifference (IPP) | $150.50 | $119.63 |
+| Too expensive above (PME) | $300.32 | $249.84 |
 | Median "getting expensive" | $250 | $250 |
 | Median "too expensive" | $400 | $400 |
 
@@ -257,7 +255,7 @@ Visible DIY cost ≈ **$50–$260** (bank wire ₹100–₹1,500 + CA certificat
 Variable cost per Standard transfer ≈ $94 (bank fee, nostro, CA certificate, pre-check call, guarantee reserve, APIs, payout, support). At a blended $99 the business loses $7 per transfer; at $149 it makes $43; at $199 it makes $93 (`unit_economics.py --price`). **Anything under ~$100 for a CA-certified transfer is below cost.** The panel's least-resistance point ($60) is not a viable price for the Standard tier.
 
 ### 1. The price
-**Standard (₹5L–₹25L, CA certificate included): CAD $199 flat.** Inside the acceptable range ($59–$260), above the indifference point ($120), below the median "getting expensive" ($250), and it leaves $105 contribution on that tier. It also makes the comparison honest: one price vs "CA + bank + a day off".
+**Standard (₹5L–₹25L, CA certificate included): CAD $199 flat.** Inside the acceptable range ($59–$250), above the indifference point ($120), below the median "getting expensive" ($250), and it leaves $105 contribution on that tier. It also makes the comparison honest: one price vs "CA + bank + a day off".
 
 ### 2. The ladder
 | Tier | Amount | Price | Why step up |
@@ -284,6 +282,9 @@ Test Concierge at $699 too: lump-sum buyers' "too expensive" answers ran to $450
 
 ### Action
 The live app and landing page still show two different prices (1.0–2.0% + $24.99 in `outward_fee_tiers`; $8/$12/$15 on `Landing.tsx`). Change both to the ladder above **only after** the AD-bank fee is quoted and the CFO re-run confirms it. (No code was changed in this run.)
+
+### Decision (2026-11-19)
+Bhagi delegated the call: **adopt the recommended ladder**: Essential CAD $79 (≤ ₹5L), Standard CAD $199 (₹5L–₹25L, CA certificate included), Lump-Sum Concierge CAD $499 (> ₹25L), plus a Founding 100 offer of Standard at $149. These are fees REPAIHUB charges customers on arrival of funds. Re-check once the AD-bank fee is quoted (CFO re-run). The backend fee tables (`fee_config`, `outward_fee_tiers`) still use the old % model; changing them needs a migration and Bhagi's explicit go-ahead under `.claude/rules.md`.
 
 ## The offer
 
@@ -332,11 +333,11 @@ After
 ### Re-test result (same seed 2027, same buyer cards)
 | | Pitch v1 (`pitch-v1.md`) | Offer v2 (`pitch.md`) |
 |---|---:|---:|
-| Buyers answered | 20 | 69 (31 not run — usage limit) |
-| Buy | **0 (0%)** | **15 (22%)** |
+| Buyers answered | 20 | 100 |
+| Buy | **0 (0%)** | **20 (20%)** |
 | Top pass reason | trust 14/20 ("not FINTRAC-registered yet", "not launched") | trust 31/54 ("never heard of them", "nobody in my group has used it") |
 
-**What moved:** "is it regulated / which bank" mostly dropped out; the remaining trust objection is *social proof*, not regulation. Price objections fell from "2% is too much" to "I can't see the FX rate". Biggest movers by behaviour: tax-anxious 71% (thin), busy/pays-for-convenience 60%. Zero movement: "trusts only big banks" 0/15, procrastinators 0/8, "asks the WhatsApp group first" 0/6.
+**What moved:** "is it regulated / which bank" mostly dropped out; the remaining trust objection is *social proof*, not regulation. Price objections fell from "2% is too much" to "I can't see the FX rate". Biggest movers by behaviour: busy/pays-for-convenience 67%, tax-anxious 50%. Best segment: lump-sum sellers/inheritors 32%. Near-zero: "trusts only big banks" 0/20, "asks the WhatsApp group first" 0/10, procrastinators 1/12.
 
 **Important caveat:** v2 was tested *as if* the bank partner and FINTRAC registration were in place. They are not. Until they are, the real offer is v1, which converted 0/20.
 
@@ -428,21 +429,21 @@ Fixed costs: $1,880 a month (Hosting: Render + Supabase paid tiers (ESTIMATE) $1
 
 ## Marketing
 
-Evidence: `panel/results.md` (offer v2, 69 buyers), `competitors.md`, `pricing.md`, `cfo.md`. Panel quotes are research only, never ads.
+Evidence: `panel/results.md` (offer v2, 100 buyers), `competitors.md`, `pricing.md`, `cfo.md`. Panel quotes are research only, never ads.
 
-### Who buys first (panel v2)
+### Who buys first (panel v2, 100 buyers)
 | Behaviour | Buy rate | Read |
 |---|---:|---|
-| Tax-anxious | 71% (7, thin) | **Primary audience** |
-| Busy, pays for convenience | 60% (10) | **Primary audience** |
-| Newer immigrant, small balance | 29% (17) | Essential tier |
-| Property seller / inheritor | 24% (17) | Highest value per customer |
-| Trusts only big banks | 0% (15) | Not reachable in year 1 |
-| Procrastinator | 0% (8) | Needs a deadline trigger (property sale, FY-end) |
-| Asks the WhatsApp group first | 0% (6) | Reached only via proof from others |
+| Busy, pays for convenience | 67% (15) | **Primary audience** |
+| Tax-anxious | 50% (10) | **Primary audience** |
+| Newer immigrant, small balance | 20% (25) | Essential tier |
+| Property seller / inheritor | 32% (25) | **Best segment, highest value per customer** |
+| Trusts only big banks | 0% (20) | Not reachable in year 1 |
+| Procrastinator | 8% (12) | Needs a deadline trigger (property sale, FY-end) |
+| Asks the WhatsApp group first | 0% (10) | Reached only via proof from others |
 
 ### Positioning (three versions; recommend #1)
-1. **For Indian-origin Canadians who are worried about getting the Indian tax paperwork wrong, REPAIHUB Safe Passage is the done-for-you NRO repatriation service that checks your tax position with a Chartered Accountant before a rupee moves, unlike your bank, which hands you the forms and tells you to find a CA.** ← supported by tax-anxious 71% and "free CA call is what gets me past my tax worry" (P021, P030).
+1. **For Indian-origin Canadians who are worried about getting the Indian tax paperwork wrong, REPAIHUB Safe Passage is the done-for-you NRO repatriation service that checks your tax position with a Chartered Accountant before a rupee moves, unlike your bank, which hands you the forms and tells you to find a CA.** ← supported by tax-anxious 50% and busy 67% and "free CA call is what gets me past my tax worry" (P021, P030).
 2. For busy professionals with money stuck in India, Safe Passage is the flat-fee way to bring it home without a branch visit, unlike a trip to India.
 3. For families who just sold a property in India, Safe Passage is the concierge that moves the proceeds legally within the USD 1M limit, unlike informal swaps.
 
@@ -628,7 +629,7 @@ The money-moving product can't launch until an AD bank signs and FINTRAC registe
 - Why: tests the exact things the panel was unsure about (will people pay a flat fee for done-for-you paperwork? do accountants refer?) with real money, at near-zero cost.
 - **Compliance check first:** have counsel confirm that a paperwork-coordination service that never holds or transmits funds does not itself require MSB registration. Do not run it until confirmed. Not legal advice.
 - **Success line (write it now):** in 6 weeks from start — **40 CA pre-check calls booked, 12 paid "NRO Ready" orders at $149, ≥ 3 accountant partners referring.**
-- Compare: the v2 panel bought at 22% (an upper bound). If real booked-call → paid conversion is **below 10%**, trust the real buyers: go back to `/founder-offer` / `/founder-pricing` before signing anything with a bank.
+- Compare: the v2 panel bought at 20% (an upper bound). If real booked-call → paid conversion is **below 10%**, trust the real buyers: go back to `/founder-offer` / `/founder-pricing` before signing anything with a bank.
 - Pilot economics: $149 − CA certificate (~$48) − pre-check (~$13) ≈ **$88 contribution per order**, no transfer risk.
 
 ### Step 2: the countdown (owner = Founder unless stated)

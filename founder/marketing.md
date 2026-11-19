@@ -1,20 +1,20 @@
 # Marketing Director — REPAIHUB Safe Passage
 
-Evidence: `panel/results.md` (offer v2, 69 buyers), `competitors.md`, `pricing.md`, `cfo.md`. Panel quotes are research only, never ads.
+Evidence: `panel/results.md` (offer v2, 100 buyers), `competitors.md`, `pricing.md`, `cfo.md`. Panel quotes are research only, never ads.
 
-## Who buys first (panel v2)
+## Who buys first (panel v2, 100 buyers)
 | Behaviour | Buy rate | Read |
 |---|---:|---|
-| Tax-anxious | 71% (7, thin) | **Primary audience** |
-| Busy, pays for convenience | 60% (10) | **Primary audience** |
-| Newer immigrant, small balance | 29% (17) | Essential tier |
-| Property seller / inheritor | 24% (17) | Highest value per customer |
-| Trusts only big banks | 0% (15) | Not reachable in year 1 |
-| Procrastinator | 0% (8) | Needs a deadline trigger (property sale, FY-end) |
-| Asks the WhatsApp group first | 0% (6) | Reached only via proof from others |
+| Busy, pays for convenience | 67% (15) | **Primary audience** |
+| Tax-anxious | 50% (10) | **Primary audience** |
+| Newer immigrant, small balance | 20% (25) | Essential tier |
+| Property seller / inheritor | 32% (25) | **Best segment, highest value per customer** |
+| Trusts only big banks | 0% (20) | Not reachable in year 1 |
+| Procrastinator | 8% (12) | Needs a deadline trigger (property sale, FY-end) |
+| Asks the WhatsApp group first | 0% (10) | Reached only via proof from others |
 
 ## Positioning (three versions; recommend #1)
-1. **For Indian-origin Canadians who are worried about getting the Indian tax paperwork wrong, REPAIHUB Safe Passage is the done-for-you NRO repatriation service that checks your tax position with a Chartered Accountant before a rupee moves, unlike your bank, which hands you the forms and tells you to find a CA.** ← supported by tax-anxious 71% and "free CA call is what gets me past my tax worry" (P021, P030).
+1. **For Indian-origin Canadians who are worried about getting the Indian tax paperwork wrong, REPAIHUB Safe Passage is the done-for-you NRO repatriation service that checks your tax position with a Chartered Accountant before a rupee moves, unlike your bank, which hands you the forms and tells you to find a CA.** ← supported by tax-anxious 50% and busy 67% and "free CA call is what gets me past my tax worry" (P021, P030).
 2. For busy professionals with money stuck in India, Safe Passage is the flat-fee way to bring it home without a branch visit, unlike a trip to India.
 3. For families who just sold a property in India, Safe Passage is the concierge that moves the proceeds legally within the USD 1M limit, unlike informal swaps.
 

@@ -29,6 +29,7 @@ export default function Landing() {
   const [heroSent, setHeroSent]     = useState(false)
   const [ctaSent, setCtaSent]       = useState(false)
   const [loading, setLoading]       = useState<'hero'|'cta'|null>(null)
+  const [formError, setFormError]   = useState<'hero'|'cta'|null>(null)
   const revealRefs = useRef<(HTMLElement | null)[]>([])
 
   // FX Calculator state
@@ -65,15 +66,22 @@ export default function Landing() {
   const submit = async (email: string, which: 'hero' | 'cta') => {
     if (!email) return
     setLoading(which)
+    setFormError(null)
     try {
-      await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+      const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ email, source: 'repaihub-waitlist', timestamp: new Date().toISOString() }),
       })
-    } catch { /* graceful */ }
-    which === 'hero' ? setHeroSent(true) : setCtaSent(true)
-    setLoading(null)
+      if (!res.ok) throw new Error(`Formspree responded ${res.status}`)
+      if (which === 'hero') setHeroSent(true)
+      else setCtaSent(true)
+    } catch (err) {
+      console.error('[Landing] waitlist submit failed:', err)
+      setFormError(which)
+    } finally {
+      setLoading(null)
+    }
   }
 
   return (
@@ -200,6 +208,7 @@ export default function Landing() {
                   </button>
                 </form>
                 <p style={{ marginTop: '0.85rem', fontSize: '0.75rem', color: '#8BA0B4', textAlign: 'center' }}>No spam. Ever. Unsubscribe anytime.</p>
+                {formError === 'hero' && <p role="alert" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#F2A7A7', textAlign: 'center' }}>That didn't go through. Please try again, or email founder@repaihub.com.</p>}
               </>
             ) : (
               <div style={{ background: 'rgba(201,150,58,0.12)', border: '1px solid #C9963A', padding: '1rem 1.5rem', color: '#E8B86D', textAlign: 'center', lineHeight: 1.5 }}>
@@ -446,6 +455,7 @@ export default function Landing() {
               </div>
             )}
             <p style={{ marginTop: '0.85rem', fontSize: '0.75rem', color: '#8BA0B4', textAlign: 'center' }}>Free to join. No commitment. No spam.</p>
+                {formError === 'cta' && <p role="alert" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#F2A7A7', textAlign: 'center' }}>That didn't go through. Please try again, or email founder@repaihub.com.</p>}
           </div>
 
           <div style={{ marginTop: '2rem', display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>

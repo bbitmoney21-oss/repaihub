@@ -1,0 +1,13 @@
+{
+  "id": "P098",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "My cousin could chase the bank for free, but he can't certify anything and I'm not flying over for a branch visit. Paying a flat fee that is a small slice of the sale money to skip the forms, CA and time zones is worth it to me, as long as it checks out.",
+  "objection": "I'm moving a lot of money through a company I've never heard of. I want to see the FINTRAC number and the partner bank's name actually verify before anything moves.",
+  "would_change_my_mind": "A verifiable FINTRAC registration and a named partner bank, plus a reference from someone who has moved a similar lump sum through them.",
+  "price_too_cheap": 49,
+  "price_cheap": 129,
+  "price_expensive": 249,
+  "price_too_expensive": 400
+}

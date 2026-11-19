@@ -15,7 +15,7 @@ Sources are linked. **Estimates are marked ESTIMATE**, with the arithmetic shown
 | People in the US identifying as Indian | ~5.2M (2023) | [Pew / Census](https://www.pewresearch.org/race-ethnicity/fact-sheet/asian-americans-indians-in-the-u-s/) |
 | **Money sitting in NRO accounts (all countries)** | **USD 34.3B** (end-June 2026) | [RBI data, reported](https://morungexpress.com/nri-deposit-inflows-surge-nearly-7-fold-to-3624-billion-in-april-july-fy27-rbi-data) |
 
-"How many are interested" cannot be counted from public data. The only signals today: the simulated panel (22% upper bound on the improved offer) and your waitlist sign-ups (Formspree; **send me the count**).
+"How many are interested" cannot be counted from public data. The only signals today: the simulated panel (20% upper bound on the improved offer; 32% among lump-sum sellers) and your waitlist sign-ups (Formspree; **send me the count**).
 
 ## 2. Size of the prize — ESTIMATE
 - The US plus Canada hold ~7M of a ~35M Indian diaspora (≈20%). If NRO balances follow population: **≈USD 6.9B in NRO accounts held by US + Canada residents** (34.3B × 20%).

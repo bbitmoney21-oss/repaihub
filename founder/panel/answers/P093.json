@@ -1,0 +1,13 @@
+{
+  "id": "P093",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "timing",
+  "reason": "My NRO balance is small and nothing is urgent, so I'd just handle it on my next trip to India. I also don't want to be the one who gets the tax paperwork wrong.",
+  "objection": "I don't know these people. If something goes wrong with TDS or T1135 I'm the one in trouble, and a free 15-minute call doesn't tell me they'll stand behind it. I'd want my own CA, or my family's CA, to be involved.",
+  "would_change_my_mind": "A recommendation from someone in my community group who has actually used it, and a clear written answer on what happens with TDS and my T1135 filing.",
+  "price_too_cheap": 25,
+  "price_cheap": 60,
+  "price_expensive": 140,
+  "price_too_expensive": 220
+}

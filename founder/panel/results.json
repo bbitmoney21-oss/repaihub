@@ -2,216 +2,91 @@
  "business": "REPAIHUB: online service that moves money from an Indian NRO account to a Canadian bank account, with the Indian tax forms and CA certificate handled",
  "seed": 2027,
  "dealt": 100,
- "answered": 69,
- "skipped": [
-  [
-   "P062",
-   "missing"
-  ],
-  [
-   "P071",
-   "missing"
-  ],
-  [
-   "P072",
-   "missing"
-  ],
-  [
-   "P073",
-   "missing"
-  ],
-  [
-   "P074",
-   "missing"
-  ],
-  [
-   "P075",
-   "missing"
-  ],
-  [
-   "P076",
-   "missing"
-  ],
-  [
-   "P077",
-   "missing"
-  ],
-  [
-   "P078",
-   "missing"
-  ],
-  [
-   "P079",
-   "missing"
-  ],
-  [
-   "P080",
-   "missing"
-  ],
-  [
-   "P081",
-   "missing"
-  ],
-  [
-   "P082",
-   "missing"
-  ],
-  [
-   "P083",
-   "missing"
-  ],
-  [
-   "P084",
-   "missing"
-  ],
-  [
-   "P085",
-   "missing"
-  ],
-  [
-   "P086",
-   "missing"
-  ],
-  [
-   "P087",
-   "missing"
-  ],
-  [
-   "P088",
-   "missing"
-  ],
-  [
-   "P089",
-   "missing"
-  ],
-  [
-   "P090",
-   "missing"
-  ],
-  [
-   "P091",
-   "missing"
-  ],
-  [
-   "P092",
-   "missing"
-  ],
-  [
-   "P093",
-   "missing"
-  ],
-  [
-   "P094",
-   "missing"
-  ],
-  [
-   "P095",
-   "missing"
-  ],
-  [
-   "P096",
-   "missing"
-  ],
-  [
-   "P097",
-   "missing"
-  ],
-  [
-   "P098",
-   "missing"
-  ],
-  [
-   "P099",
-   "missing"
-  ],
-  [
-   "P100",
-   "missing"
-  ]
- ],
- "buys": 15,
- "passes": 54,
- "buy_rate": 0.21739130434782608,
+ "answered": 100,
+ "skipped": [],
+ "buys": 20,
+ "passes": 80,
+ "buy_rate": 0.2,
  "by_segment": [
   [
-   "Newer immigrant (PR < 5 yrs) with modest NRO balance (under ₹5L)",
-   17,
-   0.29411764705882354
-  ],
-  [
    "Property seller / inheritor with a lump sum (₹20L-₹1Cr waiting in NRO)",
-   17,
-   0.23529411764705882
+   25,
+   0.32
   ],
   [
-   "Retiree / parent-age with Indian pension or rental income (₹3L-₹15L a year)",
-   11,
-   0.18181818181818182
+   "Newer immigrant (PR < 5 yrs) with modest NRO balance (under ₹5L)",
+   25,
+   0.2
   ],
   [
    "Settled mid-career professional with old FDs, rent or savings in NRO (₹5L-₹20L)",
-   24,
-   0.16666666666666666
+   35,
+   0.14285714285714285
+  ],
+  [
+   "Retiree / parent-age with Indian pension or rental income (₹3L-₹15L a year)",
+   15,
+   0.13333333333333333
   ]
  ],
  "by_behaviour": [
   [
-   "Tax-anxious",
-   7,
-   0.7142857142857143
-  ],
-  [
    "Busy, pays for convenience",
-   10,
-   0.6
+   15,
+   0.6666666666666666
   ],
   [
-   "Family-network fixer",
-   11,
-   0.18181818181818182
+   "Tax-anxious",
+   10,
+   0.5
   ],
   [
    "Price comparer",
-   12,
-   0.16666666666666666
+   15,
+   0.13333333333333333
+  ],
+  [
+   "Family-network fixer",
+   18,
+   0.1111111111111111
   ],
   [
    "Procrastinator",
-   8,
-   0.0
+   12,
+   0.08333333333333333
   ],
   [
    "Trusts only big banks",
-   15,
+   20,
    0.0
   ],
   [
    "Asks the WhatsApp group first",
-   6,
+   10,
    0.0
   ]
  ],
  "by_income": [
   [
-   "under $81,000",
-   23,
-   0.2608695652173913
-  ],
-  [
    "$129,000 and up",
-   23,
-   0.2608695652173913
+   34,
+   0.2647058823529412
   ],
   [
-   "$81,000 to $129,000",
-   23,
-   0.13043478260869565
+   "under $76,000",
+   33,
+   0.18181818181818182
+  ],
+  [
+   "$76,000 to $129,000",
+   33,
+   0.15151515151515152
   ]
  ],
  "why_not": [
   [
    "trust",
-   31,
+   46,
    [
     "I have never heard of REPAIHUB and I only move money through my own bank's NRI desk. My NRO balance is small, so I would not risk it with a new company over a few hundred dollars of savings.",
     "I have never heard of them and nobody in our WhatsApp group or temple association has used them. I do not move money on a stranger's advertisement, however nice the guarantee sounds."
@@ -223,7 +98,7 @@
   ],
   [
    "habit",
-   13,
+   21,
    [
     "My cousin in India already handles this kind of thing for me and doesn't charge a rupee. Paying $199 to a company I've never heard of, when I have a person I trust, doesn't make sense to me.",
     "The money has sat in NRO for years and I keep saying I'll sort it on the next trip. It sounds sensible, but I wouldn't actually get around to it this month, and I'd want to check it with my accountant first."
@@ -235,7 +110,7 @@
   ],
   [
    "price",
-   6,
+   8,
    [
     "My relative in India can sort this out for free, and I compare everything to the paisa. Paying CAD $149-199 on top of the bank's rate to move a sum my family could help me with does not add up for me.",
     "The regulated bank and CA details are reassuring, but I compare to the paisa and $199 on ten lakh is about 1.25% before I even see the exchange rate. I visit India every two years and can do some of this at my own branch, so I would not move money this month."
@@ -247,7 +122,7 @@
   ],
   [
    "timing",
-   4,
+   5,
    [
     "It sounds sensible, but I've let this money sit for years and I'd just say I'll sort it on my next trip. Nothing about it makes me act this month.",
     "It reads sensible and the fee is small next to the money, but my NRO has sat for years because I keep saying 'next trip'. I'd bookmark it and not start a transfer this month."
@@ -259,6 +134,18 @@
   ]
  ],
  "why_yes": [
+  [
+   "convenience",
+   9,
+   [
+    "I don't want to chase forms, a CA in India or a trip, and nothing is charged until the money lands, so the downside is small. The free CA call before anything moves is what gets me past my tax worry.",
+    "I have a pile of money sitting in an SBI NRO account I never log into, and I'd happily pay a few hundred dollars not to deal with forms, a CA and time zones. Fee only when the money lands plus a refund guarantee makes it low-risk to try."
+   ],
+   [
+    "P021",
+    "P023"
+   ]
+  ],
   [
    "trust",
    8,
@@ -272,20 +159,8 @@
    ]
   ],
   [
-   "convenience",
-   5,
-   [
-    "I don't want to chase forms, a CA in India or a trip, and nothing is charged until the money lands, so the downside is small. The free CA call before anything moves is what gets me past my tax worry.",
-    "I have a pile of money sitting in an SBI NRO account I never log into, and I'd happily pay a few hundred dollars not to deal with forms, a CA and time zones. Fee only when the money lands plus a refund guarantee makes it low-risk to try."
-   ],
-   [
-    "P021",
-    "P023"
-   ]
-  ],
-  [
    "need",
-   2,
+   3,
    [
     "I have a lump sum sitting in NRO and I am scared of getting the TDS and 15CA/15CB paperwork wrong, so a CA call before anything moves and a fee taken only on arrival lowers the risk enough to try it. I would still check the FINTRAC number and the bank name myself, and probably send one tranche first.",
     "The free call with a CA and the Form 145/146 filing are exactly what I'm scared of getting wrong with TDS and T1135, and fee-only-on-arrival means little risk for a first small transfer. I'd start with the Essential tier on my own balance and see how it goes."
@@ -346,12 +221,38 @@
   "My own Indian bank or my Canadian bank recommending it, or the fee being under about $60 for a 10 lakh transfer, with the CA certificate included.",
   "My own accountant or someone in my community who has used them telling me it went smoothly and the tax was handled correctly.",
   "My accountant telling me they have used it and it saved me real hassle, or a much larger balance after a property sale or inheritance where a mistake would cost far more than the fee.",
+  "A fee under about $80 for 10 lakh, plus proof that the all-in cost (fee and exchange rate) beats what my relative and my bank would cost me.",
   "My own Indian bank or my Canadian bank (or a CA my family already uses) recommending or co-signing the service, plus a track record of real customers I can check.",
   "My own CA or a friend who has used them confirms it works, and the TDS and Form 145/146 handling for a flat sale is explained clearly, ideally with a few real customer reviews.",
   "If my cousin or someone in the family WhatsApp group had already used it and said it worked without problems, I would try it for one transfer.",
   "A total all-in cost (fee plus FX margin) clearly under what my bank and my own CA cost, shown as a live quote before I sign up, and a fee closer to CAD $60-80 for ten lakh.",
-  "A total all-in cost for Rs 10 lakh, rate included, clearly below what my relative's route costs me in time and bank charges, at about CAD $99 or less."
+  "A total all-in cost for Rs 10 lakh, rate included, clearly below what my relative's route costs me in time and bank charges, at about CAD $99 or less.",
+  "Hearing from my own CA in Canada or India that they have worked with this company, plus a verifiable FINTRAC registration and a clear written statement of what TDS I would owe, with the fee only charged once the money arrives.",
+  "Seeing the CA's name and membership number so I can verify them, the FINTRAC registration checked on the public register, and a few real reviews or a video from an NRI finance channel I follow from people who moved a similar amount.",
+  "Two or three people from my community group or temple association telling me they moved a lump sum through them without problems, and a clear written answer on what my Indian bank will still require from me.",
+  "A fee around $50 to $60 for a 10 lakh move, or proof that my bank's process from Canada is truly impossible without a branch visit.",
+  "Hearing from someone in my community group that they used it and the money arrived, or a real tax-position call that showed I would have trouble doing it through my relative.",
+  "A relative or friend who has already used it and vouched for it, plus a trip to India that falls through so I can't do it in person.",
+  "If my Indian bank's NRI desk or my accountant told me to use it, or if a big Canadian bank offered the same service.",
+  "A fee near $79-$99 for ₹10 lakh, a side-by-side total-cost comparison against Wise and my bank, or my relative being unable to get the CA certificate and bank paperwork done.",
+  "My own Indian bank or a big Canadian bank vouching for them, or a few people I know in the community who have already moved a large amount with them without trouble.",
+  "My accountant or someone in my community who has already used them tells me it worked. Also, I'd want to see my own Indian bank confirm the partner bank on the receipt, and have the FINTRAC registration checked.",
+  "A reference from someone in my family or community who has moved a seven-figure sum through them, plus a way to speak to the CA and a named person before I commit.",
+  "A real sample receipt showing the exact rate against Wise and my bank, a way to check the FINTRAC registration and partner bank myself, and a fee around $99 for ₹10 lakh.",
+  "A friend in one of my WhatsApp groups telling me they did a transfer of around 10 lakh with this company, with the bank never asking them to visit. Or the company saying in writing that it deals with my bank for me.",
+  "Clear proof that funds never pass through REPAIHUB's own accounts, plus independent reviews or a known bank or CA firm backing it, and a first transfer small enough to test.",
+  "A friend from my community group who already moved money with them and says it worked, plus a dead-simple way to start with a small amount without feeling committed.",
+  "Two or three people from my temple or association group saying they used it for a big transfer and it arrived safely, plus a fee closer to CAD $100 for ₹10 lakh.",
+  "Two or three people in my community WhatsApp group or temple association saying they moved money with them and it arrived fine, plus the free CA call confirming my tax position before I pay anything.",
+  "If my relative was unavailable or the bank rejected the paperwork, and someone I know in Canada had used them safely, I might try the lowest tier.",
+  "Two or three people in my WhatsApp group or temple association saying they moved a similar amount with you and it arrived on time.",
+  "A recommendation from someone in my community group who has actually used it, and a clear written answer on what happens with TDS and my T1135 filing.",
+  "Naming the partner bank upfront, with proof it is an AD Category-I bank. Plus a verifiable FINTRAC number, and clear word that funds go straight from my Indian bank to the partner bank and never sit with REPAIHUB. A few reviews from people I can verify would help too.",
+  "My own CA or a friend who has actually used them, or SBI confirming the transfer route. Also someone else handling the SBI login and paperwork so I don't have to deal with it.",
+  "If my relative could not do it, or if the paperwork and tax certificate were getting complicated and a bank rejected it, I might try the cheapest tier.",
+  "If my relative said the informal route was risky or unavailable for a sum this size, and I could verify the FINTRAC registration and bank partner myself and talk to the CA before paying anything.",
+  "A friend in my circle who moved ₹10 lakh this way without his bank asking for anything extra, or my own bank in India confirming in writing that it accepts this process."
  ],
  "purchases_first_month_per_buyer": 1.0,
- "price_answers": 69
+ "price_answers": 100
 }

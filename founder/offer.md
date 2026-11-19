@@ -45,10 +45,10 @@ After
 ## Re-test result (same seed 2027, same buyer cards)
 | | Pitch v1 (`pitch-v1.md`) | Offer v2 (`pitch.md`) |
 |---|---:|---:|
-| Buyers answered | 20 | 69 (31 not run — usage limit) |
-| Buy | **0 (0%)** | **15 (22%)** |
+| Buyers answered | 20 | 100 |
+| Buy | **0 (0%)** | **20 (20%)** |
 | Top pass reason | trust 14/20 ("not FINTRAC-registered yet", "not launched") | trust 31/54 ("never heard of them", "nobody in my group has used it") |
 
-**What moved:** "is it regulated / which bank" mostly dropped out; the remaining trust objection is *social proof*, not regulation. Price objections fell from "2% is too much" to "I can't see the FX rate". Biggest movers by behaviour: tax-anxious 71% (thin), busy/pays-for-convenience 60%. Zero movement: "trusts only big banks" 0/15, procrastinators 0/8, "asks the WhatsApp group first" 0/6.
+**What moved:** "is it regulated / which bank" mostly dropped out; the remaining trust objection is *social proof*, not regulation. Price objections fell from "2% is too much" to "I can't see the FX rate". Biggest movers by behaviour: busy/pays-for-convenience 67%, tax-anxious 50%. Best segment: lump-sum sellers/inheritors 32%. Near-zero: "trusts only big banks" 0/20, "asks the WhatsApp group first" 0/10, procrastinators 1/12.
 
 **Important caveat:** v2 was tested *as if* the bank partner and FINTRAC registration were in place. They are not. Until they are, the real offer is v1, which converted 0/20.

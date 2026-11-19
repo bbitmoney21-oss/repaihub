@@ -1,0 +1,13 @@
+{
+  "id": "P095",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB and I'm not handing a new startup my NRO money. The money has sat there for years and I'll deal with it on the next trip, as I always say.",
+  "objection": "Why would I trust a company I've never heard of with ₹20 lakh? Even with a FINTRAC number and a named bank, I can't tell who they really are, and my SBI login hasn't been touched in months.",
+  "would_change_my_mind": "My own CA or a friend who has actually used them, or SBI confirming the transfer route. Also someone else handling the SBI login and paperwork so I don't have to deal with it.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

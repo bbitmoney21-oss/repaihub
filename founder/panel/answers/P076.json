@@ -1,0 +1,13 @@
+{
+  "id": "P076",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My parents and a relative in India already handle my bank paperwork, and I'd just do it on my next trip. I don't see why I'd pay a stranger and hand over my NRO details when family does it for free.",
+  "objection": "I already have family who handle this for free, and I'd be giving a new company access to my savings. I'd rather wait for my next trip than trust a startup with ₹10 lakh.",
+  "would_change_my_mind": "A relative or friend who has already used it and vouched for it, plus a trip to India that falls through so I can't do it in person.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 200,
+  "price_too_expensive": 320
+}

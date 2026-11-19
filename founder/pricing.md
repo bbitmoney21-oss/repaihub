@@ -1,15 +1,15 @@
 # Pricing — REPAIHUB Safe Passage
 
-Inputs: `pricing-curve-v1.md` (20 buyers, original pitch), `pricing-curve.md` (69 buyers, offer v2), `competitors.md`, `numbers.json` / `cfo.md`. All price answers are **the total CAD fee a buyer would pay to move ₹10 lakh**. Simulated buyers pick what to test; they are not proof.
+Inputs: `pricing-curve-v1.md` (20 buyers, original pitch), `pricing-curve.md` (100 buyers, offer v2), `competitors.md`, `numbers.json` / `cfo.md`. All price answers are **the total CAD fee a buyer would pay to move ₹10 lakh**. Simulated buyers pick what to test; they are not proof.
 
 ## What buyers said
 
-| | v1 panel (20) | v2 panel (69) |
+| | v1 panel (20) | v2 panel (100) |
 |---|---:|---:|
-| Too cheap below (PMC) | $60.80 | $59.24 |
+| Too cheap below (PMC) | $60.80 | $59.31 |
 | Least resistance (OPP) | $81.20 | $60.26 |
-| Indifference (IPP) | $150.50 | $119.69 |
-| Too expensive above (PME) | $300.32 | $259.55 |
+| Indifference (IPP) | $150.50 | $119.63 |
+| Too expensive above (PME) | $300.32 | $249.84 |
 | Median "getting expensive" | $250 | $250 |
 | Median "too expensive" | $400 | $400 |
 
@@ -22,7 +22,7 @@ Visible DIY cost ≈ **$50–$260** (bank wire ₹100–₹1,500 + CA certificat
 Variable cost per Standard transfer ≈ $94 (bank fee, nostro, CA certificate, pre-check call, guarantee reserve, APIs, payout, support). At a blended $99 the business loses $7 per transfer; at $149 it makes $43; at $199 it makes $93 (`unit_economics.py --price`). **Anything under ~$100 for a CA-certified transfer is below cost.** The panel's least-resistance point ($60) is not a viable price for the Standard tier.
 
 ## 1. The price
-**Standard (₹5L–₹25L, CA certificate included): CAD $199 flat.** Inside the acceptable range ($59–$260), above the indifference point ($120), below the median "getting expensive" ($250), and it leaves $105 contribution on that tier. It also makes the comparison honest: one price vs "CA + bank + a day off".
+**Standard (₹5L–₹25L, CA certificate included): CAD $199 flat.** Inside the acceptable range ($59–$250), above the indifference point ($120), below the median "getting expensive" ($250), and it leaves $105 contribution on that tier. It also makes the comparison honest: one price vs "CA + bank + a day off".
 
 ## 2. The ladder
 | Tier | Amount | Price | Why step up |

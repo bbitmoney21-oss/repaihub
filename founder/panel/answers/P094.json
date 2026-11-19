@@ -1,0 +1,13 @@
+{
+  "id": "P094",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "The fee is not the issue, but I do not hand lakhs to a startup I have never heard of. My own bank's NRI desk or a branch visit feels safer, even if it is slower.",
+  "objection": "The bank is not named on the page, it only says it is named on the receipt. Which bank holds my money, and does my money touch REPAIHUB's own account along the way? I want to check the bank and the FINTRAC number myself first.",
+  "would_change_my_mind": "Naming the partner bank upfront, with proof it is an AD Category-I bank. Plus a verifiable FINTRAC number, and clear word that funds go straight from my Indian bank to the partner bank and never sit with REPAIHUB. A few reviews from people I can verify would help too.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 250,
+  "price_too_expensive": 450
+}
