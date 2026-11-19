@@ -16,9 +16,9 @@ Canada registration is **done** (FINTRAC MSB **N300002485**). The product is bui
 | Bank outreach kit | Emails, reply templates, demo brief, signature, tracker with official bank channels | `founder/outreach/` |
 
 ## Waiting on Bhagi
-1. **Merge PR #3** after testing on dev ("CONFIRMED — MERGE TO MAIN"), so the live site is safe to link in the signature.
-2. **Approve pricing.** The site and Terms now show *proposed* fees of $79/$199/$499. Money decision: yours. The backend fee tables are unchanged.
-3. **Connect founder@repaihub.com** (Outlook/Microsoft 365 or Google, wherever it is hosted) and the calendar you want bank meetings on.
+1. PR #3 merged into dev. **Test on dev, then say "CONFIRMED — MERGE TO MAIN"** to put it live. PR #4 (full panel, form fix) is open into dev.
+2. ~~Approve pricing~~ done: $79/$199/$499 adopted (backend fee tables still need a migration and your OK).
+3. ~~Connect founder@repaihub.com~~ done (Outlook connected as founder@repaihub.com, 2026-11-19).
 4. **Waitlist count** from Formspree.
 5. ~~Property placeholder~~ done: `/property` (Phase 2, partner unnamed until signed).
 
