@@ -20,7 +20,7 @@ Canada registration is **done** (FINTRAC MSB **N300002485**). The product is bui
 2. **Approve pricing.** The site and Terms now show *proposed* fees of $79/$199/$499. Money decision: yours. The backend fee tables are unchanged.
 3. **Connect founder@repaihub.com** (Outlook/Microsoft 365 or Google, wherever it is hosted) and the calendar you want bank meetings on.
 4. **Waitlist count** from Formspree.
-5. **Clarify "no broker app placeholder"** (see below).
+5. ~~Property placeholder~~ done: `/property` (Phase 2, partner unnamed until signed).
 
 ## Next (in order)
 1. Bank outreach: Federal Bank NRI Division email; IDFC FIRST Symphony application; find a named contact at IndusInd (Indus Fast Remit).

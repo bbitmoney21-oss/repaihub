@@ -12,6 +12,13 @@
   </url>
 
   <url>
+    <loc>https://repaihub.com/property</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
     <loc>https://repaihub.com/guide</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>

@@ -15,6 +15,7 @@ import NotFound   from './pages/NotFound'
 const Guide          = lazy(() => import('./pages/Guide'))
 const Privacy        = lazy(() => import('./pages/Privacy'))
 const Terms          = lazy(() => import('./pages/Terms'))
+const Property       = lazy(() => import('./pages/Property'))
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
 const ResetPassword  = lazy(() => import('./pages/auth/ResetPassword'))
 const CaLogin        = lazy(() => import('./pages/ca/CaLogin'))
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/guide"   element={<Guide />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms"   element={<Terms />} />
+          <Route path="/property" element={<Property />} />
           <Route path="/login"            element={<Login />} />
           <Route path="/signup"           element={<Signup />} />
           <Route path="/forgot-password"  element={<ForgotPassword />} />

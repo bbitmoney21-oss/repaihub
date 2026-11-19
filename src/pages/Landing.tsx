@@ -474,6 +474,7 @@ export default function Landing() {
                   { to: '/guide', label: 'NRI Guide' },
                   { to: '/login', label: 'Sign In' },
                   { to: '/signup', label: 'Get Started' },
+                  { to: '/property', label: 'Selling Property? (Phase 2)' },
                 ].map(l => (
                   <div key={l.to} style={{ marginBottom: '0.6rem' }}>
                     <Link to={l.to} style={{ fontSize: '0.82rem', color: '#8BA0B4', textDecoration: 'none', transition: 'color 0.2s' }}
