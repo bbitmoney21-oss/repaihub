@@ -219,7 +219,7 @@ export default function Landing() {
 
           {/* Trust bar */}
           <div style={{ display: 'flex', gap: '2rem', marginTop: '3.5rem', animation: 'fadeUp 0.8s ease both 1.1s', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['Beta Preview', 'FINTRAC MSB Registration In Process', 'Partner CA Certifies Form 146', 'Bank-Verified Identity'].map(t => (
+            {['Beta Preview', 'FINTRAC-Registered MSB', 'Partner CA Certifies Form 146', 'Bank-Verified Identity'].map(t => (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', fontWeight: 500, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8BA0B4' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9963A', opacity: 0.7 }} />
                 {t}
@@ -317,7 +317,7 @@ export default function Landing() {
             Every transfer is fully legal, reported, and protected. You get a complete audit trail.
           </p>
           <div ref={el => addReveal(el, 10)} className="reveal" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['🍁 FINTRAC MSB Registration In Process','🇮🇳 Transfers via a Regulated Indian Partner Bank','🔒 PIPEDA Privacy Obligations','📋 Form 145 / 146 Handled (IT Act 2025)','🏦 Bank-Verified Identity'].map(b => (
+            {['🍁 FINTRAC-Registered MSB · No. N300002485','🇮🇳 Transfers via a Regulated Indian Partner Bank','🔒 PIPEDA Privacy Obligations','📋 Form 145 / 146 Handled (IT Act 2025)','🏦 Bank-Verified Identity'].map(b => (
               <span key={b} className="badge">{b}</span>
             ))}
           </div>
@@ -508,7 +508,7 @@ export default function Landing() {
           </div>
           <div style={{ borderTop: '1px solid rgba(201,150,58,0.15)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <p style={{ fontSize: '0.72rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-              © 2026 REPAIHUB Inc. &nbsp;·&nbsp; FINTRAC MSB Registration In Process &nbsp;·&nbsp; Ontario, Canada
+              © 2026 REPAIHUB Remittance Inc. &nbsp;·&nbsp; FINTRAC MSB No. N300002485 &nbsp;·&nbsp; Ontario, Canada
             </p>
             <p style={{ fontSize: '0.72rem', color: '#8BA0B4', lineHeight: 1.6 }}>
               Transfers will be executed by a regulated Indian partner bank under FEMA rules.

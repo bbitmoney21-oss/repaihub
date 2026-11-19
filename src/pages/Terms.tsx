@@ -22,7 +22,7 @@ export default function Terms() {
       <div style={S.wrap}>
         <span style={S.label}>Legal</span>
         <h1 style={S.h1}>Terms of Service</h1>
-        <p style={{ ...S.p, fontSize: '0.82rem', color: '#C9963A' }}>Last updated: April 13, 2026 · REPAIHUB Inc., Ontario, Canada</p>
+        <p style={{ ...S.p, fontSize: '0.82rem', color: '#C9963A' }}>Last updated: April 13, 2026 · REPAIHUB Remittance Inc., Ontario, Canada</p>
 
         <p style={S.p}>
           By creating an account or using the REPAIHUB platform, you agree to these Terms of Service. Please read them carefully. If you do not agree, do not use REPAIHUB.
@@ -30,7 +30,7 @@ export default function Terms() {
 
         <h2 style={S.h2}>1. About REPAIHUB</h2>
         <p style={S.p}>
-          REPAIHUB Inc. has applied to register as a Money Services Business with the Financial Transactions and Reports Analysis Centre of Canada (FINTRAC), which is currently in process. REPAIHUB provides a technology platform that facilitates the legal transfer of funds from NRO (Non-Resident Ordinary) bank accounts in India to overseas bank accounts, in compliance with FEMA (Foreign Exchange Management Act) and RBI guidelines.
+          REPAIHUB Remittance Inc. is registered as a Money Services Business with the Financial Transactions and Reports Analysis Centre of Canada (FINTRAC), registration number N300002485. REPAIHUB provides a technology platform that facilitates the legal transfer of funds from NRO (Non-Resident Ordinary) bank accounts in India to overseas bank accounts, in compliance with FEMA (Foreign Exchange Management Act) and RBI guidelines.
         </p>
         <p style={{ ...S.p, fontWeight: 500, color: '#FAF6F0' }}>
           REPAIHUB is not a bank. We are a technology intermediary. Transfers will be executed by a regulated Indian partner bank (to be named before launch) and its correspondent banks, not by REPAIHUB directly. During the beta preview no real transfers are processed.
@@ -90,7 +90,7 @@ export default function Terms() {
         </p>
 
         <h2 style={S.h2}>9. Contact</h2>
-        <p style={S.p}>Legal inquiries: <a href="mailto:founder@repaihub.com" style={{ color: '#C9963A' }}>founder@repaihub.com</a> &nbsp;·&nbsp; REPAIHUB Inc., Toronto, Ontario, Canada</p>
+        <p style={S.p}>Legal inquiries: <a href="mailto:founder@repaihub.com" style={{ color: '#C9963A' }}>founder@repaihub.com</a> &nbsp;·&nbsp; REPAIHUB Remittance Inc., Ontario, Canada</p>
 
         <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid rgba(201,150,58,0.2)', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <Link to="/privacy" style={{ fontSize: '0.85rem', color: '#8BA0B4', textDecoration: 'none' }}>Privacy Policy →</Link>

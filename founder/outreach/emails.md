@@ -87,7 +87,7 @@ Kind regards,
 ### D. "What's your FINTRAC status / are you regulated?"
 Dear {{FirstName}},
 
-Good question. REPAIHUB has applied to register with FINTRAC as a Money Services Business, and the registration is in process. We won't process live customer transfers until it is complete and a partner bank agreement is in place. I'll share our registration number as soon as it is issued.
+Yes. REPAIHUB Remittance Inc. is registered with FINTRAC as a Money Services Business, registration number N300002485, which you can verify on FINTRAC's public MSB registry. We won't process live customer transfers until a partner bank agreement is in place.
 
 Kind regards,
 [signature]

@@ -3,11 +3,11 @@
 **Purpose of the call:** get agreement to a next step: a term sheet, a pilot scope, or an introduction to the bank's compliance/product owner. A "yes, interesting" with no next step is a failed call.
 
 ## Before the call (checklist)
-- [ ] PR #3 merged and deployed; open https://repaihub.com in a private window and check it says "Beta preview" and "registration in process".
+- [ ] PR #3 merged and deployed; open https://repaihub.com in a private window and check it says "Beta preview" and shows MSB No. N300002485.
 - [ ] Demo account ready on the app (mock mode, no real money). Practise the flow twice.
 - [ ] One-pager (`founder/one-pager.md`) exported to PDF.
 - [ ] Read the bank's NRI remittance page and fees so you can mention them.
-- [ ] Have your FINTRAC application date and reference to hand.
+- [ ] Have the FINTRAC MSB number to hand: **N300002485** (REPAIHUB Remittance Inc., registered 2026-11-02).
 - [ ] Quiet room, camera on, screen share tested.
 
 ## Agenda
@@ -35,7 +35,7 @@
 ## Questions they will ask, and your answers
 | Question | Answer (truthful, short) |
 |---|---|
-| Are you FINTRAC registered? | "Applied, in process. No live transfers until it's complete and our agreement with you is in place." |
+| Are you FINTRAC registered? | "Yes. REPAIHUB Remittance Inc., MSB No. N300002485, on FINTRAC's public registry. No live transfers until our agreement with you is in place." |
 | Who holds customer money? | "Never REPAIHUB in India. Funds move from the customer's NRO account through your bank to their Canadian account." |
 | AML / sanctions screening? | "KYC through DigiLocker and PAN, plus a CA source-of-funds review. Sanctions and PEP screening goes live before launch; we will align with your AML policy." (In code it's still a mock. Don't claim it's live.) |
 | Volumes? | Use reply template E. Projections only. |
