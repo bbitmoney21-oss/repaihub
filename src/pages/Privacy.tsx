@@ -51,7 +51,7 @@ export default function Privacy() {
             'To process and complete your NRO remittance transfers',
             'To file Form 145 with the Indian Income Tax portal on your behalf (IT Act 2025)',
             'To coordinate Form 146 certification with our CA partner network',
-            'To comply with FINTRAC reporting obligations (MSB licence application in process)',
+            'To comply with FINTRAC reporting obligations (MSB registration in process)',
             'To detect and prevent fraud and money laundering',
             'To send transfer status notifications and service updates',
             'To provide annual transaction summaries for your tax filing',
@@ -60,7 +60,7 @@ export default function Privacy() {
 
         <h2 style={S.h2}>3. FINTRAC Compliance</h2>
         <p style={S.p}>
-          REPAIHUB has submitted its pre-registration and MSB licence application with FINTRAC under the Proceeds of Crime (Money Laundering) and Terrorist Financing Act. While our MSB licence is in process, REPAIHUB adheres to FINTRAC compliance obligations including client identification verification, reporting of certain transactions, and maintaining records for a minimum of 5 years. These obligations override standard privacy protections where required by law.
+          REPAIHUB has applied to register with FINTRAC as a Money Services Business under the Proceeds of Crime (Money Laundering) and Terrorist Financing Act. While our registration is in process, REPAIHUB adheres to FINTRAC compliance obligations including client identification verification, reporting of certain transactions, and maintaining records for a minimum of 5 years. These obligations override standard privacy protections where required by law.
         </p>
 
         <h2 style={S.h2}>4. Data Sharing</h2>
@@ -77,7 +77,7 @@ export default function Privacy() {
 
         <h2 style={S.h2}>5. Data Security</h2>
         <p style={S.p}>
-          We employ bank-grade encryption (AES-256) for data at rest and TLS 1.3 for data in transit. Account numbers and PAN are stored only as SHA-256 hashes — they cannot be reversed. Our infrastructure is hosted in Canada-region data centres compliant with ISO 27001.
+          We employ bank-grade encryption (AES-256) for data at rest and TLS 1.3 for data in transit. Account numbers and PAN are stored only as SHA-256 hashes — they cannot be reversed. Our application servers are hosted by third-party cloud providers, currently in the United States, so your information may be processed and stored outside Canada and be subject to the laws of that country.
         </p>
 
         <h2 style={S.h2}>6. Your Rights Under PIPEDA</h2>

@@ -158,7 +158,7 @@ export default function Signup() {
                 {form.agree && <Check size={11} color="#C9963A" />}
               </div>
               <span style={{ fontSize: '0.82rem', color: '#8BA0B4', lineHeight: 1.5 }}>
-                I agree to the <a href="#" style={{ color: '#E8B86D' }}>Terms of Service</a> and <a href="#" style={{ color: '#E8B86D' }}>Privacy Policy</a>. I understand REPAIHUB's FINTRAC MSB licence application is currently in process.
+                I agree to the <a href="#" style={{ color: '#E8B86D' }}>Terms of Service</a> and <a href="#" style={{ color: '#E8B86D' }}>Privacy Policy</a>. I understand REPAIHUB's FINTRAC MSB registration is currently in process, and that the app is a beta preview.
               </span>
             </label>
             {errors.agree && <p style={{ fontSize: '0.75rem', color: '#E74C3C', marginTop: '-0.75rem' }}>{errors.agree}</p>}
@@ -182,7 +182,7 @@ export default function Signup() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-          {['MSB Licence In Process', 'Zero Doc Storage', 'PIPEDA Protected'].map(b => (
+          {['MSB Registration In Process', 'Beta Preview', 'PIPEDA Privacy'].map(b => (
             <span key={b} style={{ fontSize: '0.65rem', color: '#8BA0B4', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#C9963A' }} /> {b}
             </span>
