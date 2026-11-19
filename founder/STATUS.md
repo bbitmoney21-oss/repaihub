@@ -16,7 +16,7 @@ Canada registration is **done** (FINTRAC MSB **N300002485**). The product is bui
 | Bank outreach kit | Emails, reply templates, demo brief, signature, tracker with official bank channels | `founder/outreach/` |
 
 ## Waiting on Bhagi
-1. PR #3 merged into dev. **Test on dev, then say "CONFIRMED — MERGE TO MAIN"** to put it live. PR #4 (full panel, form fix) is open into dev.
+1. ~~Go live~~ done: PR #3 and #4 merged to dev, dev merged to main 2026-11-19; repaihub.com shows MSB N300002485 and the /property page.
 2. ~~Approve pricing~~ done: $79/$199/$499 adopted (backend fee tables still need a migration and your OK).
 3. ~~Connect founder@repaihub.com~~ done (Outlook connected as founder@repaihub.com, 2026-11-19).
 4. **Waitlist count** from Formspree.
