@@ -49,3 +49,6 @@ Test Concierge at $699 too: lump-sum buyers' "too expensive" answers ran to $450
 
 ## Action
 The live app and landing page still show two different prices (1.0–2.0% + $24.99 in `outward_fee_tiers`; $8/$12/$15 on `Landing.tsx`). Change both to the ladder above **only after** the AD-bank fee is quoted and the CFO re-run confirms it. (No code was changed in this run.)
+
+## Decision (2026-11-19)
+Bhagi delegated the call: **adopt the recommended ladder**: Essential CAD $79 (≤ ₹5L), Standard CAD $199 (₹5L–₹25L, CA certificate included), Lump-Sum Concierge CAD $499 (> ₹25L), plus a Founding 100 offer of Standard at $149. These are fees REPAIHUB charges customers on arrival of funds. Re-check once the AD-bank fee is quoted (CFO re-run). The backend fee tables (`fee_config`, `outward_fee_tiers`) still use the old % model; changing them needs a migration and Bhagi's explicit go-ahead under `.claude/rules.md`.
