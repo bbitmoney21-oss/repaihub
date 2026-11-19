@@ -1,0 +1,13 @@
+{
+  "id": "P078",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "I have been putting off dealing with the SBI NRO account for ages, and paying about $150-200 to not deal with forms, a CA and a trip to India is easy money for me. Fee only when the money lands and the refund guarantee make it low-risk enough to try once.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something, and my money is sitting in limbo while I chase people in India? The fee refund doesn't help if the principal is stuck.",
+  "would_change_my_mind": "",
+  "price_too_cheap": 40,
+  "price_cheap": 99,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

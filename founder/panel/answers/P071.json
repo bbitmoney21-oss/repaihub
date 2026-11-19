@@ -1,0 +1,13 @@
+{
+  "id": "P071",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My parents and a relative in India already handle bank paperwork for me for free, and I would rather deal with a CA I know than a new company online. It might make sense if I ever had a big lump sum, but for my usual rental and pension money I would not pay.",
+  "objection": "My relative in India can sort this out for free, and I do not know this company or its CA. If the tax filing or T1135 reporting goes wrong, I am the one in trouble.",
+  "would_change_my_mind": "Hearing from my own CA in Canada or India that they have worked with this company, plus a verifiable FINTRAC registration and a clear written statement of what TDS I would owe, with the fee only charged once the money arrives.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 170,
+  "price_too_expensive": 280
+}

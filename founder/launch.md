@@ -8,7 +8,7 @@ The money-moving product can't launch until an AD bank signs and FINTRAC registe
 - Why: tests the exact things the panel was unsure about (will people pay a flat fee for done-for-you paperwork? do accountants refer?) with real money, at near-zero cost.
 - **Compliance check first:** have counsel confirm that a paperwork-coordination service that never holds or transmits funds does not itself require MSB registration. Do not run it until confirmed. Not legal advice.
 - **Success line (write it now):** in 6 weeks from start — **40 CA pre-check calls booked, 12 paid "NRO Ready" orders at $149, ≥ 3 accountant partners referring.**
-- Compare: the v2 panel bought at 22% (an upper bound). If real booked-call → paid conversion is **below 10%**, trust the real buyers: go back to `/founder-offer` / `/founder-pricing` before signing anything with a bank.
+- Compare: the v2 panel bought at 20% (an upper bound). If real booked-call → paid conversion is **below 10%**, trust the real buyers: go back to `/founder-offer` / `/founder-pricing` before signing anything with a bank.
 - Pilot economics: $149 − CA certificate (~$48) − pre-check (~$13) ≈ **$88 contribution per order**, no transfer risk.
 
 ## Step 2: the countdown (owner = Founder unless stated)

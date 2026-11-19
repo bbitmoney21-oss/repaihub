@@ -1,0 +1,13 @@
+{
+  "id": "P086",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I only trust big banks with this kind of money, and a new company sitting between my NRO account and my Canadian account makes me nervous. The partner bank and FINTRAC registration help, but I'd still rather use my own bank's NRI desk.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? A refund of their fee doesn't help if my lakhs are stuck in limbo, and I've never heard of this company.",
+  "would_change_my_mind": "Clear proof that funds never pass through REPAIHUB's own accounts, plus independent reviews or a known bank or CA firm backing it, and a first transfer small enough to test.",
+  "price_too_cheap": 60,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

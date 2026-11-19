@@ -1,0 +1,13 @@
+{
+  "id": "P081",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I only move this kind of money through my Indian bank's NRI desk or a big bank branch. A new app I have never heard of sitting in the middle of lakhs of rupees is not something I will risk, even if the fee is small.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? Then my money is sitting in limbo with a company I do not know, and a refund of their fee does not get my money back.",
+  "would_change_my_mind": "My own Indian bank or a big Canadian bank vouching for them, or a few people I know in the community who have already moved a large amount with them without trouble.",
+  "price_too_cheap": 60,
+  "price_cheap": 110,
+  "price_expensive": 230,
+  "price_too_expensive": 350
+}

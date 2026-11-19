@@ -1,6 +1,6 @@
 # Summary — REPAIHUB Safe Passage
 
-**Verdict: NOT YET** (computed by `compile.py`). Three of four checks pass. The one that fails: **22% of simulated buyers buy (15 of 69), below the 25% bar.** Simulated buy rates are an upper bound, so the real number is likely lower.
+**Verdict: NOT YET** (computed by `compile.py`). Three of four checks pass. The one that fails: **20% of simulated buyers buy (20 of 100), below the 25% bar.** Simulated buy rates are an upper bound, so the real number is likely lower.
 
 **What has to change:** build *proof*, not product. The remaining "no" reason is "nobody I know has used it" (trust, 31 of 54 passes). That is fixed by real completed customers and accountants vouching for the service, not by more features. Next steps: `/founder-launch` (Paperwork-Only Pilot), then re-run `/founder-consumer` with real pilot proof in the pitch.
 
@@ -10,7 +10,7 @@
 
 **Board vs panel:**
 - Board: 3 × FUND IF, average 4.7/10.
-- They agree on trust. Both say the bank partner, the single price and proof are what's missing. Changing the offer moved the panel from 0% (v1) to 22% (v2).
+- They agree on trust. Both say the bank partner, the single price and proof are what's missing. Changing the offer moved the panel from 0% (v1) to 20% (v2).
 - They disagree on scope. The board's Product lens wants a narrower v1. The panel's best buyers are tax-anxious (71%) and busy (60%) people, a *service* audience, which supports deepening the service (CA call, guarantee) rather than adding features.
 
 **Biggest risk:** no AD Category-I bank partner. Without one, nothing legally moves. Plan: pitch 6 banks now and run a paperwork-only pilot to show demand. The pilot needs counsel's sign-off first.

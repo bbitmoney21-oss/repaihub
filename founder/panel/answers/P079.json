@@ -1,0 +1,13 @@
+{
+  "id": "P079",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "I have a big lump sum sitting in SBI NRO and I do not want to fly to India or chase a CA across time zones. Paying a few hundred dollars on a sum this size to have it handled, with a named person on Canadian hours, is easy to justify.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something? Fee only on arrival and the redo/refund promise help, but my money is still sitting in limbo, and a refund of their fee does not fix that.",
+  "would_change_my_mind": "",
+  "price_too_cheap": 40,
+  "price_cheap": 120,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

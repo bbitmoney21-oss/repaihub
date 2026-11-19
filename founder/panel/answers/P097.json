@@ -1,0 +1,13 @@
+{
+  "id": "P097",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "My uncle in India handles this kind of thing for family and it costs me nothing but a favour. I'd need a really good reason to pay a stranger a few hundred dollars when someone I know does it.",
+  "objection": "My relative can sort this out for free, so why would I pay for a company I've never heard of with my parents' property money?",
+  "would_change_my_mind": "If my relative said the informal route was risky or unavailable for a sum this size, and I could verify the FINTRAC registration and bank partner myself and talk to the CA before paying anything.",
+  "price_too_cheap": 20,
+  "price_cheap": 70,
+  "price_expensive": 200,
+  "price_too_expensive": 400
+}

@@ -17,7 +17,7 @@
 | Year 1 at 2× volume | +$24,290 (payback month 12) |
 
 **Evidence.**
-- Simulated panel: original pitch 0/20 buy; redesigned offer 15/69 (22%), an upper bound.
+- Simulated panel: original pitch 0/20 buy; redesigned offer 20/100 (20%), an upper bound.
 - Competitor gap: no public player offers end-to-end, Canada-based NRO → Canada with paperwork included. Banks serve only their own customers and push the CA work back onto the customer.
 - Real-world test: not yet run (Paperwork-Only Pilot planned).
 

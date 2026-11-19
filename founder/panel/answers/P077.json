@@ -1,0 +1,13 @@
+{
+  "id": "P077",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "My Indian bank will still call me or ask me to come in, so I don't see what this saves me. I don't hand my savings to a company I've never heard of, even with a registration number.",
+  "objection": "A new company I don't know would be sitting between me and my savings. I only trust the big banks, and my Indian bank will still want to talk to me.",
+  "would_change_my_mind": "If my Indian bank's NRI desk or my accountant told me to use it, or if a big Canadian bank offered the same service.",
+  "price_too_cheap": 40,
+  "price_cheap": 90,
+  "price_expensive": 200,
+  "price_too_expensive": 350
+}

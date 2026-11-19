@@ -1,0 +1,13 @@
+{
+  "id": "P087",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "I've got a big lump sum sitting in NRO and the fee is tiny next to the amount, and nothing is charged until the money lands. The free CA call and the refund if it's late make me think I might finally get it done, though probably not this week.",
+  "objection": "What if the transfer gets stuck halfway or the CA rejects something, and I'm left chasing it with an SBI account I haven't logged into in months?",
+  "would_change_my_mind": "A clear checklist of exactly what I need from SBI up front, and a real person confirming my account can be used before I commit.",
+  "price_too_cheap": 60,
+  "price_cheap": 110,
+  "price_expensive": 250,
+  "price_too_expensive": 400
+}

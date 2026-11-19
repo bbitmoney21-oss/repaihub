@@ -1,0 +1,13 @@
+{
+  "id": "P072",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of REPAIHUB and this is my retirement savings, so I won't hand it to a brand-new company on a web page. The free CA call and fee-only-on-arrival help, but I'd want to check everything myself and see others who've used it first.",
+  "objection": "Why would I trust a new startup with ₹20 lakh? If the TDS or Form 146 is wrong, I'm the one who answers to the Indian tax office and the CRA, not them.",
+  "would_change_my_mind": "Seeing the CA's name and membership number so I can verify them, the FINTRAC registration checked on the public register, and a few real reviews or a video from an NRI finance channel I follow from people who moved a similar amount.",
+  "price_too_cheap": 40,
+  "price_cheap": 100,
+  "price_expensive": 220,
+  "price_too_expensive": 380
+}

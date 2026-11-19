@@ -1,0 +1,13 @@
+{
+  "id": "P074",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "My NRO has sat there for years and I only deal with it on a trip, once every two years. CAD $199 on about 10 lakh is a lot when my bank in India charges a few hundred rupees, and I would just keep putting it off anyway.",
+  "objection": "A flat $199 for something my own bank does for a few hundred rupees feels like paying a lot for paperwork I could do myself on the next trip.",
+  "would_change_my_mind": "A fee around $50 to $60 for a 10 lakh move, or proof that my bank's process from Canada is truly impossible without a branch visit.",
+  "price_too_cheap": 20,
+  "price_cheap": 45,
+  "price_expensive": 90,
+  "price_too_expensive": 150
+}
