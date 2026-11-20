@@ -35,6 +35,7 @@ Turn every goal into clear requirements, user stories with acceptance criteria, 
 Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every hand-off.
 
 ## Standing backlog (as of 20 Nov 2026)
+- **Founder principle — minimum customer effort:** never ask the customer to type anything a verification partner already returned (PAN, name, father's name, address). Show it read-only. Ask only what the law needs the customer to declare.
 - User stories for the D1, D2 and D3 fixes, including the customer message shown when a transfer is held.
 - Process map of the outward corridor with every hold point marked.
 

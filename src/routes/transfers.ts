@@ -438,6 +438,10 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   // ── FEMA annual limit check (Challenge 8) ─────────────────────────────────
   if (accountType === 'NRO') {
     const fema = await checkFemaLimit(userId, amountInr);
+    if (fema.unavailable) {
+      res.status(503).json({ error: 'FEMA_CHECK_UNAVAILABLE', message: fema.message, timestamp: ts() });
+      return;
+    }
     if (!fema.allowed) {
       res.status(400).json({
         error: 'FEMA_LIMIT_EXCEEDED',
@@ -689,9 +693,10 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   // migration 026 lands, this is the canonical audit trail.
   const complianceRemarks = partAEligible
     ? JSON.stringify({
-        summary: `AUDIT_REVIEW: Sub-₹5L Form 15CA Part A self-declaration. Transfer already completed (ARN ${form15caArn ?? 'pending'}). Non-blocking — CA review is for retrospective audit only.`,
+        summary: `AUDIT_REVIEW: up to ₹5 lakh — Form 145 Part A (formerly 15CA) declaration. ARN ${form15caArn ?? 'pending'}. Non-blocking — CA review is for retrospective audit only.`,
         arn: form15caArn,
-        formData: form15ca ?? null,
+        // Rule 12 — minimum data: never persist the full PAN or personal details.
+        formData: form15ca ? { ...form15ca, remitterPAN: maskPan(form15ca.remitterPAN ?? ''), remitterFatherName: undefined, remitterAddressIndia: undefined } : null,
         capturedAt: ts(),
       })
     : null;
@@ -963,6 +968,7 @@ async function handleFemaLimit(req: AuthRequest, res: Response) {
     remainingINR:      fema.remainingINR,
     maxINR:            fema.maxINR,
     fyResetDate:       fema.fyResetDate,
+    unavailable:       fema.unavailable ?? false,
     fyStart,
     fyEnd,
     timestamp: ts(),

@@ -106,6 +106,7 @@ export default function NewTransfer() {
   // Form 15CA Part A modal — opened at Step-4 confirm for sub-₹5L outward
   // transfers.  When closed, submitTransfer is called with the form data.
   const [show15CA, setShow15CA] = useState(false)
+  const [partARoute, setPartARoute] = useState(false)   // decided at confirm: ≤ ₹5 lakh tax-year total → Form 145 Part A, no Form 146
 
   // REQ-02: Account type question (NRO | NRE) — asked once per outward session.
   // REQ-07: NRE self-declaration checkbox — submit disabled until checked.
@@ -226,13 +227,14 @@ export default function NewTransfer() {
   async function handleConfirm() {
     const fyAfter = aggregateOutwardFyInr() + amt
     const inPartABand = isOutward && amt < 500_000 && fyAfter <= 500_000
+    setPartARoute(inPartABand)
     if (inPartABand) {
       setShow15CA(true)
       return
     }
     if (isOutward && amt < 500_000 && fyAfter > 500_000) {
       addNotification({
-        message: `FY total of ₹${fyAfter.toLocaleString('en-IN')} exceeds the ₹5L Part A band — this transfer needs CA-certified Form 15CB. Routing through the standard flow now.`,
+        message: `Your tax-year total would be ₹${fyAfter.toLocaleString('en-IN')}, above ₹5 lakh, so our partner CA will certify Form 146 for this transfer. No action needed from you.`,
         type: 'info',
       })
     }
@@ -474,8 +476,19 @@ export default function NewTransfer() {
           </div>
         </div>
         <div style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '2rem' }}>
+          {/* Both corridors: outward (primary) and inward — choose direction first */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <button type="button" aria-pressed="true"
+              style={{ background: 'rgba(201,150,58,0.12)', border: '1px solid #C9963A', color: '#FAF6F0', padding: '0.7rem 0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'default', fontFamily: 'inherit' }}>
+              🇮🇳 → 🇨🇦<br />Bring money to Canada
+            </button>
+            <button type="button" aria-pressed="false" onClick={() => setDirection('inward')}
+              style={{ background: '#0B1C2C', border: '1px solid rgba(201,150,58,0.25)', color: '#8BA0B4', padding: '0.7rem 0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              🇨🇦 → 🇮🇳<br />Send money to India
+            </button>
+          </div>
           <p style={{ fontSize: '0.85rem', color: '#8BA0B4', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-            Your account type determines the compliance route — NRO requires CA-certified forms, NRE is freely repatriable under FEMA.
+            Your account type sets the compliance route. NRO: Form 145 for every transfer, plus a CA certificate (Form 146) above ₹5 lakh in the tax year. NRE: freely repatriable under FEMA.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
             {([
@@ -920,7 +933,12 @@ export default function NewTransfer() {
 
           {isOutward ? (
             <>
-              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '0.5rem' }}>Form 145 has been filed. Our CA is reviewing Form 146.</p>
+              <p style={{ fontSize: '0.9rem', color: '#8BA0B4', marginBottom: '0.5rem' }}>
+                {partARoute
+                  ? 'Form 145 Part A is ready from your verified details — no CA certificate needed up to ₹5 lakh.'
+                  : 'Form 145 is ready, and our partner CA will certify Form 146 (needed above ₹5 lakh in the tax year).'}
+                {' '}Beta preview: no money moves and nothing is filed until our partner bank is live.
+              </p>
               <p style={{ fontSize: '0.85rem', color: '#C9963A', marginBottom: '2rem' }}>Reference: {txnRef}</p>
               <div style={{ background: '#0B1C2C', padding: '1.25rem', marginBottom: '2rem', textAlign: 'left' }}>
                 {[

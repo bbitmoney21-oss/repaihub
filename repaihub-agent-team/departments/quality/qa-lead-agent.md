@@ -37,6 +37,7 @@ Make sure nothing ships untested: own the test strategy and the release gate for
 Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every hand-off.
 
 ## Standing backlog (as of 20 Nov 2026)
+- **Release gate addition (20 Nov 2026):** every release runs `scripts/qa/transfer-flow.cjs` through to **Confirm & Send**. That includes the Form 145 Part A screen with no retyped fields, the inward (Canada → India) path, and the purpose-code acceptance. A test that stops before sending is not a pass.
 - Release gate v1: build, type check of touched files, unit tests, `scripts/qa/smoke.cjs` on staging, corridor regression list, security review sign-off.
 - Log D1, D2, D3 as Severity-1 compliance defects pending the founder's decision.
 

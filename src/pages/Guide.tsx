@@ -110,12 +110,12 @@ export default function Guide() {
         <section style={{ marginBottom: '4rem' }}>
           <span style={S.sLabel}>Section 3</span>
           <h2 style={S.h2}>What is Form 145 & Form 146?</h2>
-          <p style={S.p}>These are two government forms required every time you transfer money out of your NRO account (under India's IT Act 2025, effective 1 April 2026). They replaced Form 15CA and Form 15CB. Think of them as a receipt telling the Indian government: this money has been properly taxed and it's legal to send abroad.</p>
+          <p style={S.p}>These are the government forms for moving money out of your NRO account under India's Income-tax Act 2025 (effective 1 April 2026). They replaced Form 15CA and Form 15CB. Form 145 is filed for every transfer. Form 146 is needed only when your total for the tax year goes above ₹5 lakh. Think of them as a receipt telling the Indian government: this money has been properly taxed and it's legal to send abroad.</p>
           <table style={S.table}>
             <thead><tr><th style={S.th}>Form</th><th style={S.th}>What It Is</th><th style={S.th}>Who Files It</th><th style={S.th}>How Long</th></tr></thead>
             <tbody>
-              <tr><td style={S.tdGold}>Form 145</td><td style={S.td}>Your declaration to the IT department (formerly Form 15CA)</td><td style={S.td}><strong style={{ color: '#27AE60' }}>REPAIHUB files it automatically</strong></td><td style={S.td}>~30 minutes</td></tr>
-              <tr><td style={S.tdGold}>Form 146</td><td style={S.td}>CA certificate confirming tax compliance (formerly Form 15CB)</td><td style={S.td}><strong style={{ color: '#27AE60' }}>Our partner CA signs digitally</strong></td><td style={S.td}>2–4 hours</td></tr>
+              <tr><td style={S.tdGold}>Form 145</td><td style={S.td}>Your declaration to the Income-tax Department (formerly Form 15CA) — every transfer</td><td style={S.td}><strong style={{ color: '#27AE60' }}>REPAIHUB files it automatically</strong></td><td style={S.td}>Same day</td></tr>
+              <tr><td style={S.tdGold}>Form 146</td><td style={S.td}>CA certificate confirming tax compliance (formerly Form 15CB) — only above ₹5 lakh in the tax year</td><td style={S.td}><strong style={{ color: '#27AE60' }}>Our partner CA signs digitally</strong></td><td style={S.td}>Within 1 business day</td></tr>
             </tbody>
           </table>
           <div style={S.infoBox}>

@@ -36,6 +36,7 @@ Keep REPAIHUB inside the law in both countries — FINTRAC MSB obligations in Ca
 Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every hand-off.
 
 ## Standing backlog (as of 20 Nov 2026)
+- **Standing duty (founder, 20 Nov 2026):** after any RBI, FEMA or Income-tax change — and at least weekly — check the rules against the live site and app (Form 145/146 naming, the ₹5 lakh rules, PAN, purpose codes, limits). Raise every mismatch to the Content Writer and Frontend, with sources. Customers must never see an outdated term such as "15CA" used as the current name.
 - Done 20 Nov 2026: PAN below ₹5 lakh researched (`results/legal/pan-below-5-lakh-2026-11-20.md`). PAN is required at any amount; Form 146 only above ₹5 lakh. Follow-up: verify on the official sites the points that are search-extract only (Rule 220(3) exemptions, Rule 217 relief, purpose codes, the Form 60 equivalent).
 - With the Business Analyst: specify the app's per-transfer compliance capture (RBI undertaking, TDS/tax declaration, purpose code, own-account-abroad check) and the ₹5 lakh tax-year running total by PAN hash.
 - Obligations register for the outward corridor (FINTRAC + FEMA + Form 145/146).
