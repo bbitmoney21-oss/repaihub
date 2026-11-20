@@ -21,20 +21,20 @@ export default function KYCComplete() {
         </div>
 
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(2.5rem, 6vw, 3.5rem)', fontWeight: 600, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '1rem', animation: 'fadeUp 0.6s ease forwards 0.2s', opacity: 0 }}>
-          You're all set,<br/><em style={{ fontStyle: 'normal', color: '#E8B86D' }}>{user?.name?.split(' ')[0] || 'Raj'}</em>.
+          You're all set,<br/><em style={{ fontStyle: 'normal', color: '#E8B86D' }}>{user?.name?.split(' ')[0] || 'there'}</em>.
         </h1>
 
         <p style={{ fontSize: '1rem', color: '#8BA0B4', lineHeight: 1.7, marginBottom: '3rem', animation: 'fadeUp 0.6s ease forwards 0.35s', opacity: 0 }}>
-          Your identity has been verified. Your NRO and Canadian accounts are connected. You can now send money legally in as little as 90 seconds per transfer.
+          Your account is set up. In this beta preview no real identity or bank check runs yet — verification through DigiLocker, IDfy, Persona and bank verification switches on at launch. REPAIHUB never stores your documents.
         </p>
 
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '2.5rem', animation: 'fadeUp 0.6s ease forwards 0.45s', opacity: 0 }}>
           {[
-            { icon: '🏦', title: 'Canada', value: user?.canadaBank?.institution || 'TD Canada Trust', note: 'Verified ✓' },
-            { icon: '🇮🇳', title: 'India', value: user?.indiaBank?.bankName || 'HDFC Bank', note: 'Verified ✓' },
-            { icon: '📊', title: 'Annual Limit', value: 'CAD $83,000', note: 'Available' },
-            { icon: '⚡', title: 'Express', value: '8–12 Hours', note: 'Available' },
+            { icon: '🏦', title: 'Canada', value: user?.canadaBank?.institution || 'Not connected yet', note: user?.canadaBank ? 'Connected (beta preview)' : 'Connect at launch' },
+            { icon: '🇮🇳', title: 'India', value: user?.indiaBank?.bankName || 'Not connected yet', note: user?.indiaBank ? 'Connected (beta preview)' : 'Connect at launch' },
+            { icon: '📊', title: 'Annual Limit', value: 'USD 1 million', note: 'Per financial year (FEMA)' },
+            { icon: '⚡', title: 'Express', value: 'Up to 3 business days', note: 'At launch' },
           ].map(card => (
             <div key={card.title} style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.2)', padding: '1.25rem', textAlign: 'left' }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{card.icon}</div>
@@ -50,9 +50,9 @@ export default function KYCComplete() {
           <div style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A', marginBottom: '1rem' }}>Your First Transfer</div>
           {[
             { icon: '1', text: 'Enter the amount in INR you want to send' },
-            { icon: '2', text: 'We show you the live FX rate and all fees upfront' },
+            { icon: '2', text: 'We show you the exchange rate and every fee before you confirm' },
             { icon: '3', text: 'Confirm — Form 145 is filed automatically (IT Act 2025)' },
-            { icon: '4', text: 'Our CA certifies Form 146 (2–4 hours)' },
+            { icon: '4', text: 'Our partner CA certifies Form 146' },
             { icon: '5', text: 'CAD arrives in your account within 5 business days (3 with Express)' },
           ].map(item => (
             <div key={item.icon} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.75rem' }}>
