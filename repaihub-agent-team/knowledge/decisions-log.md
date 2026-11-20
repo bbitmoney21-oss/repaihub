@@ -77,3 +77,12 @@ This file holds only decisions the founder made. Agents add an entry after the f
   - Document-upload endpoints are disabled (410).
   - PAN is stored only masked and hashed.
   - The CA team receives document data through the verification partners, not from REPAIHUB storage.
+
+### 2026-11-20 — PAN stays required below ₹5 lakh; transfer flow chained
+- **Decision:**
+  - The founder asked that transfers below ₹5 lakh not ask for PAN. The Legal agent's research found that PAN is legally required at any amount (Form 145 Part A, RBI KYC), so the app keeps asking for it.
+  - What changes below ₹5 lakh is that no CA certificate (Form 146) is needed. The app says this plainly.
+  - The DigiLocker → Flinks steps now chain without returning to the transfer in between, and the NRO/NRE choice is remembered.
+- **Decided by:** Venkateswarlu Bhagi (direction: "a compliance agent should work on the current RBI rules and make the app work"). The rule itself comes from the law, not a preference.
+- **Source:** `results/legal/pan-below-5-lakh-2026-11-20.md`.
+- **Affects:** IndiaNRO, CanadaBank and NewTransfer screens; `scripts/qa/transfer-flow.cjs` (now run by the website monitor).

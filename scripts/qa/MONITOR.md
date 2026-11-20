@@ -21,7 +21,9 @@ Credentials for Render and Supabase are injected by the environment's network pr
    - Run `npm ci` if `node_modules` is missing.
    - Then run `node scripts/qa/smoke.cjs https://repaihub.com <scratch>/qa > <scratch>/qa/out.json`.
    - A failure that clears on one re-run after 60 s is a Render cold start. Log it; don't "fix" it.
-2. **Clean up.** Run `bash scripts/qa/cleanup.sh`, always, whether the test passed or failed.
+   - Then run the end-to-end transfer flow test: `node scripts/qa/transfer-flow.cjs https://repaihub.com <scratch>/qa`.
+   - It covers the DigiLocker → Flinks chain, the PAN rule, the fee preview and the review step.
+2. **Clean up.** Run `bash scripts/qa/cleanup.sh`, always, whether the tests passed or failed.
 3. **Production health.**
    - The latest Render production deploy should be `live`.
    - `GET https://repaihub.com/health` should return 200.

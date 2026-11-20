@@ -10,10 +10,17 @@ const BRANCHES = ['Mumbai — Bandra West', 'Mumbai — Andheri', 'Delhi — Con
 type Step = 'intro' | 'form' | 'digilocker' | 'verifying' | 'done'
 
 export default function IndiaNRO() {
-  const { completeIndiaKYC } = useStore()
+  const { completeIndiaKYC, user } = useStore()
   const nav = useNavigate()
   const [searchParams] = useSearchParams()
   const returnTo = searchParams.get('returnTo')
+  // Chain the steps: if the Canadian bank is not connected yet, go straight to it
+  // (carrying returnTo) instead of bouncing back to the transfer in between.
+  const needsCanada = !user?.canadaBank
+  const nextPath = needsCanada
+    ? `/onboarding/canada-bank${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`
+    : (returnTo ?? '/onboarding/complete')
+  const nextLabel = needsCanada ? 'Next — Connect Canadian Bank →' : (returnTo ? 'Continue to Transfer →' : 'Complete Setup →')
   const [step, setStep] = useState<Step>('intro')
   const [bank, setBank] = useState('')
   const [branch, setBranch] = useState('')
@@ -21,8 +28,9 @@ export default function IndiaNRO() {
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
 
+  const panValid = /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)
   const startDigiLocker = async () => {
-    if (!bank || !branch || !pan) return
+    if (!bank || !branch || !panValid) return
     setStep('digilocker')
     await new Promise(r => setTimeout(r, 1500))
     setStep('verifying')
@@ -61,7 +69,7 @@ export default function IndiaNRO() {
         {/* Context label */}
         <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
           <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A' }}>
-            {returnTo ? 'Transfer Setup — Step 2 of 2' : 'Account Setup'}
+            {returnTo ? `Transfer Setup — Step ${user?.canadaBank ? 2 : 1} of 2` : 'Account Setup'}
           </span>
         </div>
 
@@ -135,8 +143,13 @@ export default function IndiaNRO() {
                 </div>
               </div>
 
-              <button onClick={startDigiLocker} disabled={!bank || !branch}
-                style={{ width: '100%', background: bank && branch ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: bank && branch ? 'pointer' : 'not-allowed' }}>
+              <p style={{ fontSize: '0.78rem', color: pan && !panValid ? '#F2A7A7' : '#8BA0B4', lineHeight: 1.55, margin: '0 0 1rem' }}>
+                {pan && !panValid
+                  ? 'Enter a valid PAN: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F).'
+                  : 'PAN is required for every NRO transfer, including amounts below ₹5 lakh (Form 145 and bank KYC). Below ₹5 lakh no CA certificate is needed. We verify your PAN and keep only a masked copy.'}
+              </p>
+              <button onClick={startDigiLocker} disabled={!bank || !branch || !panValid}
+                style={{ width: '100%', background: bank && branch && panValid ? '#C9963A' : 'rgba(201,150,58,0.3)', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: bank && branch ? 'pointer' : 'not-allowed' }}>
                 Grant DigiLocker Consent →
               </button>
             </>
@@ -191,9 +204,9 @@ export default function IndiaNRO() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => nav(returnTo ?? '/onboarding/complete')}
+              <button onClick={() => nav(nextPath)}
                 style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                {returnTo ? 'Back to Transfer →' : 'Complete Setup →'}
+                {nextLabel}
               </button>
             </div>
           )}

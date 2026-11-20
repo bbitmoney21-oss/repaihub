@@ -10,10 +10,17 @@ const BANKS = ['TD Canada Trust', 'RBC Royal Bank', 'Scotiabank', 'BMO Bank of M
 type Step = 'intro' | 'connect' | 'verifying' | 'done'
 
 export default function CanadaBank() {
-  const { completeCanadaKYC } = useStore()
+  const { completeCanadaKYC, user } = useStore()
   const nav = useNavigate()
   const [searchParams] = useSearchParams()
   const returnTo = searchParams.get('returnTo')
+  // Chain the steps: if the India NRO account is not connected yet, go straight to
+  // DigiLocker (carrying returnTo) instead of bouncing back to the transfer.
+  const needsIndia = !user?.indiaBank
+  const nextPath = needsIndia
+    ? `/onboarding/india-nro${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`
+    : (returnTo ?? '/onboarding/complete')
+  const nextLabel = needsIndia ? 'Next — Connect Indian NRO Account →' : (returnTo ? 'Continue to Transfer →' : 'Complete Setup →')
   const [step, setStep] = useState<Step>('intro')
   const [bank, setBank] = useState('')
   const [holder, setHolder] = useState('')
@@ -58,7 +65,7 @@ export default function CanadaBank() {
         {/* Context label */}
         <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
           <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#C9963A' }}>
-            {returnTo ? 'Transfer Setup — Step 1 of 2' : 'Account Setup'}
+            {returnTo ? `Transfer Setup — Step ${user?.indiaBank ? 2 : 1} of 2` : 'Account Setup'}
           </span>
         </div>
 
@@ -171,9 +178,9 @@ export default function CanadaBank() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => nav(returnTo ?? '/onboarding/india-nro')}
+              <button onClick={() => nav(nextPath)}
                 style={{ width: '100%', background: '#C9963A', color: '#0B1C2C', border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                {returnTo ? 'Back to Transfer →' : 'Continue — Indian NRO Account →'}
+                {nextLabel}
               </button>
             </div>
           )}

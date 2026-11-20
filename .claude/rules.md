@@ -168,6 +168,6 @@ The AI workforce is defined in `repaihub-agent-team/`. Its constitution, `repaih
   - Verification is done by partners: DigiLocker and IDfy in India; Persona and Flinks-class bank verification in Canada.
   - Store only the minimum data and the verification result or reference. PAN is kept masked plus hashed.
 - **Upload endpoints are blocked** by `src/middleware/noDocumentStorage.ts`. Never re-enable document storage without the founder's explicit approval of a new design.
-- **Founder's test profile:** Venky Bhagi, bbitmoney21@gmail.com, Canadian citizen.
+- **Founder's test profile:** Venky Bhagi, bbitmoney21+test@gmail.com (delivers to bbitmoney21@gmail.com; that plain address already has a separate account), Canadian citizen. The founder holds the password.
   - Always use it for manual and flow testing.
   - Never delete it. `scripts/qa/cleanup.sh` only removes `qa.*@repaihub.com` accounts.
