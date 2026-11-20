@@ -80,6 +80,7 @@ Backup: Jana Small Finance Bank.
   - Supabase project `mievzzzxpsomrzxhkecu` (ca-central-1).
   - Netlify deploys the web on push to `main`.
 - **The move from Render to Fly.io is an open decision.**
+- **Keep-alive (free):** a Supabase `pg_cron` job (`repaihub-keepalive`, migration 027) pings `/health` every 5 minutes from 09:30 to 19:30 India time. That keeps the Render free plan awake while Indian bank officers are working. Outside those hours, the first visit takes 30–60 seconds. It uses about 300 of the 750 free hours a month, so no Render upgrade is needed for now.
 
 ## Pricing (approved tiers, India → Canada)
 | Ticket | Standard (5 days) | Express (3 days) |
