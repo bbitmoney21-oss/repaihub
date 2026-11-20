@@ -118,19 +118,20 @@ export default function NewTransfer() {
     const raw = sessionStorage.getItem(DRAFT_KEY)
     if (!raw) return
     try {
-      const draft = JSON.parse(raw) as { amount: string; express: boolean; purpose: string; direction: Direction; step: Step }
+      const draft = JSON.parse(raw) as { amount: string; express: boolean; purpose: string; direction: Direction; step: Step; accountType?: 'NRO' | 'NRE' | '' }
       sessionStorage.removeItem(DRAFT_KEY)
       setAmount(draft.amount)
       setExpress(draft.express)
       setPurpose(draft.purpose)
       setDirection(draft.direction)
+      if (draft.accountType) { setAccountType(draft.accountType); setTempAccountType(draft.accountType) }
       setStep(draft.step)
     } catch { sessionStorage.removeItem(DRAFT_KEY) }
   }, [])
 
   // Navigate to bank connection page — saves current form state so we return to step 2
   function connectBank(path: string) {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ amount, express, purpose, direction, step: 2 as Step }))
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ amount, express, purpose, direction, accountType, step: 2 as Step }))
     nav(`${path}?returnTo=/app/new-transfer`)
   }
 
@@ -478,7 +479,7 @@ export default function NewTransfer() {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
             {([
-              { id: 'NRO' as const, title: 'NRO — Non-Resident Ordinary', desc: 'Taxable Indian income. Requires Form 145/146 CA certification and is subject to the USD 1M FEMA annual cap.' },
+              { id: 'NRO' as const, title: 'NRO — Non-Resident Ordinary', desc: 'Taxable Indian income. Form 145 is filed for every transfer; a CA certificate (Form 146) is needed above ₹5 lakh. Subject to the USD 1M FEMA annual cap.' },
               { id: 'NRE' as const, title: 'NRE — Non-Resident External', desc: 'Tax-free, freely repatriable under FEMA. No Form 145/146. No annual cap. Self-declaration required.' },
             ] as const).map(opt => (
               <div key={opt.id} onClick={() => setTempAccountType(opt.id)}

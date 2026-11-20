@@ -25,6 +25,15 @@ Last confirmed by the founder: 20 Nov 2026.
   - Write it as **"Registered, N300002485"**, never "in process".
 - **Form 145 / Form 146** replaced Form 15CA / 15CB on 1 April 2026 (Income-tax Act 2025).
 - **FEMA:** NRO repatriation limit of USD 1 million per financial year (April–March).
+- **PAN is required for every NRO transfer, at any amount** (Legal agent research, 20 Nov 2026: `results/legal/pan-below-5-lakh-2026-11-20.md`).
+  - Why:
+    - Form 145 Part A asks for the remitter's PAN.
+    - RBI KYC requires PAN or Form 60, with no amount threshold.
+    - Form 145 is filed on the PAN-based e-filing portal.
+  - **Up to ₹5 lakh in the tax year** (a running total, not per transfer): Form 145 Part A, and **no CA certificate (Form 146)**.
+  - **Above ₹5 lakh:** Form 145 Part C plus Form 146 from the CA Partner.
+  - **No PAN:** hold for manual review.
+  - Store the PAN masked and hashed only (Rule 12).
 - **No money can legally move out of India without an Authorised Dealer bank partner.**
 
 ## Launch gates (in order)
