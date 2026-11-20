@@ -37,7 +37,7 @@ Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every h
 ## Standing backlog (as of 20 Nov 2026)
 - Guide: "Form 145 and Form 146 explained" (replaced 15CA/15CB on 1 April 2026).
 - Guide: "The USD 1 million limit and selling a property in India".
-- Update help-assistant fee answers once the founder decides Q-001.
+- Keep the help assistant, Terms and guides in line with the tier pricing decided on 20 Nov 2026 (done at launch of the decision; re-check after any price change).
 
 ## How work moves
 Task file from the Orchestrator → draft → peer review by the Legal agent (including the check that nothing is copied from another company) → if it is a decision, payment, filing, contract, external message or deployment: a row in [`queue/needs-founder-ok.md`](../../queue/needs-founder-ok.md) and wait → execute only the approved item → verify → report the milestone to the Orchestrator. Finished work goes in `results/`.

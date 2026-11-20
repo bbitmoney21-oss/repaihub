@@ -27,7 +27,7 @@ The Chief Orchestrator creates one file per task in `tasks/<id>-<slug>.md` from 
 - [ ] For any product change: the outward-corridor regression passed (Rule 8)
 
 ## Must not
-- <Task-specific limits, e.g. "no production migration", "do not quote prices while Q-001 is open">
+- <Task-specific limits, e.g. "no production migration", "quote only the prices in company facts">
 
 ## Log
 - <yyyy-mm-dd> <agent>: <what happened>

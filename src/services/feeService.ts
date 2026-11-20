@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../lib/supabaseServer';
+import { outwardFee, type PricingSlab } from '../lib/outwardPricing';
 
 // ── Fee config types ──────────────────────────────────────────────────────────
 
@@ -27,6 +28,21 @@ export interface OutwardFeeTier {
   waiveFlatFee: boolean;         // unconditionally waive (e.g. ₹50L+ tier)
   flatFeeWaiveAboveInr: number | null;
   label: string;
+  expressCommissionRate: number | null;  // express markup (fraction); null = same as standard
+  expressFlatFeeCAD: number | null;      // express base fee; null = same as standard
+}
+
+// Tiers → pricing slabs for the marginal calculator (src/lib/outwardPricing.ts).
+export function tiersToSlabs(tiers: OutwardFeeTier[]): PricingSlab[] {
+  return tiers.map(t => ({
+    slabMinInr: t.slabMinInr,
+    slabMaxInr: t.slabMaxInr,
+    rate: t.commissionRate,
+    baseCAD: t.flatFeeCAD,
+    expressRate: t.expressCommissionRate ?? t.commissionRate,
+    expressBaseCAD: t.expressFlatFeeCAD ?? t.flatFeeCAD,
+    label: t.label,
+  }));
 }
 
 // ── 5-minute cache — avoids hitting DB on every transfer ──────────────────────
@@ -100,7 +116,7 @@ export async function getOutwardFeeTiers(): Promise<OutwardFeeTier[]> {
   try {
     const { data, error } = await supabaseAdmin
       .from('outward_fee_tiers')
-      .select('slab_min_inr, slab_max_inr, commission_rate, flat_fee_cad, waive_flat_fee, flat_fee_waive_above_inr, label')
+      .select('slab_min_inr, slab_max_inr, commission_rate, flat_fee_cad, waive_flat_fee, flat_fee_waive_above_inr, label, express_commission_rate, express_flat_fee_cad')
       .eq('is_active', true)
       .order('slab_min_inr', { ascending: true });
 
@@ -113,6 +129,8 @@ export async function getOutwardFeeTiers(): Promise<OutwardFeeTier[]> {
         waiveFlatFee:         Boolean(r.waive_flat_fee),
         flatFeeWaiveAboveInr: r.flat_fee_waive_above_inr === null ? null : Number(r.flat_fee_waive_above_inr),
         label:                String(r.label ?? ''),
+        expressCommissionRate: r.express_commission_rate == null ? null : Number(r.express_commission_rate),
+        expressFlatFeeCAD:     r.express_flat_fee_cad == null ? null : Number(r.express_flat_fee_cad),
       }));
     } else if (error) {
       console.warn('[FeeService] outward_fee_tiers unavailable — falling back to flat rate:', error.message);
@@ -187,9 +205,14 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   // fall back to the legacy flat commission_rate_total in fee_config.
   // commissionRate in tiers is stored as a fraction (0.018 = 1.8%); the
   // legacy fee_config.commissionRateTotal is stored as a percentage (1.8).
-  const effectiveCommissionPct = tier
-    ? tier.commissionRate * 100               // 0.0180 -> 1.80
-    : cfg.commissionRateTotal;                // already a percentage
+  // Tiered pricing (decided 2026-11-20): the markup is MARGINAL like tax
+  // brackets — each slab's rate applies only to the part of the amount inside
+  // that slab — and the base fee is the base of the slab the amount falls in.
+  // Express has its own base and rates in the same tier rows.
+  const marginal = tier ? outwardFee(amountINR, exchangeRate, speed, tiersToSlabs(tiers)) : null;
+  const effectiveCommissionPct = marginal && grossAmountCAD > 0
+    ? Math.round((marginal.markupCAD / grossAmountCAD) * 10000) / 100   // effective markup %, e.g. 1.13
+    : cfg.commissionRateTotal;                                         // legacy single rate, already a %
 
   // Keep the RPH / partner split proportional so the existing
   // accounting columns continue to balance.  When the legacy split sums
@@ -198,7 +221,9 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   const rphShareFraction =
     legacyTotal > 0 ? cfg.commissionRateRPH / legacyTotal : 1;
 
-  const commissionCAD         = Math.round(grossAmountCAD * (effectiveCommissionPct       / 100) * 100) / 100;
+  const commissionCAD         = marginal
+    ? marginal.markupCAD
+    : Math.round(grossAmountCAD * (effectiveCommissionPct / 100) * 100) / 100;
   const repaihubCommissionCAD = Math.round(commissionCAD * rphShareFraction * 100) / 100;
   const partnerCommissionCAD  = Math.round((commissionCAD - repaihubCommissionCAD) * 100) / 100;
 
@@ -206,7 +231,7 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   // tier.waiveFlatFee unconditionally zeroes it (concierge ₹50L+ tier),
   // tier.flatFeeWaiveAboveInr waives it for transfers >= the threshold.
   // When no tier exists we fall back to fee_config.flatFeeCAD.
-  let flatFeeCAD = tier ? tier.flatFeeCAD : cfg.flatFeeCAD;
+  let flatFeeCAD = marginal ? marginal.baseCAD : cfg.flatFeeCAD;
   let flatFeeWaived = false;
   let flatFeeWaivedReason: string | null = null;
 
@@ -225,7 +250,9 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   }
 
   // Step 4 — Express surcharge
-  const expressSurchargeCAD = speed === 'express' ? cfg.expressSurchargeCAD : 0;
+  // Express is priced inside the tiers (its own base + rates), so there is no
+  // separate surcharge when tiers are configured.
+  const expressSurchargeCAD = speed === 'express' && !marginal ? cfg.expressSurchargeCAD : 0;
 
   // Step 5 — Promo code discount
   let promoDiscountCAD: number = 0;
@@ -284,7 +311,7 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   const feeConfigSnapshot: Record<string, unknown> = {
     flatFeeCAD:           flatFeeCAD,
     commissionRateApplied: effectiveCommissionPct,        // %, e.g. 1.80
-    commissionTier:       tier ? { label: tier.label, slabMinInr: tier.slabMinInr, slabMaxInr: tier.slabMaxInr, rate: tier.commissionRate } : null,
+    commissionTier:       tier ? { label: tier.label, slabMinInr: tier.slabMinInr, slabMaxInr: tier.slabMaxInr, rate: tier.commissionRate, speed, marginal: true } : null,
     commissionRateRPH:    cfg.commissionRateRPH,
     commissionRatePartner: cfg.commissionRatePartner,
     expressSurchargeCAD:  cfg.expressSurchargeCAD,
@@ -295,11 +322,11 @@ export async function calculateFees(input: FeeCalculationInput): Promise<FeeCalc
   const breakdown: string[] = [
     `Transfer amount: ₹${amountINR.toLocaleString('en-IN')} = CAD ${grossAmountCAD.toFixed(2)} gross`,
     tier
-      ? `Commission ${effectiveCommissionPct.toFixed(2)}% (${tier.label}): CAD ${commissionCAD.toFixed(2)}`
+      ? `Markup (marginal, effective ${effectiveCommissionPct.toFixed(2)}%): CAD ${commissionCAD.toFixed(2)}`
       : `Commission ${effectiveCommissionPct.toFixed(2)}%: CAD ${commissionCAD.toFixed(2)}`,
     flatFeeWaived
       ? `Flat fee: CAD 0.00 (waived — ${flatFeeWaivedReason ?? (promoDescription ?? 'discount')})`
-      : `Flat fee: CAD ${flatFeeCAD.toFixed(2)}`,
+      : `Base fee${speed === 'express' ? ' (express)' : ''}: CAD ${flatFeeCAD.toFixed(2)}`,
     ...(expressSurchargeCAD > 0 ? [`Express surcharge: CAD ${expressSurchargeCAD.toFixed(2)}`] : []),
     ...(promoDiscountCAD > 0 ? [`Promo ${promoCodeApplied}: -CAD ${promoDiscountCAD.toFixed(2)}`] : []),
     ...(creditAppliedCAD > 0 ? [`Referral credit: -CAD ${creditAppliedCAD.toFixed(2)}`] : []),

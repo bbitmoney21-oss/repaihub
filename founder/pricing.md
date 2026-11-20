@@ -1,3 +1,5 @@
+> **Superseded 2026-11-20:** the flat CAD 79 / 199 / 499 below is retired. Final pricing is the marginal tier pricing — see `repaihub-agent-team/results/finance/pricing-decision-2026-11-20.md`.
+
 # Pricing — REPAIHUB Safe Passage
 
 Inputs: `pricing-curve-v1.md` (20 buyers, original pitch), `pricing-curve.md` (100 buyers, offer v2), `competitors.md`, `numbers.json` / `cfo.md`. All price answers are **the total CAD fee a buyer would pay to move ₹10 lakh**. Simulated buyers pick what to test; they are not proof.

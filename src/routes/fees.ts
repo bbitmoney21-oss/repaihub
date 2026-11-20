@@ -31,7 +31,11 @@ router.get('/tiers', async (_req, res) => {
         waiveFlatFee:         t.waiveFlatFee,
         flatFeeWaiveAboveInr: t.flatFeeWaiveAboveInr,
         label:                t.label,
+        expressCommissionRate: t.expressCommissionRate ?? t.commissionRate,
+        expressFlatFeeCAD:     t.expressFlatFeeCAD ?? t.flatFeeCAD,
       })),
+      // Markups are marginal, like tax brackets (see src/lib/outwardPricing.ts).
+      pricingModel: 'marginal',
       // Surcharge applied on top of any tier when speed='express'.  Sourced
       // from fee_config so admins keep one place to edit it.
       expressSurchargeCAD:    cfg.expressSurchargeCAD,

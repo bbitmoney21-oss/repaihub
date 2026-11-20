@@ -74,7 +74,7 @@ Backup: Jana Small Finance Bank.
 - Markups are marginal, like tax brackets: there is no cliff at ₹5L.
 - **Positioning line:** "roughly half the all-in cost of a typical Indian bank repatriation, and comparable to Wise — except Wise cannot move NRO money."
 - **Never use** "~4–5% below Indian banks". It was checked and is not accurate.
-- ⚠ **Open conflict (queue item Q-001):** the live website calculator, the in-app Fees page and the help assistant currently show flat beta fees of **CAD 79 / 199 / 499**. That figure came from the founder-pack pricing work and was adopted on 19 Nov 2026. Until the founder confirms which pricing is final, agents must not change fees anywhere, and external drafts must not quote prices.
+- **Decided 20 Nov 2026 (Q-001 closed):** these tier prices are live on the website calculator, in the app, in the database and in the help assistant. The earlier flat CAD 79 / 199 / 499 is retired. Express is priced in the tiers (no separate surcharge). The referral free first transfer waives the base fee only. Reasoning: `results/finance/pricing-decision-2026-11-20.md`. Shared calculator: `src/lib/outwardPricing.ts`.
 
 ## Costs
 | Item | Cost |

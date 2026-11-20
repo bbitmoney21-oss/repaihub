@@ -35,7 +35,7 @@ Build and fix the REPAIHUB web interface — marketing site, beta app and help a
 Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every hand-off.
 
 ## Standing backlog (as of 20 Nov 2026)
-- When the founder decides pricing (Q-001), update the landing calculator, the in-app Fees page and the help assistant together.
+- Tier pricing went live on 20 Nov 2026 through `src/lib/outwardPricing.ts`. Any future price change must update that one file and the Supabase tiers together, then re-run the smoke test.
 - Clear type errors in `src/pages/app/Fees.tsx`, `Dashboard.tsx`, `NewTransfer.tsx`.
 
 ## How work moves

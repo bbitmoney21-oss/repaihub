@@ -21,7 +21,7 @@ The Founder's Personal Assistant sorts every incoming message into exactly one c
    - signed with the founder's approved signature (`founder/outreach/signature.md`).
 3. **Every partner draft includes the beta link,** but only once QA has confirmed it is tested end to end (Rule 5).
 4. **No draft may:**
-   - quote prices while queue item Q-001 (pricing) is open;
+   - quote prices other than the tier pricing in `knowledge/company-facts.md`;
    - promise a launch date;
    - describe FINTRAC status as anything other than "Registered, N300002485".
 5. **Original wording only.** Never reuse another company's template (Rule 1).
