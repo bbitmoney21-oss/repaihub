@@ -1,5 +1,14 @@
 # Is REPAIHUB good and scalable? — market assessment (2026-11-19)
 
+## Market sizing update (2026-11-20)
+Full sourced model: [`market-sizing.md`](market-sizing.md). It supersedes §2 below.
+- **Canada TAM ≈ CAD 4.5M/yr** in fees at REPAIHUB prices (≈24K transfers, ≈CAD 370M moved; top-down and bottom-up agree; range CAD 1.6–14.8M). **SAM ≈ CAD 2.3M** (≈12K transfers). **SOM year 3 (base) ≈ CAD 187K** (1,000 transfers, 8% of SAM).
+- **USA TAM ≈ CAD 10–11M/yr**, but SAM is CAD 0 until a US licence or licensed partner exists.
+- **Break-even: 24 transfers/month** (≈2% of Canada SAM). Paying a CAD 80K founder salary needs 106/month (≈10% of SAM).
+- Population correction: the 2021 Census counts **898,045 India-born immigrants** (≈1.42M by end-2025 with new PRs). The 1.86M figure below came from a Wikipedia mirror and is not confirmed by StatCan.
+- Verdict unchanged: profitable small business, not venture-scale on NRO repatriation alone. Growth comes from property-sale/inheritance concierge, then adjacent annual tax services, then the USA.
+- Weakest assumptions: share of NRO households that repatriate each year (5%), share of India-born adults holding NRO (50%), and Canada's share of NRO balances (7.7%).
+
 Sources are linked. **Estimates are marked ESTIMATE**, with the arithmetic shown. Simulated-panel results are not customer data.
 
 ## Verdict
