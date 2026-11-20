@@ -86,3 +86,14 @@ This file holds only decisions the founder made. Agents add an entry after the f
 - **Decided by:** Venkateswarlu Bhagi (direction: "a compliance agent should work on the current RBI rules and make the app work"). The rule itself comes from the law, not a preference.
 - **Source:** `results/legal/pan-below-5-lakh-2026-11-20.md`.
 - **Affects:** IndiaNRO, CanadaBank and NewTransfer screens; `scripts/qa/transfer-flow.cjs` (now run by the website monitor).
+
+### 2026-11-20 — Q-002 and Q-007 approved; transfer flow fixed end to end
+- **Decision:**
+  - The founder approved Q-002 (the FEMA check fails closed) and Q-007 (the bank partnership one-pager and Model 2).
+  - From the founder's own test: no retyping at Send. The Form 145 Part A screen shows verified details read-only, and the customer answers 1 question and ticks 1 declaration.
+  - Form 145/146 naming is now used everywhere.
+  - Inward (Canada → India) is selectable up front.
+  - RBI purpose codes are corrected to S0014/S1301 (outward) and P1301 (inward).
+- **Decided by:** Venkateswarlu Bhagi.
+- **Source:** conversation of 20 Nov 2026; `results/legal/purpose-codes-2026-11-20.md`.
+- **Affects:** NewTransfer, the Form 145 Part A screen, transfers route, rbiRules, Render env vars, Guide and Fees pages.
