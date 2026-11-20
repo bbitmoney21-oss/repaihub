@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ShieldCheck, FileText, Upload, Download, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { ShieldCheck, FileText, Download, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   apiGetComplianceRequests, apiGetComplianceRequest, apiGetWalletDocumentUrl,
   apiComplianceUploadUrl, apiComplianceConfirmUpload,
@@ -256,12 +256,6 @@ function ComplianceCard({ request, onDownload }: {
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-          {request.status === 'pending' && (
-            <button style={S.btn()} onClick={() => { setOpen(true); setShowUpload(true) }}>
-              <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />
-              Upload Docs
-            </button>
-          )}
           <button style={S.btnSm} onClick={expand}>
             {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
@@ -292,17 +286,12 @@ function ComplianceCard({ request, onDownload }: {
           ) : docs.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem 0', gap: '0.75rem' }}>
               <FileText size={28} color="rgba(201,150,58,0.4)" />
-              <p style={S.p}>No documents uploaded yet.</p>
-              <button style={S.btn()} onClick={() => setShowUpload(true)}>
-                Upload First Document
-              </button>
+              <p style={{ ...S.p, textAlign: 'center' }}>Documents are verified with our verification partners and the CA team — REPAIHUB never stores them.</p>
             </div>
           ) : (
             <>
               {docs.map(d => <DocRow key={d.token_id} doc={d} onDownload={onDownload} />)}
-              <button style={{ ...S.btnSm, marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }} onClick={() => setShowUpload(true)}>
-                <Upload size={12} /> Add Document
-              </button>
+
             </>
           )}
         </div>
@@ -345,10 +334,10 @@ export default function Compliance() {
       <div style={{ marginBottom: '2rem' }}>
         <span style={S.sLabel}>CA Compliance</span>
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', fontWeight: 600, color: '#FFFFFF', marginBottom: '0.4rem' }}>
-          Compliance &amp; Document Wallet
+          Compliance
         </h1>
         <p style={{ fontSize: '0.88rem', color: '#8BA0B4' }}>
-          Every outward transfer gets a CA review under IT Act 2025. Upload your supporting documents here — your CA will certify Form 146 and file Form 145 on your behalf.
+          Every outward transfer gets a CA review under the Income-tax Act 2025: our partner CA certifies Form 146 and Form 145 is filed for you. REPAIHUB never uploads or stores your documents — identity, PAN, bank and source-of-funds checks are done through DigiLocker and our verification partners, and we keep only the result.
         </p>
       </div>
 
