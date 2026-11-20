@@ -142,3 +142,22 @@ Production infrastructure (2026-11-20):
   ycdpqjwvfuxdokytmaxh no longer exists.
 - Render: srv-d7o2gru7r5hc73b6eb1g "repaihub" (main, production),
   srv-d7o2sp8sfn5c73ee45h0 "repaihub-dev" (dev). Both free plan.
+
+## Agent company constitution (set by the user, 2026-11-20, later the same day — supersedes "Autonomous operations" above)
+
+The AI workforce is defined in `repaihub-agent-team/`. Its constitution, `repaihub-agent-team/rules.md`, binds every agent. That includes the scheduled website monitor and the scheduled agent-company runs.
+
+**Scheduled and background agents:**
+- Never send, post, spend, sign, file or deploy without an APPROVED row in `repaihub-agent-team/queue/needs-founder-ok.md` for that exact item.
+- Bug fixes are prepared on a branch, built and tested, and opened as a PR into `dev`. The deployment is then queued for the founder's yes.
+- Agent workspace output (tasks, results, briefings, queue rows) is committed to the `agents/workspace` branch, which deploys nothing.
+
+**Claude in a live conversation with the founder:**
+- A direct instruction from him for a specific item counts as his yes for that item. Report what was done.
+
+**Credentials:**
+- They stay stored as environment network secrets.
+- Never ask for them again. Never print or commit them.
+
+**Never touched by any agent:**
+- The CA portal (`/ca-login`, `/ca-dashboard`, and the CA team's systems).
