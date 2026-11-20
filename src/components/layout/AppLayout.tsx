@@ -76,11 +76,11 @@ export default function AppLayout() {
         {/* FX Rate ticker */}
         <div className="px-4 mb-2">
           <div className="px-4 py-3 rounded text-xs" style={{ background: '#132233', border: '1px solid rgba(201,150,58,0.15)', color: '#8BA0B4' }}>
-            <span className="block text-xs tracking-widest uppercase" style={{ color: '#C9963A' }}>Live FX</span>
+            <span className="block text-xs tracking-widest uppercase" style={{ color: '#C9963A' }}>Indicative FX</span>
             <span className="text-base font-semibold mt-0.5 block" style={{ color: '#FAF6F0', fontFamily: "'DM Sans', sans-serif" }}>
               1 CAD = ₹63.42
             </span>
-            <span className="text-xs" style={{ color: '#8BA0B4' }}>Updated just now</span>
+            <span className="text-xs" style={{ color: '#8BA0B4' }}>Final rate shown before you confirm</span>
           </div>
         </div>
 
