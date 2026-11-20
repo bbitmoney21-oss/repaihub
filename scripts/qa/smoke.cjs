@@ -51,6 +51,25 @@ const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); }
       await p.close();
     }
 
+    // 2b. Help assistant answers from approved facts
+    {
+      const p = await b.newPage();
+      await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+      let ok = false, detail = '';
+      try {
+        await p.click('button[aria-label="Ask REPAIHUB a question"]');
+        for (const [q, expect] of [['Who is the founder?', /NIT Durgapur/], ['What are the fees?', /CAD \$79/], ['Is REPAIHUB regulated?', /N300002485/]]) {
+          await p.fill('input[aria-label="Your question"]', q);
+          await p.press('input[aria-label="Your question"]', 'Enter');
+          const last = await p.$$eval('[data-from=bot]', els => els[els.length - 1].innerText);
+          if (!expect.test(last)) { detail = `"${q}" → ${last.slice(0, 60)}`; throw new Error(detail); }
+        }
+        ok = true;
+      } catch (e) { detail = detail || e.message.split('\n')[0]; }
+      check('help assistant answers', ok, detail);
+      await p.close();
+    }
+
     // 3. Sign up → dashboard → log out → log in → wrong password
     {
       const c = await b.newContext(devices['iPhone 13']);

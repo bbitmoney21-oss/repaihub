@@ -3,6 +3,7 @@ import { useEffect, lazy, Suspense } from 'react'
 import { useStore } from './store/useStore'
 import { getToken } from './lib/api'
 import AppLayout from './components/layout/AppLayout'
+import ChatBot from './components/ChatBot'
 
 // Public pages — kept eager so the marketing landing renders without a flash.
 import Landing    from './pages/Landing'
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      <ChatBot />
     </BrowserRouter>
   )
 }
