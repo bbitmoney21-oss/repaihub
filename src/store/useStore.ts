@@ -30,7 +30,7 @@ export interface User {
   canadaBankVerified: boolean
   indiaNROVerified: boolean
   canadaBank?: { institution: string; holderName: string; accountType: string }
-  indiaBank?: { bankName: string; branch: string }
+  indiaBank?: { bankName: string; branch: string; panMasked?: string }
   kycCompletedAt?: string
   annualLimitUsed: number
   annualLimitTotal: number

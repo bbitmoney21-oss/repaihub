@@ -172,10 +172,11 @@ export interface Form15CAPartASubmission {
   tdsAmountInr:             number;
   aggregateFyRemittanceInr: number;
   declared:                 boolean;
+  identitySource?:          'digilocker' | 'customer_entered';
   signature: {
     typedName:              string;
     signedAt:               string;
-    method:                 'typed_electronic';
+    method:                 'checkbox_declaration' | 'typed_electronic';
   };
 }
 

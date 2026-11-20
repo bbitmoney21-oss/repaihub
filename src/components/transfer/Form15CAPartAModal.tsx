@@ -1,61 +1,46 @@
-import { useState, useEffect, useMemo } from 'react'
-import { X, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, FileSignature } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, CheckCircle2, ShieldCheck } from 'lucide-react'
 
 /**
- * Form 15CA Part A — self-declaration popup for sub-₹5L outward transfers.
+ * Form 145 Part A — confirm & declare (transfers up to ₹5 lakh in the tax year).
+ * Form 145 replaced Form 15CA on 1 April 2026 (Income-tax Act 2025).
  *
- * UX goal (Winman-style): the customer should do the absolute minimum.
- * Everything we already know is auto-filled and shown read-only in a
- * collapsed summary.  Only the mandatory fields the IT department forces
- * the customer to confirm are shown as editable inputs, each marked with
- * a red * and validated before submit.  A typed digital signature (must
- * match the registered name) acts as electronic signature under IT Act
- * 2000 § 3A.
- *
- * Reusable answers — Father's name and Indian address — are cached in
- * localStorage so a second transfer pre-fills them automatically.  When
- * migration 026 lands these will move to the profile.
- *
- * STARTER FIELD SET — extend when official 15CA Part A sample is provided.
+ * Minimum customer effort (founder rule): everything already verified through
+ * DigiLocker / PAN verification is shown read-only — the customer does NOT
+ * retype PAN, father's name or address. Father's name and Indian address come
+ * from the DigiLocker record at filing time (verification partner), so REPAIHUB
+ * never stores them (Rule 12). The customer answers one tax question and ticks
+ * one declaration. PAN is still legally required at every amount; only the CA
+ * certificate (Form 146) is not needed up to ₹5 lakh.
  */
 
-const LS_KEY = 'rh_form15ca_partA_v1'
 const PAN_REGEX = /^[A-Z]{5}\d{4}[A-Z]$/
+export const VERIFIED_PAN_KEY = 'rh_verified_pan'   // sessionStorage only — cleared when the tab closes
 
 export interface Form15CAPartAData {
-  // Remitter (mostly pre-filled, customer confirms PAN typo)
   remitterName:         string
   remitterPAN:          string
-  remitterFatherName:   string         // CUSTOMER FILLS — cached
-  remitterAddressIndia: string         // CUSTOMER FILLS — cached
+  remitterFatherName:   string         // '' — fetched from DigiLocker at filing; never stored by REPAIHUB
+  remitterAddressIndia: string         // '' — fetched from DigiLocker at filing; never stored by REPAIHUB
   remitterEmail:        string
   remitterPhone:        string
-
-  // Beneficiary (pre-filled, locked)
   beneficiaryName:      string
   beneficiaryCountry:   'CA'
-
-  // Transaction (pre-filled, locked)
   amountInr:            number
   amountCad:            number
   exchangeRate:         number
   purposeCode:          string
   remittanceDate:       string
-
-  // Tax answers (CUSTOMER FILLS, defaults pre-set for typical NRO repatriation)
   isChargeableToTax:    boolean
   tdsDeducted:          boolean
   tdsAmountInr:         number
-
-  // Aggregate FY remittance (auto-computed)
   aggregateFyRemittanceInr: number
-
-  // Declaration + signature (CUSTOMER FILLS)
   declared:             boolean
+  identitySource:       'digilocker' | 'customer_entered'
   signature: {
-    typedName:          string         // customer types full legal name
-    signedAt:           string         // ISO timestamp
-    method:             'typed_electronic'
+    typedName:          string         // verified name the customer declared as
+    signedAt:           string
+    method:             'checkbox_declaration'
   }
 }
 
@@ -75,411 +60,120 @@ interface Props {
   onCancel: () => void
 }
 
-interface CachedAnswers { fatherName?: string; indianAddress?: string }
+type TaxAnswer = 'tds_deducted' | 'not_taxable' | 'not_sure'
 
-function loadCached(): CachedAnswers {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as CachedAnswers
-    return {
-      fatherName:    typeof parsed.fatherName === 'string' ? parsed.fatherName : undefined,
-      indianAddress: typeof parsed.indianAddress === 'string' ? parsed.indianAddress : undefined,
-    }
-  } catch { return {} }
+function readVerifiedPan(): string | null {
+  try { const v = sessionStorage.getItem(VERIFIED_PAN_KEY); return v && PAN_REGEX.test(v) ? v : null } catch { return null }
 }
-function saveCached(a: CachedAnswers) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(a)) } catch { /* private mode etc — ignore */ }
-}
+const mask = (pan: string) => 'XXXXXX' + pan.slice(6)
+const inr = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN')
 
 export default function Form15CAPartAModal({
   open, amountInr, amountCad, exchangeRate, purposeCode,
   remitterName, remitterPAN, remitterEmail, remitterPhone,
-  beneficiaryName, aggregateFyRemittanceInr,
-  onSubmit, onCancel,
+  beneficiaryName, aggregateFyRemittanceInr, onSubmit, onCancel,
 }: Props) {
-
-  const cached = useMemo(loadCached, [])
-
-  const [pan, setPAN]               = useState(remitterPAN ?? '')
-  const [fatherName, setFatherName] = useState(cached.fatherName ?? '')
-  const [indianAddress, setAddress] = useState(cached.indianAddress ?? '')
-  const [chargeable, setChargeable] = useState(false)
-  const [tdsDeducted, setTds]       = useState(false)
-  const [tdsAmount, setTdsAmount]   = useState('')
-  const [signedName, setSignedName] = useState('')
-  const [declared, setDeclared]     = useState(false)
-  const [showAuto, setShowAuto]     = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-
-  useEffect(() => { if (open) setError(null) }, [open])
-
-  const aggregateAfter   = aggregateFyRemittanceInr + amountInr
-  const exceedsPartABand = aggregateAfter > 500_000
-
-  // Signature must match registered name (case-insensitive, trimmed) — same
-  // gate Winman uses to prevent customers from signing as another person.
-  const expectedName = remitterName.trim().toLowerCase()
-  const signatureValid =
-    signedName.trim().length > 0 &&
-    signedName.trim().toLowerCase() === expectedName
-
-  // Required-field gate — keeps the submit button disabled until everything
-  // mandatory is filled.  Visual cue mirrors what Winman does: red * + a
-  // disabled button + an explicit list of what's still missing so the
-  // customer is never guessing which field is blocking them.
-  const tdsAmountNum   = Number(tdsAmount)
-  const tdsAmountValid = !tdsDeducted || (tdsAmountNum > 0 && Number.isFinite(tdsAmountNum))
-
-  // Build a list of human-readable field names that are still missing or
-  // invalid.  Empty array = form is submittable.
-  const missingFields: string[] = []
-  if (!PAN_REGEX.test(pan.trim().toUpperCase())) missingFields.push('Valid PAN (AAAAA9999A)')
-  if (fatherName.trim().length < 2)              missingFields.push("Father's name")
-  if (indianAddress.trim().length < 10)          missingFields.push('Indian address')
-  if (tdsDeducted && !tdsAmountValid)            missingFields.push('TDS amount (you selected Yes)')
-  if (!signatureValid && signedName.trim().length === 0)
-                                                  missingFields.push('Digital signature (type your full name)')
-  else if (!signatureValid)                      missingFields.push(`Signature must match registered name (${remitterName})`)
-  if (!declared)                                  missingFields.push('Tick the declaration box')
-  if (exceedsPartABand)                          missingFields.push('FY total exceeds ₹5,00,000 — use the standard CA flow')
-
-  const allMandatoryFilled = missingFields.length === 0
-
-  // Dev-mode diagnostic — when the modal is open, log every validation
-  // state change so it's trivial to debug a stuck submit button from
-  // the browser console.  Tree-shaken away in production builds.
-  useEffect(() => {
-    if (!open) return
-    if (typeof process === 'undefined' || process.env.NODE_ENV === 'production') return
-    // eslint-disable-next-line no-console
-    console.log('[15CA modal] validation state:', {
-      pan, panValid: PAN_REGEX.test(pan.trim().toUpperCase()),
-      fatherName, fatherValid: fatherName.trim().length >= 2,
-      indianAddress, addressValid: indianAddress.trim().length >= 10,
-      chargeable, tdsDeducted, tdsAmount, tdsAmountValid,
-      signedName, signatureValid, expectedSignature: remitterName,
-      declared,
-      aggregateFyRemittanceInr, aggregateAfter, exceedsPartABand,
-      missingFields, allMandatoryFilled,
-    })
-  }, [open, pan, fatherName, indianAddress, chargeable, tdsDeducted, tdsAmount, tdsAmountValid, signedName, signatureValid, declared, exceedsPartABand, missingFields.length, allMandatoryFilled, remitterName, aggregateFyRemittanceInr, aggregateAfter])
-
+  const verifiedPan = remitterPAN && PAN_REGEX.test(remitterPAN) ? remitterPAN : readVerifiedPan()
+  const [panEntry, setPanEntry] = useState('')
+  const [tax, setTax] = useState<TaxAnswer | ''>('')
+  const [declared, setDeclared] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => { if (open) { setError(null); setDeclared(false) } }, [open])
   if (!open) return null
 
+  const pan = verifiedPan ?? panEntry.trim().toUpperCase()
+  const panOk = PAN_REGEX.test(pan)
+  const aggregateAfter = aggregateFyRemittanceInr + amountInr
+  const exceedsPartABand = aggregateAfter > 500_000
+  const ready = panOk && !!tax && declared && !exceedsPartABand
+
   function submit() {
-    setError(null)
-
-    const panClean = pan.trim().toUpperCase()
-    if (!PAN_REGEX.test(panClean)) { setError('PAN must look like AAAAA9999A.'); return }
-    if (fatherName.trim().length < 2) { setError("Father's name is required by the IT department."); return }
-    if (indianAddress.trim().length < 10) { setError('Please enter your full Indian address.'); return }
-    if (tdsDeducted && !tdsAmountValid) { setError('TDS amount must be a positive number.'); return }
-    if (!signatureValid) {
-      setError(`Signature must match your registered name exactly: ${remitterName}.`)
-      return
-    }
-    if (!declared) { setError('You must tick the declaration to file Form 15CA Part A.'); return }
-    if (exceedsPartABand) {
-      setError(`This transfer pushes your FY total above ₹5,00,000. Use the standard CA-routed flow.`)
-      return
-    }
-
-    saveCached({ fatherName: fatherName.trim(), indianAddress: indianAddress.trim() })
-
+    if (!panOk) { setError('Please enter a valid PAN (5 letters, 4 digits, 1 letter).'); return }
+    if (!tax) { setError('Please answer the tax question.'); return }
+    if (!declared) { setError('Please tick the declaration.'); return }
+    if (exceedsPartABand) { setError('This transfer takes your tax-year total above ₹5 lakh, so a CA certificate (Form 146) is needed.'); return }
     onSubmit({
-      remitterName,
-      remitterPAN:           panClean,
-      remitterFatherName:    fatherName.trim(),
-      remitterAddressIndia:  indianAddress.trim(),
-      remitterEmail,
-      remitterPhone,
-      beneficiaryName,
-      beneficiaryCountry:    'CA',
-      amountInr,
-      amountCad,
-      exchangeRate,
-      purposeCode,
-      remittanceDate:        new Date().toISOString(),
-      isChargeableToTax:     chargeable,
-      tdsDeducted,
-      tdsAmountInr:          tdsDeducted ? Number(tdsAmount) : 0,
-      aggregateFyRemittanceInr,
-      declared:              true,
-      signature: {
-        typedName: signedName.trim(),
-        signedAt:  new Date().toISOString(),
-        method:    'typed_electronic',
-      },
+      remitterName, remitterPAN: pan, remitterFatherName: '', remitterAddressIndia: '',
+      remitterEmail, remitterPhone, beneficiaryName, beneficiaryCountry: 'CA',
+      amountInr, amountCad, exchangeRate, purposeCode, remittanceDate: new Date().toISOString(),
+      isChargeableToTax: tax === 'tds_deducted', tdsDeducted: tax === 'tds_deducted', tdsAmountInr: 0,
+      aggregateFyRemittanceInr, declared: true,
+      identitySource: verifiedPan ? 'digilocker' : 'customer_entered',
+      signature: { typedName: remitterName, signedAt: new Date().toISOString(), method: 'checkbox_declaration' },
     })
   }
 
-  const C = {
-    overlay: 'rgba(8, 16, 26, 0.7)',
-    bg: '#0B1C2C', card: '#132233', border: 'rgba(201,150,58,0.22)',
-    accent: '#C9963A', accentLt: '#E8B86D',
-    text: '#FAF6F0', muted: '#8BA0B4', danger: '#E74C3C', success: '#27AE60',
-    subtle: 'rgba(201,150,58,0.06)', autofill: 'rgba(39,174,96,0.06)', warning: '#E8B86D',
-  }
-
-  const Star = () => <span style={{ color: C.danger, fontWeight: 700 }}> *</span>
-
-  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-      {children}
-    </span>
-  )
-
-  const inputStyle: React.CSSProperties = {
-    background: C.bg, border: `1px solid ${C.border}`, color: C.text,
-    padding: '0.65rem 0.75rem', fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none',
-    minHeight: 44,
-  }
-
-  const radioBtn = (active: boolean): React.CSSProperties => ({
-    flex: 1, minWidth: 80, padding: '0.6rem 0.75rem',
-    background: active ? 'rgba(201,150,58,0.18)' : C.bg,
-    border: `1px solid ${active ? C.accent : C.border}`,
-    color: active ? C.accent : C.text,
-    fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center',
-    minHeight: 44,
-  })
-
-  // Compact summary line — Winman-style "what we have on file"
-  const autoLine = (label: string, value: string) => (
-    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.3rem 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: '0.72rem', color: C.muted }}>{label}</span>
-      <span style={{ fontSize: '0.78rem', color: C.text, fontFamily: 'inherit', textAlign: 'right' }}>{value}</span>
+  const C = { overlay: 'rgba(8,16,26,0.75)', bg: '#0B1C2C', card: '#132233', border: 'rgba(201,150,58,0.22)', accent: '#C9963A', accentLt: '#E8B86D', text: '#FAF6F0', muted: '#8BA0B4', danger: '#F2A7A7', success: '#27AE60' }
+  const row = (k: string, v: string, ok = false) => (
+    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.45rem 0', borderBottom: `1px solid ${C.border}`, fontSize: '0.84rem' }}>
+      <span style={{ color: C.muted }}>{k}</span>
+      <span style={{ color: ok ? C.success : C.text, textAlign: 'right' }}>{v}</span>
     </div>
+  )
+  const choice = (id: TaxAnswer, title: string, sub: string) => (
+    <button key={id} type="button" onClick={() => setTax(id)} aria-pressed={tax === id}
+      style={{ textAlign: 'left', background: tax === id ? 'rgba(201,150,58,0.12)' : C.bg, border: `1px solid ${tax === id ? C.accent : C.border}`, color: C.text, padding: '0.7rem 0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{title}</div>
+      <div style={{ fontSize: '0.75rem', color: C.muted, marginTop: '0.15rem' }}>{sub}</div>
+    </button>
   )
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Form 15CA Part A self-declaration"
-      style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
-    >
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, width: '100%', maxWidth: 540, maxHeight: '92vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-
-        {/* Header */}
-        <div style={{ padding: '1.1rem 1.25rem', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.accent, marginBottom: '0.3rem' }}>
-              Form 15CA · Part A
-            </div>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.4rem', fontWeight: 600, margin: 0, lineHeight: 1.15 }}>
-              Sign &amp; send
-            </h2>
-            <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0.4rem 0 0 0', lineHeight: 1.45 }}>
-              For outward remittance up to ₹5L per FY. We auto-fill everything we have on record — only the fields below need your input.
-            </p>
+    <div role="dialog" aria-modal="true" aria-label="Form 145 Part A declaration"
+      style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0', overflowY: 'auto' }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, width: '100%', maxWidth: 520, maxHeight: '92vh', overflowY: 'auto', padding: '1.25rem 1.1rem 1.4rem', fontFamily: "'DM Sans', system-ui, sans-serif", boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+          <div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.accent }}>Form 145 · Part A</div>
+            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.5rem', color: '#FFF', margin: '0.2rem 0 0' }}>Confirm and send</h2>
           </div>
-          <button onClick={onCancel} aria-label="Close"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: '0.25rem' }}>
-            <X size={20} />
-          </button>
+          <button onClick={onCancel} aria-label="Close" style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: C.muted, lineHeight: 1.55, margin: '0.6rem 0 0.9rem' }}>
+          Up to ₹5 lakh in the tax year, no CA certificate (Form 146) is needed. We file Form 145 (formerly 15CA) for you from your verified details.
+        </p>
+
+        <div style={{ background: C.bg, border: `1px solid ${C.border}`, padding: '0.4rem 0.85rem 0.6rem', marginBottom: '1rem' }}>
+          {row('Name', remitterName || '—')}
+          {verifiedPan
+            ? row('PAN', `${mask(verifiedPan)}  ✓ verified`, true)
+            : null}
+          {row("Father's name & address", 'From your DigiLocker record', true)}
+          {row('Amount', `${inr(amountInr)} → CAD ${amountCad.toFixed(2)}`)}
+          {row('To', `${beneficiaryName || remitterName}'s Canadian account`)}
+          {row('Tax-year total after this', inr(aggregateAfter))}
         </div>
 
-        <div style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
-          {/* Top-of-modal missing-fields panel — visible whenever any
-              required field is incomplete.  No sticky positioning to avoid
-              overlapping the auto-fill panel below.  A duplicate copy
-              renders just above the submit button so the customer sees it
-              both at scroll-top and scroll-bottom. */}
-          {missingFields.length > 0 && (
-            <div style={{
-              background: 'rgba(243,156,18,0.16)',
-              border: `1px solid ${C.warning}`,
-              borderLeft: `4px solid ${C.warning}`,
-              padding: '0.7rem 0.9rem',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, color: C.warning, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
-                <AlertCircle size={14} /> {missingFields.length} {missingFields.length === 1 ? 'item' : 'items'} to complete
-              </div>
-              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: C.text, lineHeight: 1.5 }}>
-                {missingFields.map(f => <li key={f}>{f}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Auto-filled — collapsed by default */}
-          <div style={{ background: C.autofill, border: `1px solid ${C.border}`, padding: '0.75rem 0.85rem' }}>
-            <button onClick={() => setShowAuto(!showAuto)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: 0 }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.success, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CheckCircle2 size={14} /> Auto-filled · {showAuto ? 'hide' : 'review'}
-              </span>
-              {showAuto ? <ChevronUp size={16} color={C.muted} /> : <ChevronDown size={16} color={C.muted} />}
-            </button>
-            {showAuto && (
-              <div style={{ marginTop: '0.7rem', display: 'flex', flexDirection: 'column' }}>
-                {autoLine('Name',         remitterName)}
-                {autoLine('Email',        remitterEmail)}
-                {autoLine('Phone',        remitterPhone)}
-                {autoLine('Beneficiary',  `${beneficiaryName} · Canada`)}
-                {autoLine('Amount',       `₹${amountInr.toLocaleString('en-IN')}  →  CAD ${amountCad.toFixed(2)}`)}
-                {autoLine('Exchange rate',`1 CAD = ₹${exchangeRate.toFixed(2)}`)}
-                {autoLine('Purpose code', purposeCode)}
-                {autoLine('FY total after', `₹${aggregateAfter.toLocaleString('en-IN')}`)}
-                {autoLine('Date',         new Date().toLocaleDateString('en-CA'))}
-              </div>
-            )}
-          </div>
-
-          {exceedsPartABand && (
-            <div style={{ background: 'rgba(231,76,60,0.08)', border: `1px solid ${C.danger}`, padding: '0.65rem 0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-              <AlertCircle size={16} color={C.danger} style={{ marginTop: 2, flexShrink: 0 }} />
-              <div style={{ fontSize: '0.8rem', color: C.text, lineHeight: 1.45 }}>
-                FY total after this transfer would exceed ₹5,00,000. Form 15CA Part C and CA-certified Form 15CB are required at that level. Use the standard CA-routed flow instead.
-              </div>
-            </div>
-          )}
-
-          {/* Mandatory fields — what we need from you */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.accent, marginBottom: '0.1rem' }}>
-              What we need from you
-            </div>
-
-            {/* PAN — pre-filled, editable */}
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <FieldLabel>PAN<Star /></FieldLabel>
-              <input value={pan} maxLength={10}
-                onChange={e => setPAN(e.target.value.toUpperCase())}
-                placeholder="AAAAA9999A"
-                style={{ ...inputStyle, fontFamily: "'DM Sans', monospace", letterSpacing: '0.05em' }} />
-            </label>
-
-            {/* Father's name — required by IT, cached */}
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <FieldLabel>Father&apos;s name (as per PAN)<Star /></FieldLabel>
-              <input value={fatherName}
-                onChange={e => setFatherName(e.target.value)}
-                placeholder="e.g. Ramesh Bhagi"
-                style={inputStyle} />
-              {cached.fatherName && (
-                <span style={{ fontSize: '0.7rem', color: C.success }}>Auto-filled from your last transfer</span>
-              )}
-            </label>
-
-            {/* Indian address — required, cached */}
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <FieldLabel>Indian address (NRO-registered)<Star /></FieldLabel>
-              <textarea value={indianAddress}
-                onChange={e => setAddress(e.target.value)}
-                placeholder="House / Street, City, State, PIN"
-                rows={2}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: 64 }} />
-              {cached.indianAddress && (
-                <span style={{ fontSize: '0.7rem', color: C.success }}>Auto-filled from your last transfer</span>
-              )}
-            </label>
-
-            {/* Tax chargeable */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <FieldLabel>Chargeable to tax in India?<Star /></FieldLabel>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="button" onClick={() => setChargeable(false)} style={radioBtn(!chargeable)}>No (typical)</button>
-                <button type="button" onClick={() => setChargeable(true)}  style={radioBtn(chargeable)}>Yes</button>
-              </div>
-              <span style={{ fontSize: '0.7rem', color: C.muted, marginTop: '0.1rem' }}>
-                NRO-savings repatriations of already-taxed funds are typically NOT chargeable. Pick &lsquo;No&rsquo; if unsure.
-              </span>
-            </div>
-
-            {/* TDS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <FieldLabel>TDS deducted at source?<Star /></FieldLabel>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="button" onClick={() => { setTds(false); setTdsAmount('') }} style={radioBtn(!tdsDeducted)}>No</button>
-                <button type="button" onClick={() => setTds(true)}  style={radioBtn(tdsDeducted)}>Yes</button>
-              </div>
-              {tdsDeducted && (
-                <input value={tdsAmount}
-                  onChange={e => setTdsAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  placeholder="TDS amount in ₹"
-                  inputMode="decimal"
-                  style={{
-                    ...inputStyle,
-                    fontFamily: "'DM Sans'",
-                    marginTop: '0.4rem',
-                    borderColor: tdsAmount.length === 0 || !tdsAmountValid ? C.danger : C.border,
-                  }} />
-              )}
-            </div>
-          </div>
-
-          {/* Digital signature */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.85rem', border: `1px solid ${C.border}`, background: C.subtle }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.accent, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-              <FileSignature size={14} /> Digital signature<Star />
-            </div>
-            <span style={{ fontSize: '0.78rem', color: C.muted, lineHeight: 1.45 }}>
-              Type your full registered name to sign.  Counts as electronic signature under IT Act 2000 § 3A.
-            </span>
-            <input value={signedName}
-              onChange={e => setSignedName(e.target.value)}
-              placeholder={remitterName}
-              style={{ ...inputStyle, fontFamily: "'Cormorant Garamond', cursive", fontSize: '1.1rem', fontStyle: 'italic',
-                color: signatureValid ? C.accentLt : C.text,
-                borderColor: signedName.length > 0 && !signatureValid ? C.danger : C.border }} />
-            {signedName.length > 0 && !signatureValid && (
-              <span style={{ fontSize: '0.7rem', color: C.danger }}>
-                Must match your registered name: <strong>{remitterName}</strong>
-              </span>
-            )}
-            {signatureValid && (
-              <span style={{ fontSize: '0.7rem', color: C.success }}>Signature accepted · {new Date().toLocaleString()}</span>
-            )}
-          </div>
-
-          {/* Declaration checkbox */}
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: 'rgba(201,150,58,0.06)', padding: '0.85rem', border: `1px solid ${C.border}`, cursor: 'pointer' }}>
-            <input type="checkbox" checked={declared}
-              onChange={e => setDeclared(e.target.checked)}
-              style={{ marginTop: 3, width: 18, height: 18, accentColor: C.accent, flexShrink: 0 }} />
-            <span style={{ fontSize: '0.8rem', color: C.text, lineHeight: 1.5 }}>
-              I declare the information above is true, the funds are from my NRO account on which applicable Indian taxes have been paid, and my aggregate outward remittances during this financial year do not exceed ₹5,00,000.<Star />
-            </span>
+        {!verifiedPan && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '1rem' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>PAN (required at any amount)</span>
+            <input value={panEntry} maxLength={10} onChange={e => setPanEntry(e.target.value.toUpperCase())} placeholder="ABCDE1234F"
+              style={{ background: '#1C3147', border: `1px solid ${C.border}`, color: '#FFF', padding: '0.75rem', fontSize: '16px', fontFamily: 'inherit' }} />
           </label>
+        )}
 
-          {error && (
-            <div style={{ background: 'rgba(231,76,60,0.1)', border: `1px solid ${C.danger}`, padding: '0.65rem 0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-              <AlertCircle size={16} color={C.danger} style={{ marginTop: 2, flexShrink: 0 }} />
-              <div style={{ fontSize: '0.82rem', color: C.text }}>{error}</div>
-            </div>
-          )}
+        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.45rem' }}>Has tax already been handled on this money?</div>
+        <div style={{ display: 'grid', gap: '0.45rem', marginBottom: '1rem' }}>
+          {choice('tds_deducted', 'Yes — TDS was deducted', 'e.g. your bank deducted TDS on interest, rent or the sale')}
+          {choice('not_taxable', 'Not taxable', 'e.g. savings that were already taxed')}
+          {choice('not_sure', 'Not sure', 'Our partner CA will check before the money moves')}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '1rem 1.25rem', borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          {missingFields.length > 0 && (
-            <div style={{ background: 'rgba(243,156,18,0.08)', border: `1px solid ${C.warning}`, padding: '0.6rem 0.8rem' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: C.warning, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
-                Before you can submit
-              </div>
-              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: C.text, lineHeight: 1.5 }}>
-                {missingFields.map(f => <li key={f}>{f}</li>)}
-              </ul>
-            </div>
-          )}
-          <button onClick={submit}
-            disabled={!allMandatoryFilled}
-            style={{
-              width: '100%', minHeight: 48,
-              background: allMandatoryFilled ? C.accent : 'rgba(201,150,58,0.3)',
-              color: C.bg, border: 'none', padding: '0.95rem',
-              fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
-              cursor: allMandatoryFilled ? 'pointer' : 'not-allowed',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-            }}>
-            <CheckCircle2 size={16} /> Sign &amp; send transfer
-          </button>
-          <button onClick={onCancel}
-            style={{ width: '100%', minHeight: 40, background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, padding: '0.6rem', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            Cancel
-          </button>
-        </div>
+        <label style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', cursor: 'pointer', marginBottom: '1rem' }}>
+          <input type="checkbox" checked={declared} onChange={e => setDeclared(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, accentColor: C.accent, flexShrink: 0 }} />
+          <span style={{ fontSize: '0.8rem', color: C.text, lineHeight: 1.55 }}>
+            I, {remitterName || 'the account holder'}, declare that these details are correct, the money is my own and applicable Indian taxes are paid, and I authorise REPAIHUB to file Form 145 Part A for this transfer.
+          </span>
+        </label>
+
+        {exceedsPartABand && <p role="alert" style={{ color: C.danger, fontSize: '0.8rem', margin: '0 0 0.75rem' }}>This transfer takes your tax-year total above ₹5 lakh, so a CA certificate (Form 146) is needed — our partner CA will handle it.</p>}
+        {error && <p role="alert" style={{ color: C.danger, fontSize: '0.8rem', margin: '0 0 0.75rem' }}>{error}</p>}
+
+        <button onClick={submit} disabled={!ready}
+          style={{ width: '100%', background: ready ? C.accent : 'rgba(201,150,58,0.3)', color: C.bg, border: 'none', padding: '1rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: ready ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          {ready ? <CheckCircle2 size={16} /> : <ShieldCheck size={16} />} Confirm & send
+        </button>
+        <p style={{ fontSize: '0.7rem', color: C.muted, textAlign: 'center', margin: '0.6rem 0 0' }}>REPAIHUB never stores your documents. Only a masked PAN is kept.</p>
       </div>
     </div>
   )

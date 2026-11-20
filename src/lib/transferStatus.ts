@@ -33,12 +33,12 @@ export interface StatusDetail {
 const OUTWARD: Partial<Record<TransferStatus, StatusDetail>> = {
   INITIATED:           { step: 1, totalSteps: 5, label: 'Submitted — verifying KYC',              etaHint: 'A few minutes' },
   KYC_VERIFIED:        { step: 2, totalSteps: 5, label: 'Filing Form 145',                        etaHint: '~30 minutes' },
-  FORM145_FILED:       { step: 3, totalSteps: 5, label: 'Form 145 filed · CA certifying Form 146', etaHint: 'Within 1 business day' },
+  FORM145_FILED:       { step: 3, totalSteps: 5, label: 'Form 145 filed · CA review', etaHint: 'Within 1 business day' },
   FORM146_RECEIVED:    { step: 4, totalSteps: 5, label: 'Forms certified — bank verification',    etaHint: '~1–2 hours' },
   BANK_PROCESSING:     { step: 4, totalSteps: 5, label: 'Bank verification · FX conversion',      etaHint: 'Within 1–2 business days' },
   SWIFT_SENT:          { step: 5, totalSteps: 5, label: 'SWIFT sent · awaiting credit',            etaHint: 'Within 1 business day' },
   // Legacy IT Act 1961 status names — backward compat with existing DB rows
-  '15CA_FILED':        { step: 3, totalSteps: 5, label: 'Form 145 filed · CA certifying Form 146', etaHint: 'Within 1 business day' },
+  '15CA_FILED':        { step: 3, totalSteps: 5, label: 'Form 145 filed · CA review', etaHint: 'Within 1 business day' },
   '15CB_CERTIFIED':    { step: 4, totalSteps: 5, label: 'Forms certified — bank verification',    etaHint: '~1–2 hours' },
 }
 

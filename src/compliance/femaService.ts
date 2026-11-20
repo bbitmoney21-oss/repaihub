@@ -14,6 +14,7 @@ export interface FemaCheckResult {
   maxINR: number;
   message?: string;
   fyResetDate: string; // ISO date of next FY reset
+  unavailable?: boolean; // true when the check could not run — the transfer is held (fail closed)
 }
 
 function currentFYStart(): Date {
@@ -34,24 +35,28 @@ export async function checkFemaLimit(
 ): Promise<FemaCheckResult> {
   const fyStart = currentFYStart();
 
+  // D1 fix (Q-002, approved 2026-11-20): FAIL CLOSED. If the limit cannot be
+  // verified, the transfer is held — never allowed on a default of ₹0 used.
+  // Every transfer this FY counts unless it was cancelled, failed or rejected,
+  // so in-flight transfers are included (conservative).
+  const unavailable = (): FemaCheckResult => ({
+    allowed: false, unavailable: true, remainingINR: 0, usedINR: 0, maxINR: FEMA_MAX_INR,
+    fyResetDate: nextFYResetDate(),
+    message: 'We could not verify your annual FEMA limit right now, so this transfer has not been sent. Please try again in a few minutes.',
+  });
   let usedINR = 0;
   try {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('transfers')
-      .select('amount_inr')
+      .select('amount_inr, status')
       .eq('user_id', userId)
-      .in('status', [
-        'completed', 'bank_processing',
-        'form145_filed', 'form146_received',
-        '15ca_filed', '15cb_received',           // legacy pre-016
-        'COMPLETED', 'BANK_PROCESSING',
-      ])
       .gte('created_at', fyStart.toISOString());
-
-    usedINR = (data ?? []).reduce((sum, row) => sum + Number(row.amount_inr || 0), 0);
+    if (error || !data) return unavailable();
+    usedINR = data
+      .filter(row => !/^(cancelled|failed|rejected|CANCELLED|FAILED|REJECTED)$/.test(String(row.status ?? '')))
+      .reduce((sum, row) => sum + Number(row.amount_inr || 0), 0);
   } catch {
-    // If DB is unavailable, allow the transfer (fail open, not closed)
-    return { allowed: true, remainingINR: FEMA_MAX_INR, usedINR: 0, maxINR: FEMA_MAX_INR, fyResetDate: nextFYResetDate() };
+    return unavailable();
   }
 
   const remainingINR = Math.max(0, FEMA_MAX_INR - usedINR);

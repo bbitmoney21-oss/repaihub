@@ -127,6 +127,40 @@ const check = (name, ok, detail = '') => results.push({ name, ok: !!ok, detail }
     const s3b = await body();
     check('review shows base fee and markup, no TCS', /Base fee/.test(s3b) && /Markup \(effective/.test(s3b) && !/TCS/.test(s3b), '');
     await shot('review_step');
+
+    // 6. Confirm & send — up to ₹5 lakh: Form 145 Part A screen must NOT ask the customer
+    //    to retype anything DigiLocker already verified (PAN, father's name, address, signature).
+    await p.getByText('Looks Good — Confirm →').click();
+    await p.waitForTimeout(600);
+    await p.getByText(/Confirm & Send/).first().click();
+    const modal = p.locator('[role=dialog][aria-label="Form 145 Part A declaration"]');
+    const modalShown = await modal.waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+    check('Form 145 Part A screen opens for a ≤ ₹5 lakh transfer', modalShown);
+    if (modalShown) {
+      const mt = await modal.innerText();
+      const inputs = await modal.locator('input:not([type=checkbox])').count();
+      check('no fields to retype (PAN / father / address / signature)', inputs === 0, `text inputs=${inputs}`);
+      check('verified PAN shown masked', /XXXXXX\w{4}\s+✓ verified/.test(mt), '');
+      check('uses Form 145 name, not 15CA', /Form 145/.test(mt) && !/15CA(?! )/.test(mt.replace(/formerly 15CA/g, '')), '');
+      await shot('form145_partA');
+      await modal.getByText('Yes — TDS was deducted').click();
+      await modal.locator('input[type=checkbox]').check();
+      await modal.getByRole('button', { name: /Confirm & send/i }).click();
+      const done = await p.getByText('Transfer Initiated!').waitFor({ timeout: 45000 }).then(() => true).catch(() => false);
+      const doneText = (await body()).replace(/\s+/g, ' ');
+      check('transfer submitted (beta) with correct Part A wording', done && /no CA certificate needed up to ₹5 lakh/.test(doneText), doneText.slice(0, 160));
+      await shot('submitted');
+    }
+
+    // 7. Inward (Canada → India) direction is available and priced
+    await p.goto(APP + '/app/new-transfer', { waitUntil: 'networkidle' });
+    await p.waitForTimeout(800);
+    if (/Send money to India/.test(await body())) await p.getByText('Send money to India').click();
+    else await p.locator('button[title="Flip direction"]').first().click().catch(() => {});
+    await p.waitForTimeout(600);
+    const inward = await body();
+    check('inward Canada → India available', /Chequing Account \(CAD\)/.test(inward) && /🇨🇦 Canada[\s\S]*🇮🇳 India/.test(inward), '');
+    await shot('inward');
   } catch (e) {
     check('flow run', false, e.message.split('\n')[0]);
     await shot('error').catch(() => {});

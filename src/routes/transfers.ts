@@ -39,12 +39,12 @@ const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 // Source-of-funds → required supporting doc type + suggested purpose code
 const SOURCE_OF_FUNDS_MAP: Record<string, { purposeCode: string; docType: string; label: string }> = {
   rental_income:       { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Rental Income' },
-  pension_income:      { purposeCode: 'P1101', docType: 'bank_statement',  label: 'Pension Income' },
-  dividend_income:     { purposeCode: 'P0001', docType: 'investment_proof', label: 'Dividend Income' },
+  pension_income:      { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Pension Income' },
+  dividend_income:     { purposeCode: 'S0014', docType: 'investment_proof', label: 'Dividend Income' },
   property_sale:       { purposeCode: 'S0014', docType: 'property_deed',   label: 'Property Sale Proceeds' },
   bank_interest:       { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Bank Interest' },
   accumulated_savings: { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Accumulated Savings' },
-  business_income:     { purposeCode: 'S0001', docType: 'bank_statement',  label: 'Business Income' },
+  business_income:     { purposeCode: 'S0014', docType: 'bank_statement',  label: 'Business Income' },
 };
 
 // Query cumulative FY outward transfer total for a user (completed + in-flight, excluding this transfer)
@@ -307,7 +307,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
         reference,
         status: inwardInitialStatus,
         completed_at: inwardCompletedAt,
-        purpose_code: 'INWARD',
+        purpose_code: 'P1301',   // RBI receipt: family maintenance & savings (results/legal/purpose-codes-2026-11-20.md)
         fintrac_report: fintracReport,
         fintrac_required: fintracReport,
       })
@@ -438,6 +438,10 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   // ── FEMA annual limit check (Challenge 8) ─────────────────────────────────
   if (accountType === 'NRO') {
     const fema = await checkFemaLimit(userId, amountInr);
+    if (fema.unavailable) {
+      res.status(503).json({ error: 'FEMA_CHECK_UNAVAILABLE', message: fema.message, timestamp: ts() });
+      return;
+    }
     if (!fema.allowed) {
       res.status(400).json({
         error: 'FEMA_LIMIT_EXCEEDED',
@@ -540,7 +544,7 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   });
 
   // Override form145Part with FY-aware result from rbiRules
-  const fyCompliance = getComplianceRequirements(amountInr, { purposeCode, fyOutwardTotalInr });
+  const fyCompliance = getComplianceRequirements(amountInr, { purposeCode, fyOutwardTotalInr, sourceOfFunds: sourceOfFunds ?? undefined });
 
   // ── Step 5: Decision engine ────────────────────────────────────────────────
   const decision = applyDecisionEngine(riskResult.level, complianceResult);
@@ -689,9 +693,10 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
   // migration 026 lands, this is the canonical audit trail.
   const complianceRemarks = partAEligible
     ? JSON.stringify({
-        summary: `AUDIT_REVIEW: Sub-₹5L Form 15CA Part A self-declaration. Transfer already completed (ARN ${form15caArn ?? 'pending'}). Non-blocking — CA review is for retrospective audit only.`,
+        summary: `AUDIT_REVIEW: up to ₹5 lakh — Form 145 Part A (formerly 15CA) declaration. ARN ${form15caArn ?? 'pending'}. Non-blocking — CA review is for retrospective audit only.`,
         arn: form15caArn,
-        formData: form15ca ?? null,
+        // Rule 12 — minimum data: never persist the full PAN or personal details.
+        formData: form15ca ? { ...form15ca, remitterPAN: maskPan(form15ca.remitterPAN ?? ''), remitterFatherName: undefined, remitterAddressIndia: undefined } : null,
         capturedAt: ts(),
       })
     : null;
@@ -963,6 +968,7 @@ async function handleFemaLimit(req: AuthRequest, res: Response) {
     remainingINR:      fema.remainingINR,
     maxINR:            fema.maxINR,
     fyResetDate:       fema.fyResetDate,
+    unavailable:       fema.unavailable ?? false,
     fyStart,
     fyEnd,
     timestamp: ts(),

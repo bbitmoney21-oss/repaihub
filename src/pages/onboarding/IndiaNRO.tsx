@@ -1,3 +1,4 @@
+import { VERIFIED_PAN_KEY } from '../../components/transfer/Form15CAPartAModal'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
@@ -53,7 +54,8 @@ export default function IndiaNRO() {
     setProgress(100)
     setProgressLabel('KYC complete')
     await new Promise(r => setTimeout(r, 400))
-    completeIndiaKYC({ bankName: bank, branch })
+    try { sessionStorage.setItem(VERIFIED_PAN_KEY, pan) } catch { /* private mode */ }
+    completeIndiaKYC({ bankName: bank, branch, panMasked: 'XXXXXX' + pan.slice(6) })
     setStep('done')
   }
 

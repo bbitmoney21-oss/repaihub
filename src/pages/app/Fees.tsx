@@ -56,8 +56,8 @@ export default function Fees() {
         </h1>
         <p style={{ fontSize: '0.88rem', color: C.muted, marginTop: '0.5rem', maxWidth: 640, lineHeight: 1.55 }}>
           Every REPAIHUB transfer is bundled with full RBI compliance:
-          Form 145 / 15CA filed automatically, Form 146 / 15CB
-          certified by our CA partner, a TDS check before anything moves, and FEMA reporting —
+          Form 145 (formerly 15CA) filed for you, a CA certificate (Form 146, formerly 15CB) from our
+          partner CA when your tax-year total is above ₹5 lakh, a TDS check before anything moves, and FEMA reporting —
           all inside one app.  No paperwork, no branch visits, no manual
           back-and-forth.
         </p>
@@ -126,8 +126,8 @@ export default function Fees() {
           What&apos;s included
         </div>
         <ul style={{ paddingLeft: '1.2rem', margin: 0, color: C.text, fontSize: '0.88rem', lineHeight: 1.7 }}>
-          <li>Form 15CA (Form 145) filed automatically with the IT Department</li>
-          <li>Form 15CB (Form 146) certified by an in-app CA partner — no separate appointment</li>
+          <li>Form 145 (formerly 15CA) filed for you with the Income-tax Department</li>
+          <li>Form 146 (formerly 15CB) certified by our partner CA above ₹5 lakh — no separate appointment</li>
           <li>TDS position checked by our partner CA</li>
           <li>FEMA / FINTRAC compliance reporting</li>
           <li>End-to-end status tracking with progress dots</li>

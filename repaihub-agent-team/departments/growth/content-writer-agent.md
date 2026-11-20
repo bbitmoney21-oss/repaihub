@@ -35,6 +35,7 @@ Write clear, accurate, original content that earns trust: guides, site copy, the
 Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every hand-off.
 
 ## Standing backlog (as of 20 Nov 2026)
+- **Standing duty:** the current form names are Form 145 and Form 146. "15CA/15CB" appears only as "(formerly 15CA)". Form 146 is needed only above ₹5 lakh in the tax year, and PAN is needed at any amount. Sweep every page and app screen after each Legal update.
 - Guide: "Form 145 and Form 146 explained" (replaced 15CA/15CB on 1 April 2026).
 - Guide: "The USD 1 million limit and selling a property in India".
 - Keep the help assistant, Terms and guides in line with the tier pricing decided on 20 Nov 2026 (done at launch of the decision; re-check after any price change).
