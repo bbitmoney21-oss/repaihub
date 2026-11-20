@@ -8,7 +8,7 @@ import { formatCAD } from '../../lib/utils'
  * Public Fees & Rates page — shows the live commission tier table so customers
  * can compare REPAIHUB to the alternatives BEFORE starting a transfer.  This is
  * the bundled-value pitch surface: "you're paying 1.0–2.0% but you're getting
- * 15CA filed + 15CB CA-certified + TCS + FEMA, all in one app."
+ * 15CA filed + 15CB CA-certified + TDS check + FEMA, all in one app."
  *
  * Data is read from /fees/tiers (which reads outward_fee_tiers in Supabase),
  * so admins changing the slab table immediately update what customers see —
@@ -57,7 +57,7 @@ export default function Fees() {
         <p style={{ fontSize: '0.88rem', color: C.muted, marginTop: '0.5rem', maxWidth: 640, lineHeight: 1.55 }}>
           Every REPAIHUB transfer is bundled with full RBI compliance:
           Form 145 / 15CA filed automatically, Form 146 / 15CB
-          certified by our CA partner, TCS handling, and FEMA reporting —
+          certified by our CA partner, a TDS check before anything moves, and FEMA reporting —
           all inside one app.  No paperwork, no branch visits, no manual
           back-and-forth.
         </p>
@@ -100,7 +100,7 @@ export default function Fees() {
           )}
         </div>
         <div style={{ fontSize: '0.78rem', color: C.muted, marginTop: '0.5rem', lineHeight: 1.5 }}>
-          Express speed adds an additional {data ? formatCAD(data.expressSurchargeCAD) : 'CAD 24.99'} surcharge on top of the flat fee at any tier.  TCS (where applicable) is collected separately per RBI rules.
+          Express speed adds an additional {data ? formatCAD(data.expressSurchargeCAD) : 'CAD 24.99'} surcharge on top of the flat fee at any tier.  Tax on your Indian income (TDS) is settled before repatriation; our partner CA confirms it.
         </div>
       </section>
 
@@ -134,10 +134,10 @@ export default function Fees() {
         <ul style={{ paddingLeft: '1.2rem', margin: 0, color: C.text, fontSize: '0.88rem', lineHeight: 1.7 }}>
           <li>Form 15CA (Form 145) filed automatically with the IT Department</li>
           <li>Form 15CB (Form 146) certified by an in-app CA partner — no separate appointment</li>
-          <li>TCS handled per FY threshold</li>
+          <li>TDS position checked by our partner CA</li>
           <li>FEMA / FINTRAC compliance reporting</li>
           <li>End-to-end status tracking with progress dots</li>
-          <li>Live FX rate locked at submit, no hidden spread on outward</li>
+          <li>Partner bank's rate shown and locked when you confirm</li>
         </ul>
       </section>
 

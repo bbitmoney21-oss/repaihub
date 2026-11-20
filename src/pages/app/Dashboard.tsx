@@ -183,15 +183,14 @@ export default function Dashboard() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flex: isDesktop ? 1 : undefined }}>
           <div>
             <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.muted }}>
-              Live FX
+              Indicative FX
             </span>
             <div style={{ fontSize: isDesktop ? '1.4rem' : '1.15rem', fontWeight: 600, color: C.accentLt, fontFamily: "'DM Sans'", lineHeight: 1.1, marginTop: 2 }}>
               1 CAD = ₹{(fxRate || 0).toFixed(2)}
             </div>
           </div>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', color: C.success, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.success, display: 'inline-block' }} />
-            Live
+            Final rate shown before you confirm
           </span>
         </div>
 
