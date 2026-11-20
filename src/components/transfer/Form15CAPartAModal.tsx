@@ -219,7 +219,7 @@ export default function Form15CAPartAModal({
     bg: '#0B1C2C', card: '#132233', border: 'rgba(201,150,58,0.22)',
     accent: '#C9963A', accentLt: '#E8B86D',
     text: '#FAF6F0', muted: '#8BA0B4', danger: '#E74C3C', success: '#27AE60',
-    subtle: 'rgba(201,150,58,0.06)', autofill: 'rgba(39,174,96,0.06)',
+    subtle: 'rgba(201,150,58,0.06)', autofill: 'rgba(39,174,96,0.06)', warning: '#E8B86D',
   }
 
   const Star = () => <span style={{ color: C.danger, fontWeight: 700 }}> *</span>
