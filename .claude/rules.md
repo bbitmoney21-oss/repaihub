@@ -105,3 +105,40 @@ spending, prices/fees, contracts, NDAs, bank terms, volumes or financial
 commitments. Those always need the user's explicit approval.
 Code still follows the dev-branch workflow above; nothing merges to main
 without "CONFIRMED — MERGE TO MAIN".
+
+## Bank outreach — who to email (set by the user, 2026-11-19)
+
+Send partnership emails ONLY to named decision-makers at the bank (e.g.
+Head of NRI Business, Head of Fintech/Digital Partnerships, Head of
+International Banking/Forex/Treasury, CDO/CBO, MD & CEO's office).
+NEVER send to customer-service, info@, nri@, grievance/nodal-officer or
+other generic addresses shown on the bank website or Google — they return
+auto-replies and go nowhere.
+- Use only emails published by the bank or the person themselves (annual
+  report, press release, official site, the person's own public profile),
+  or given by the user. Never guess an address from a name pattern and
+  never present a guess as verified.
+- If no verified decision-maker email exists, record the person's name and
+  role and use LinkedIn or a warm introduction instead; tell the user.
+
+## Autonomous operations (set by the user, 2026-11-20 — supersedes the merge-confirmation rule above for these cases)
+
+The user granted standing permission to run REPAIHUB operations without asking:
+- Claude (and the scheduled QA/monitor agent) may fix bugs, merge to dev and
+  main, and deploy (GitHub → Netlify, Render) WITHOUT waiting for
+  "CONFIRMED — MERGE TO MAIN", provided: `npm run build` passes, the live
+  smoke test passes after deploy, and any failing deploy is rolled back.
+- Credentials are stored as environment network secrets (Render API,
+  Supabase management API); never ask the user for them again, never print
+  or commit them.
+- Still needs the user's explicit OK: anything involving money (pricing,
+  fees, paid plans, contracts), new database migrations on production that
+  change or delete data, regulatory/compliance claims, and emails to new
+  outside parties beyond the routine-reply rules.
+- Report every autonomous change to the user in a short summary.
+
+Production infrastructure (2026-11-20):
+- Supabase project: mievzzzxpsomrzxhkecu (ca-central-1). The old project
+  ycdpqjwvfuxdokytmaxh no longer exists.
+- Render: srv-d7o2gru7r5hc73b6eb1g "repaihub" (main, production),
+  srv-d7o2sp8sfn5c73ee45h0 "repaihub-dev" (dev). Both free plan.

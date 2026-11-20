@@ -57,7 +57,10 @@ export default function Signup() {
         lower.includes('failed to fetch') ||
         lower.includes('unavailable')
       ) {
-        displayMsg = 'Cannot connect to server. Please check your connection and try again.'
+        // Browser-side network failure vs. our service being down: say which.
+        displayMsg = lower.includes('temporarily unavailable')
+          ? msg
+          : 'Cannot connect to server. Please check your connection and try again.'
         errorField = 'general'
       } else {
         // Surface the actual server-provided reason — no more generic "exists" lie
@@ -153,12 +156,15 @@ export default function Signup() {
 
             {/* Agree */}
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer' }}>
-              <div onClick={() => setForm(f => ({ ...f, agree: !f.agree }))}
+              <input type="checkbox" checked={form.agree} onChange={e => setForm(f => ({ ...f, agree: e.target.checked }))}
+                aria-label="I agree to the Terms of Service and Privacy Policy"
+                style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} />
+              <div aria-hidden="true"
                 style={{ width: 18, height: 18, border: `1px solid ${form.agree ? '#C9963A' : 'rgba(201,150,58,0.3)'}`, background: form.agree ? 'rgba(201,150,58,0.15)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, cursor: 'pointer', transition: 'all 0.2s' }}>
                 {form.agree && <Check size={11} color="#C9963A" />}
               </div>
               <span style={{ fontSize: '0.82rem', color: '#8BA0B4', lineHeight: 1.5 }}>
-                I agree to the <a href="#" style={{ color: '#E8B86D' }}>Terms of Service</a> and <a href="#" style={{ color: '#E8B86D' }}>Privacy Policy</a>. I understand the app is a beta preview and live transfers have not started yet.
+                I agree to the <a href="/terms" target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ color: '#E8B86D' }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ color: '#E8B86D' }}>Privacy Policy</a>. I understand the app is a beta preview and live transfers have not started yet.
               </span>
             </label>
             {errors.agree && <p style={{ fontSize: '0.75rem', color: '#E74C3C', marginTop: '-0.75rem' }}>{errors.agree}</p>}
