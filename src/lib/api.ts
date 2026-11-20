@@ -28,13 +28,22 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
   return res;
 }
 
+// Server-side network failures (e.g. the database being unreachable) surface
+// as raw strings like "fetch failed". Show users a plain message instead and
+// keep the technical detail in the console for debugging.
+const TECHNICAL_ERRORS = /fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|network error|socket hang up/i;
+
 async function parseError(res: Response): Promise<string> {
+  let msg = `Request failed (${res.status})`;
   try {
     const body = await res.json();
-    return body.error || `Request failed (${res.status})`;
-  } catch {
-    return `Request failed (${res.status})`;
+    if (body.error) msg = body.error;
+  } catch { /* non-JSON body: keep the status message */ }
+  if (TECHNICAL_ERRORS.test(msg) || res.status >= 500) {
+    console.error('[api] server error:', res.status, msg);
+    return 'Our service is temporarily unavailable. Please try again in a few minutes, or email founder@repaihub.com.';
   }
+  return msg;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
