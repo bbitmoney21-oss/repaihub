@@ -20,7 +20,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); }
       const p = await c.newPage();
       const errs = [];
       p.on('pageerror', e => errs.push(e.message));
-      for (const rt of ['/', '/guide', '/property', '/privacy', '/terms', '/login', '/signup', '/forgot-password', '/ca-login']) {
+      for (const rt of ['/', '/guide', '/property', '/privacy', '/terms', '/login', '/signup', '/forgot-password']) {   // CA portal deliberately excluded (Rule 7)
         let status = 0;
         for (let attempt = 0; attempt < 4; attempt++) {           // ride out Render cold starts
           const r = await p.goto(BASE + rt, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => null);
