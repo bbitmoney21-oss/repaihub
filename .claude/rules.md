@@ -105,3 +105,18 @@ spending, prices/fees, contracts, NDAs, bank terms, volumes or financial
 commitments. Those always need the user's explicit approval.
 Code still follows the dev-branch workflow above; nothing merges to main
 without "CONFIRMED — MERGE TO MAIN".
+
+## Bank outreach — who to email (set by the user, 2026-11-19)
+
+Send partnership emails ONLY to named decision-makers at the bank (e.g.
+Head of NRI Business, Head of Fintech/Digital Partnerships, Head of
+International Banking/Forex/Treasury, CDO/CBO, MD & CEO's office).
+NEVER send to customer-service, info@, nri@, grievance/nodal-officer or
+other generic addresses shown on the bank website or Google — they return
+auto-replies and go nowhere.
+- Use only emails published by the bank or the person themselves (annual
+  report, press release, official site, the person's own public profile),
+  or given by the user. Never guess an address from a name pattern and
+  never present a guess as verified.
+- If no verified decision-maker email exists, record the person's name and
+  role and use LinkedIn or a warm introduction instead; tell the user.
