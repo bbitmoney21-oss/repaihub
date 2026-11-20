@@ -1,3 +1,4 @@
+import { noDocumentStorage } from '../middleware/noDocumentStorage';
 import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
@@ -72,7 +73,8 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 // ── POST /compliance/:id/upload-url ──────────────────────────────────────────
 // Request a signed upload URL linked to a compliance request.
 // Returns tokenId + signed URL; client uploads directly to Supabase Storage.
-router.post('/:id/upload-url', authMiddleware, async (req: AuthRequest, res: Response) => {
+// Blocked by the no-document-storage rule (src/middleware/noDocumentStorage.ts).
+router.post('/:id/upload-url', authMiddleware, noDocumentStorage, async (req: AuthRequest, res: Response) => {
   const { fileName, mimeType, docType, year } = req.body as {
     fileName?: string; mimeType?: string; docType?: string; year?: number;
   };
@@ -137,7 +139,7 @@ router.post('/:id/upload-url', authMiddleware, async (req: AuthRequest, res: Res
 // ── POST /compliance/:id/confirm-upload ──────────────────────────────────────
 // Called after client successfully PUT the file to Supabase Storage.
 // Saves metadata to wallet_documents, linked to both compliance_request + transfer.
-router.post('/:id/confirm-upload', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/confirm-upload', authMiddleware, noDocumentStorage, async (req: AuthRequest, res: Response) => {
   const {
     tokenId, storagePath, fileName, mimeType, fileSizeBytes, docType, docLabel, year,
   } = req.body as {

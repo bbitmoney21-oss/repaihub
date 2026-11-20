@@ -161,3 +161,13 @@ The AI workforce is defined in `repaihub-agent-team/`. Its constitution, `repaih
 
 **Never touched by any agent:**
 - The CA portal (`/ca-login`, `/ca-dashboard`, and the CA team's systems).
+
+## No customer documents (set by the user, 2026-11-20 — "the first thumb rule")
+
+- **REPAIHUB never saves or holds customer documents.**
+  - Verification is done by partners: DigiLocker and IDfy in India; Persona and Flinks-class bank verification in Canada.
+  - Store only the minimum data and the verification result or reference. PAN is kept masked plus hashed.
+- **Upload endpoints are blocked** by `src/middleware/noDocumentStorage.ts`. Never re-enable document storage without the founder's explicit approval of a new design.
+- **Founder's test profile:** Venky Bhagi, bbitmoney21@gmail.com, Canadian citizen.
+  - Always use it for manual and flow testing.
+  - Never delete it. `scripts/qa/cleanup.sh` only removes `qa.*@repaihub.com` accounts.

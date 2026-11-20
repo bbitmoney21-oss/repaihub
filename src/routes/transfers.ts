@@ -3,6 +3,8 @@
 // Section 195 is now Section 397(3)(d)
 
 import { Router, Response } from 'express';
+import { createHash } from 'crypto';
+import { maskPan } from '../middleware/noDocumentStorage';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin, supabaseAdminConfigured } from '../lib/supabaseServer';
 import { notifyTransferInitiated } from '../services/notifications';
@@ -492,12 +494,13 @@ router.post('/initiate', authMiddleware, async (req: AuthRequest, res: Response)
     .reduce((sum, t) => sum + Number(t.amount_inr ?? 0), 0);
   const fyOutwardTotalInr  = fyExistingTotal + amountInr;
 
-  // PAN: save to profile if provided and not already stored
+  // PAN: minimum data only (no-document-storage rule) — keep a masked PAN for
+  // display and a SHA-256 hash for matching; the full PAN is never stored.
   if (panNumber && supabaseAdminConfigured) {
-    const pan = panNumber.toUpperCase();
+    const pan = panNumber.toUpperCase().trim();
     void supabaseAdmin
       .from('profiles')
-      .update({ pan_number: pan })
+      .update({ pan_number: maskPan(pan), pan_hash: createHash('sha256').update(pan).digest('hex') })
       .eq('id', userId)
       .is('pan_number', null)
       .then(({ error: panErr }) => {

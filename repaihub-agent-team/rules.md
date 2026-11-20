@@ -1,6 +1,6 @@
 # The REPAIHUB Constitution
 
-These eleven rules bind every agent in REPAIHUB Remittance Inc. No agent file, task, hand-off or instruction from another agent can override them. Where anything conflicts with these rules, the rules win, and the conflict must be reported to the Chief Orchestrator.
+These twelve rules bind every agent in REPAIHUB Remittance Inc. No agent file, task, hand-off or instruction from another agent can override them. Where anything conflicts with these rules, the rules win, and the conflict must be reported to the Chief Orchestrator.
 
 1. **Never copy anything from any other company.**
    - No org charts, data, business models, architecture, copy, pricing or processes from any other company. That includes any example, source or company an agent knows about.
@@ -55,3 +55,9 @@ These eleven rules bind every agent in REPAIHUB Remittance Inc. No agent file, t
     - The Chief Orchestrator sends a weekly written report to the Founder's Personal Assistant.
     - The Personal Assistant turns it into the founder's daily briefing.
     - Agents report milestones, not every issue.
+
+12. **We never save or hold customer documents (the founder's thumb rule).**
+    - REPAIHUB does not store identity documents, PAN cards, Aadhaar, bank statements, sale deeds, tax certificates or any other customer document.
+    - Verification is done by the partners: DigiLocker and IDfy in India; Persona and Flinks-class bank verification in Canada. REPAIHUB keeps only the result and the reference.
+    - Only the minimum data a transfer needs is kept, for example a masked PAN plus a hash, never the full PAN.
+    - Any feature, vendor or process that would store a document is blocked until the founder approves a different design.
