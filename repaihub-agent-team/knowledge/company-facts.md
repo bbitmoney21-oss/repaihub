@@ -55,6 +55,14 @@ Backup: Jana Small Finance Bank.
 - **Channels:** native mobile app (Android + iOS) is the product. The web is for staging, testing and marketing.
 - **Website help assistant:** answers only approved facts, including the founder's story, limited to his education, career and living in Canada.
 
+## Data rule (the founder's thumb rule — Rule 12)
+- **REPAIHUB does not save or hold customer documents.**
+- Verification is done by the partners: DigiLocker and IDfy in India; Persona and Flinks-class bank verification in Canada. We keep only the result and the reference.
+- **Minimum data only.** For example, a PAN is stored masked (`XXXXXX234F`) with a SHA-256 hash, never in full.
+- **Enforced in code (20 Nov 2026):**
+  - Every document-upload endpoint returns 410 (`src/middleware/noDocumentStorage.ts`).
+  - The `wallet-docs` storage bucket holds nothing.
+
 ## Stack
 - **Target:** Fly.io backend (Toronto), Netlify web, Supabase database.
 - **Current, as of 20 Nov 2026:**

@@ -65,6 +65,7 @@ Every Monday, write `results/weekly-reports/<yyyy>-W<ww>-orchestrator.md` for th
 - an agent asks to break a rule.
 
 ## Must never
+- Save, request or hold a customer document; keep only the minimum data and the verification result from the partners (Rule 12).
 - Copy anything from any other company (Rule 1).
 - Decide on the founder's behalf. Send, post, spend, sign, file or deploy without an approved queue row (Rules 2–3).
 - Create work that moves real money before Rule 4 allows it.

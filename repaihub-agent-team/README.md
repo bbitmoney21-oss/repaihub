@@ -4,7 +4,7 @@ This folder is the AI workforce of **REPAIHUB Remittance Inc.**, a Canada–Indi
 
 The workforce has 26 agents, each one a Markdown file, organised from the founder's own organisation chart. Three human seats stay human: the founder and CEO Venkateswarlu Bhagi, the CFO Satwik, and the CA Partner SriHarsha. Agents work on disk. They read tasks, write files and peer-review each other. Anything that needs a decision goes to one approval queue. **The founder is the only decision-maker.**
 
-**The rules in one line:** never copy another company; the founder decides everything; nothing is sent, posted, spent, signed or deployed without his yes; no real money before the AD-I bank agreement; and STOP means stop (full text: [`rules.md`](rules.md)).
+**The rules in one line:** never copy another company; the founder decides everything; nothing is sent, posted, spent, signed or deployed without his yes; no real money before the AD-I bank agreement; we never store customer documents; and STOP means stop (full text: [`rules.md`](rules.md)).
 
 ## How to run it
 1. **Give a goal.**
@@ -45,7 +45,7 @@ The founder gets a phone notification only when something needs him.
 ```
 repaihub-agent-team/
   README.md                 this file
-  rules.md                  the 11-rule constitution, binding on every agent
+  rules.md                  the 12-rule constitution, binding on every agent
   ORG_CHART.md              who is who, the gap each added agent fills, counts
   orchestrator/             Chief Orchestrator (goals → tasks, weekly report)
   departments/

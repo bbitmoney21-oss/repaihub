@@ -1,3 +1,4 @@
+import { noDocumentStorage } from '../middleware/noDocumentStorage';
 import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
@@ -16,7 +17,8 @@ function generateTokenId(): string {
 // Step 1 of 2: client requests a signed upload URL.
 // Server generates a token_id + Supabase Storage signed upload URL.
 // Client PUT's the file directly to Supabase (never passes through Express).
-router.post('/upload-url', authMiddleware, async (req: AuthRequest, res: Response) => {
+// Blocked by the no-document-storage rule (src/middleware/noDocumentStorage.ts).
+router.post('/upload-url', authMiddleware, noDocumentStorage, async (req: AuthRequest, res: Response) => {
   const { fileName, mimeType, docType, year, complianceRequestId } = req.body as {
     fileName?: string;
     mimeType?: string;

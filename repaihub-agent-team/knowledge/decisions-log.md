@@ -68,3 +68,12 @@ This file holds only decisions the founder made. Agents add an entry after the f
 - **Decided by:** the Financial Analyst agent, under Venkateswarlu Bhagi's explicit delegation ("the finance/market agent selects the price — revenue first, reasonable for ₹1–5 lakh customers — do not ask me").
 - **Source:** `results/finance/pricing-decision-2026-11-20.md`. Flat pricing would charge 5.0% on ₹1 lakh and 2.5% on ₹2 lakh, but only 0.5% on ₹25 lakh. Tier pricing charges 1.2–1.7% at every size and earns about 3.8× more net on ₹25 lakh.
 - **Affects:** website calculator, app (new transfer, Fees), server fee engine, Supabase (`outward_fee_tiers`, `fee_config`, migration 026), help assistant, Terms page.
+
+### 2026-11-20 — No customer documents (Rule 12)
+- **Decision:** REPAIHUB never saves or holds customer documents. Verification is handled by the partners (DigiLocker, IDfy, Persona, Flinks-class bank verification), and only the minimum data and the verification result are kept.
+- **Decided by:** Venkateswarlu Bhagi ("the first thumb rule").
+- **Source:** conversation of 20 Nov 2026.
+- **Affects:** all engineering, compliance and support agents.
+  - Document-upload endpoints are disabled (410).
+  - PAN is stored only masked and hashed.
+  - The CA team receives document data through the verification partners, not from REPAIHUB storage.
