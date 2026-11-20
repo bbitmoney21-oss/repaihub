@@ -53,7 +53,7 @@ export default function KYCComplete() {
             { icon: '2', text: 'We show you the live FX rate and all fees upfront' },
             { icon: '3', text: 'Confirm — Form 145 is filed automatically (IT Act 2025)' },
             { icon: '4', text: 'Our CA certifies Form 146 (2–4 hours)' },
-            { icon: '5', text: 'CAD arrives in your account within 24–48 hours' },
+            { icon: '5', text: 'CAD arrives in your account within 5 business days (3 with Express)' },
           ].map(item => (
             <div key={item.icon} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.75rem' }}>
               <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(201,150,58,0.15)', border: '1px solid rgba(201,150,58,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, color: '#C9963A', flexShrink: 0 }}>{item.icon}</span>

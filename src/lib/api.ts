@@ -312,6 +312,8 @@ export interface OutwardFeeTier {
   waiveFlatFee: boolean
   flatFeeWaiveAboveInr: number | null
   label: string
+  expressCommissionRate?: number
+  expressFlatFeeCAD?: number
 }
 
 export interface FeeTiersResponse {

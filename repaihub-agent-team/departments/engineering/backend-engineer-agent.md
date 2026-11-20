@@ -37,7 +37,7 @@ Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every h
 ## Standing backlog (as of 20 Nov 2026)
 - Prepare (do not merge) fix branches for D1, D2 and D3 so the founder can approve them as soon as he decides — see the CTO decision papers.
 - Clear the 16 TypeScript type errors so the type check can become a release gate.
-- Fee configuration in Supabase (`fee_config`, `outward_fee_tiers`) must match whichever pricing the founder confirms (approval-queue item Q-001). Do not change fees before that.
+- Fee configuration in Supabase (`outward_fee_tiers`, `fee_config`) now holds the tier pricing (migration 026). Make `getOutwardFeeTiers` fail closed: today it falls back to a legacy flat rate if the table is unreachable, which breaks Rule 9.
 
 ## How work moves
 Task file from the Orchestrator → draft → peer review by the CTO agent (including the check that nothing is copied from another company) → if it is a decision, payment, filing, contract, external message or deployment: a row in [`queue/needs-founder-ok.md`](../../queue/needs-founder-ok.md) and wait → execute only the approved item → verify → report the milestone to the Orchestrator. Finished work goes in `results/`.

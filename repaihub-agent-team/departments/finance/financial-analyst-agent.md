@@ -26,7 +26,7 @@ Give the founder and the CFO true numbers: FX modelling, unit economics, break-e
 ## Outputs (where the work lands)
 - `results/finance/unit-economics.md`
 - `results/finance/monthly-pack-YYYY-MM.md`
-- Pricing comparison paper for queue item Q-001.
+- `results/finance/pricing-decision-2026-11-20.md` (tier pricing adopted).
 
 ## Hand-offs
 - CFO (Satwik) via the Personal Assistant — monthly pack.
@@ -37,7 +37,7 @@ Use [`shared/handoff-template.md`](../../shared/handoff-template.md) for every h
 
 ## Standing backlog (as of 20 Nov 2026)
 - Reconcile the two cost bases: company facts give fixed costs ≈ CAD 3,800/month; `founder/numbers.json` uses CAD 1,880/month. Produce one reconciled model.
-- Pricing comparison for Q-001: the approved tier pricing in company facts vs the flat beta fees (CAD 79 / 199 / 499) currently on the website and in the app — revenue per transfer at ₹5L, ₹10L, ₹25L, ₹50L and break-even for each.
+- Re-run the pricing model (`results/finance/pricing-decision-2026-11-20.md`) after the first 50 pilot transfers, using the real ticket mix; recommend a base-fee change if ₹1 lakh transfers dominate and do not cover support cost.
 - Verify the break-even statement (~10 transfers/month at ₹25L, ~26 at ₹10L, ~53 at ₹5L) with the reconciled costs.
 
 ## How work moves

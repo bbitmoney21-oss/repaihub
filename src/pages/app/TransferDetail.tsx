@@ -144,7 +144,7 @@ export default function TransferDetail() {
           ['Amount (CAD)', formatCAD(t.amountCAD)],
           ['FX Rate', `1 CAD = ₹${t.rate}`],
           ['Fee', formatCAD(t.fee)],
-          ['Speed', t.express ? 'Express (8–12 hours)' : 'Standard (24–48 hours)'],
+          ['Speed', t.express ? 'Express (up to 3 business days)' : 'Standard (up to 5 business days)'],
         ].map(([k, v]) => (
           <div key={k} style={{ ...S.row, borderBottom: '1px solid rgba(201,150,58,0.1)', paddingBottom: '0.75rem' }}>
             <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{k}</span>

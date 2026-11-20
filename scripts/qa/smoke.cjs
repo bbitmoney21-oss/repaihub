@@ -43,10 +43,11 @@ const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); }
       const inputs = await p.$$('input');
       let amount = null;
       for (const f of inputs) { if ((await f.getAttribute('type')) !== 'email') { amount = f; break; } }
-      for (const [inr, fee] of [['300000', '79'], ['1000000', '199'], ['4000000', '499']]) {
+      // Standard tier pricing at the indicative ₹63.42/CAD (src/lib/outwardPricing.ts)
+      for (const [inr, fee] of [['300000', '59.66'], ['1000000', '192.38'], ['4000000', '774.75']]) {
         await amount.fill(''); await amount.type(inr); await p.waitForTimeout(300);
         const t = await p.evaluate(() => document.body.innerText);
-        check(`calculator ₹${inr} → $${fee}`, new RegExp(`CAD \\$${fee}\\b`).test(t));
+        check(`calculator ₹${inr} → $${fee}`, t.includes(`CAD $${fee}`));
       }
       await p.close();
     }
@@ -58,7 +59,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); }
       let ok = false, detail = '';
       try {
         await p.click('button[aria-label="Ask REPAIHUB a question"]');
-        for (const [q, expect] of [['Who is the founder?', /NIT Durgapur/], ['What are the fees?', /CAD \$79/], ['Is REPAIHUB regulated?', /N300002485/]]) {
+        for (const [q, expect] of [['Who is the founder?', /NIT Durgapur/], ['What are the fees?', /CAD 9\.99 \+ 1\.05%/], ['Is REPAIHUB regulated?', /N300002485/]]) {
           await p.fill('input[aria-label="Your question"]', q);
           await p.press('input[aria-label="Your question"]', 'Enter');
           const last = await p.$$eval('[data-from=bot]', els => els[els.length - 1].innerText);

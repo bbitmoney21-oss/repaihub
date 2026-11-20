@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore, mapDbTransfer } from '../../store/useStore'
 import { apiCreateTransfer, apiUpdateProfile, apiGetFeeTiers } from '../../lib/api'
 import type { OutwardFeeTier, Form15CAPartASubmission } from '../../lib/api'
+import { outwardFee, DEFAULT_SLABS, SPEED_DAYS, type PricingSlab } from '../../lib/outwardPricing'
 import Form15CAPartAModal from '../../components/transfer/Form15CAPartAModal'
 import type { Form15CAPartAData } from '../../components/transfer/Form15CAPartAModal'
 import { formatINR, formatCAD, generateRef } from '../../lib/utils'
@@ -19,17 +20,12 @@ const RESIDENCY_OPTIONS: { id: ResidencyStatus; title: string; desc: string }[] 
 type Step = 1 | 2 | 3 | 4 | 5
 type Direction = 'outward' | 'inward'
 
-// Fallback commission rate used until live tiers (from /fees/tiers) load.
-// Live tiers come from outward_fee_tiers in Supabase — see migration 025.
-const COMMISSION_RATE_FALLBACK = 0.018
-const FEE_FLAT_STD   = 25      // outward standard flat fee CAD — spec: CAD $25 flat (REQ-06)
-const FEE_FLAT_EXP   = 49      // outward express flat fee (std $25 + $24 surcharge)
+// Outward fees: see src/lib/outwardPricing.ts (live tiers from /fees/tiers).
 // Inward fee model: profit comes from FX spread, not from explicit fees.
 // We charge a small-transfer fee of \$1.99 when the CAD amount is below \$500.
 // Above \$500: no fee at all. Express vs Standard does NOT change the price.
 const FEE_INWARD_SMALL_TXN     = 1.99
 const FEE_INWARD_FREE_THRESHOLD = 500
-const TCS_THRESHOLD_INR = 700_000
 
 const PURPOSES = [
   'Repatriation of savings',
@@ -143,36 +139,26 @@ export default function NewTransfer() {
   const amt       = parseFloat(amount.replace(/,/g, '')) || 0
 
   const amtINR        = isOutward ? amt : amt * rate
-  // Resolve the tier this transfer falls into.  When the live tier list is
-  // empty (initial render or API error) we fall back to a single 1.8% rate
-  // and the legacy flat fees, so the form is never blocked.
-  const currentTier: OutwardFeeTier | null = (() => {
-    if (!feeTiers || feeTiers.length === 0) return null
-    for (const t of feeTiers) {
-      const above = amtINR >= t.slabMinInr
-      const below = t.slabMaxInr === null || amtINR <= t.slabMaxInr
-      if (above && below) return t
-    }
-    return feeTiers[feeTiers.length - 1]
-  })()
-  const currentCommissionRate = currentTier ? currentTier.commissionRate : COMMISSION_RATE_FALLBACK
-  // Tier-driven flat fee: tier base, with the express surcharge added on top
-  // when the user opts for express. Waivers (waiveFlatFee, flatFeeWaiveAboveInr)
-  // are honoured here as well so the customer preview matches the backend math.
-  const tierFlatBase = currentTier
-    ? (() => {
-        if (currentTier.waiveFlatFee) return 0
-        if (currentTier.flatFeeWaiveAboveInr != null && amtINR >= currentTier.flatFeeWaiveAboveInr) return 0
-        return currentTier.flatFeeCAD
-      })()
-    : FEE_FLAT_STD
-  const expressSurcharge = express ? (FEE_FLAT_EXP - FEE_FLAT_STD) : 0  // = \$25
-  const flatFee       = tierFlatBase + expressSurcharge
-  const tcsApplies    = isOutward && amtINR > TCS_THRESHOLD_INR
-  const tcsAmt        = tcsApplies ? amtINR * 0.05 : 0
-  const netINR        = amtINR - tcsAmt
+  // Outward pricing (decided 2026-11-20): base fee of the slab + a MARGINAL
+  // markup, like tax brackets. Same function the server uses — see
+  // src/lib/outwardPricing.ts. Live tiers replace the defaults once loaded.
+  const slabs: PricingSlab[] = feeTiers && feeTiers.length > 0
+    ? feeTiers.map(t => ({
+        slabMinInr: t.slabMinInr, slabMaxInr: t.slabMaxInr,
+        rate: t.commissionRate, baseCAD: t.flatFeeCAD,
+        expressRate: t.expressCommissionRate ?? t.commissionRate,
+        expressBaseCAD: t.expressFlatFeeCAD ?? t.flatFeeCAD,
+        label: t.label,
+      }))
+    : DEFAULT_SLABS
+  const speed         = express ? 'express' as const : 'standard' as const
+  const quote         = outwardFee(amtINR, rate, speed, slabs)
+  const flatFee       = isOutward ? quote.baseCAD : 0
+  // No TCS on NRO repatriation; tax (TDS) is settled before the transfer and
+  // confirmed by the partner CA (Form 146), so nothing is deducted here.
+  const netINR        = amtINR
   const grossCAD      = isOutward ? netINR / rate : amt
-  const commissionCAD = isOutward ? Math.round(grossCAD * currentCommissionRate * 100) / 100 : 0
+  const commissionCAD = isOutward ? quote.markupCAD : 0
   const totalFees     = commissionCAD + flatFee
   const amtCAD        = isOutward ? Math.max(0, grossCAD - totalFees) : amt
   // Inward fee model: user enters the amount they want to convert ('Amount to send').
@@ -576,17 +562,16 @@ export default function NewTransfer() {
               {isOutward ? (
                 <>
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Amount (INR)</span><span style={{ color: '#FAF6F0' }}>{formatINR(amt)}</span></div>
-                  {tcsApplies && <div style={S.row}><span style={{ color: '#F39C12', fontSize: '0.85rem' }}>TCS 5% (reclaim in ITR)</span><span style={{ color: '#F39C12' }}>− {formatINR(tcsAmt)}</span></div>}
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Net amount sent</span><span style={{ color: '#FAF6F0' }}>{formatINR(netINR)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>FX Rate</span><span style={{ color: '#FAF6F0' }}>1 CAD = ₹{rate}</span></div>
                   <div style={S.row}>
                     <span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>
-                      Commission {(currentCommissionRate * 100).toFixed(2)}%{currentTier ? ` · ${currentTier.label}` : ''}
+                      Markup (effective {grossCAD > 0 ? ((commissionCAD / grossCAD) * 100).toFixed(2) : '0.00'}%)
                     </span>
                     <span style={{ color: '#8BA0B4' }}>− {formatCAD(commissionCAD)}</span>
                   </div>
-                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{express ? 'Express flat fee' : 'Flat fee'}</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(flatFee)}</span></div>
+                  <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>{express ? 'Express base fee' : 'Base fee'}</span><span style={{ color: '#8BA0B4' }}>− {formatCAD(flatFee)}</span></div>
                   <div style={{ height: 1, background: 'rgba(201,150,58,0.2)', margin: '0.75rem 0' }} />
                   <div style={S.row}><span style={{ color: '#8BA0B4', fontSize: '0.85rem' }}>Total fees</span><span style={{ color: '#8BA0B4', fontWeight: 600 }}>− {formatCAD(totalFees)}</span></div>
                   <div style={S.row}><span style={{ color: '#E8B86D', fontSize: '0.9rem', fontWeight: 600 }}>You receive (CAD)</span><span style={{ color: '#E8B86D', fontSize: '1.2rem', fontWeight: 700, fontFamily: "'DM Sans'" }}>{formatCAD(amtCAD > 0 ? amtCAD : 0)}</span></div>
@@ -632,9 +617,9 @@ export default function NewTransfer() {
                   key: false,
                   icon: <Clock size={16} />,
                   title: 'Standard',
-                  time: isOutward ? '24–48 Hours' : '1–2 Days',
+                  time: isOutward ? SPEED_DAYS.standard : '1–2 Days',
                   fee: isOutward
-                    ? `${formatCAD(FEE_FLAT_STD)} flat + 1.8%`
+                    ? `${formatCAD(outwardFee(amtINR, rate, 'standard', slabs).totalCAD)} total`
                     : (amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD
                         ? `${formatCAD(FEE_INWARD_SMALL_TXN)} (under ${formatCAD(FEE_INWARD_FREE_THRESHOLD)})`
                         : 'No fee'),
@@ -643,9 +628,9 @@ export default function NewTransfer() {
                   key: true,
                   icon: <Zap size={16} />,
                   title: 'Express',
-                  time: isOutward ? '8–12 Hours' : '4–8 Hours',
+                  time: isOutward ? SPEED_DAYS.express : '4–8 Hours',
                   fee: isOutward
-                    ? `${formatCAD(FEE_FLAT_EXP)} flat + 1.8%`
+                    ? `${formatCAD(outwardFee(amtINR, rate, 'express', slabs).totalCAD)} total`
                     : (amt > 0 && amt < FEE_INWARD_FREE_THRESHOLD
                         ? `${formatCAD(FEE_INWARD_SMALL_TXN)} (under ${formatCAD(FEE_INWARD_FREE_THRESHOLD)})`
                         : 'No fee'),
@@ -771,19 +756,18 @@ export default function NewTransfer() {
               ['From', isOutward ? user?.indiaBank?.bankName ?? 'India NRO Account'   : user?.canadaBank?.institution ?? 'Canada Account'],
               ['To',   isOutward ? user?.canadaBank?.institution ?? 'Canada Account'   : user?.indiaBank?.bankName ?? 'India NRO Account'],
               [isOutward ? 'Amount (INR)' : 'Amount (CAD)', isOutward ? formatINR(amt) : formatCAD(amt)],
-              tcsApplies ? ['TCS 5% (refundable)', `− ${formatINR(tcsAmt)}`] : null,
               ['FX Rate', `1 CAD = ₹${rate}`],
               [
                 'Speed',
                 isOutward
-                  ? (express ? 'Express (8–12 hrs)' : 'Standard (24–48 hrs)')
+                  ? (express ? `Express (${SPEED_DAYS.express})` : `Standard (${SPEED_DAYS.standard})`)
                   : (express ? 'Express (4–8 hrs)' : 'Standard (1–2 days)'),
               ],
               isOutward ? [
-                `Commission (${(currentCommissionRate * 100).toFixed(2)}%${currentTier ? ' · ' + currentTier.label : ''})`,
+                `Markup (effective ${grossCAD > 0 ? ((commissionCAD / grossCAD) * 100).toFixed(2) : '0.00'}%)`,
                 formatCAD(commissionCAD),
               ] : null,
-              isOutward ? ['Flat fee', formatCAD(flatFee)] : null,
+              isOutward ? [express ? 'Express base fee' : 'Base fee', formatCAD(flatFee)] : null,
               (!isOutward && inwardFee > 0) ? ['Small-transfer fee', `+ ${formatCAD(inwardFee)}`] : null,
               (!isOutward && inwardFee === 0) ? ['Fee', 'No fee'] : null,
               (!isOutward && inwardFee > 0) ? ['Total to pay', formatCAD(inwardTotalCAD)] : null,
@@ -944,7 +928,7 @@ export default function NewTransfer() {
                   [
                     'Speed',
                     isOutward
-                      ? (express ? 'Express: 8–12 hours' : 'Standard: 24–48 hours')
+                      ? (express ? 'Express: up to 3 business days' : 'Standard: up to 5 business days')
                       : (express ? 'Express: 4–8 hours' : 'Standard: 1–2 days'),
                   ],
                   ['Status',  'Form 145 Filed — CA Review Pending'],

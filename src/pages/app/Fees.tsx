@@ -76,21 +76,15 @@ export default function Fees() {
         </div>
         <div style={{ border: `1px solid ${C.border}`, overflow: 'hidden' }}>
           <div style={{ background: C.subtle, padding: '0.7rem 1rem', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.muted }}>
-            <span>Slab</span>
-            <span>Commission</span>
-            <span>Flat fee</span>
+            <span>Amount</span>
+            <span>Standard · 5 days</span>
+            <span>Express · 3 days</span>
           </div>
           {(data?.tiers ?? []).map(t => (
             <div key={`${t.slabMinInr}`} style={{ background: C.card, padding: '0.85rem 1rem', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', borderTop: `1px solid ${C.border}`, fontSize: '0.88rem' }}>
               <span style={{ color: C.text, fontWeight: 600 }}>{t.label}</span>
-              <span style={{ color: C.accentLt, fontWeight: 600, fontFamily: "'DM Sans'" }}>{t.commissionPct.toFixed(2)}%</span>
-              <span style={{ color: t.waiveFlatFee ? C.success : C.text, fontWeight: t.waiveFlatFee ? 700 : 500, fontFamily: "'DM Sans'" }}>
-                {t.waiveFlatFee
-                  ? 'Waived'
-                  : (t.flatFeeWaiveAboveInr != null
-                      ? <>{formatCAD(t.flatFeeCAD)} <span style={{ fontSize: '0.7rem', color: C.muted }}>· waived above ₹{(t.flatFeeWaiveAboveInr/100000).toFixed(0)}L</span></>
-                      : formatCAD(t.flatFeeCAD))}
-              </span>
+              <span style={{ color: C.accentLt, fontWeight: 600, fontFamily: "'DM Sans'" }}>{formatCAD(t.flatFeeCAD)} + {(t.commissionRate * 100).toFixed(2)}%</span>
+              <span style={{ color: C.text, fontWeight: 500, fontFamily: "'DM Sans'" }}>{formatCAD(t.expressFlatFeeCAD ?? t.flatFeeCAD)} + {((t.expressCommissionRate ?? t.commissionRate) * 100).toFixed(2)}%</span>
             </div>
           ))}
           {(data?.tiers?.length ?? 0) === 0 && !error && (
@@ -100,7 +94,7 @@ export default function Fees() {
           )}
         </div>
         <div style={{ fontSize: '0.78rem', color: C.muted, marginTop: '0.5rem', lineHeight: 1.5 }}>
-          Express speed adds an additional {data ? formatCAD(data.expressSurchargeCAD) : 'CAD 24.99'} surcharge on top of the flat fee at any tier.  Tax on your Indian income (TDS) is settled before repatriation; our partner CA confirms it.
+          Each percentage applies only to the part of your amount inside that band, like tax brackets, so there is no jump at ₹5 lakh or ₹25 lakh. You pay the base fee of the band your amount falls in. Example: ₹2 lakh standard ≈ CAD 43 in total. You always see the exact fee before you confirm. Tax on your Indian income (TDS) is settled before repatriation; our partner CA confirms it.
         </div>
       </section>
 

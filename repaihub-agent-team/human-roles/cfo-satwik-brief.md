@@ -10,7 +10,7 @@
   - cash position, as provided by the founder;
   - break-even status;
   - variances, each with a reason.
-- **Unit economics and pricing papers:** including the Q-001 comparison of the approved tier pricing vs the flat beta fees currently on the site.
+- **Unit economics and pricing papers:** including the pricing decision of 20 Nov 2026 (`results/finance/pricing-decision-2026-11-20.md`), re-run after the first 50 pilot transfers.
 - **Treasury design** for the pilot (Treasury Operations Analyst), for his review before go-live.
 - **Investor and fundraising materials** as drafts: the one-pager, the business plan (`founder/business-plan.md`) and the market sizing (`founder/market-sizing.md`), with every number sourced.
 - **Financial controls checklist:** approvals, segregation of duties, reconciliation.

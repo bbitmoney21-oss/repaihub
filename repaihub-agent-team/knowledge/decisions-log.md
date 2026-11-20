@@ -23,7 +23,7 @@ This file holds only decisions the founder made. Agents add an entry after the f
 - **Decision:** adopt flat beta fees of CAD 79 / 199 / 499 (up to ₹5L / ₹5–25L / above ₹25L), from the founder-pack pricing work. This went live on the site calculator, in the app and in the database fee tiers.
 - **Decided by:** Venkateswarlu Bhagi ("go with whatever the best as an entrepreneur using the founder skills").
 - **Source:** conversation of 19 Nov 2026; `founder/pricing.md`.
-- **Affects:** website, app, Supabase fee tables, help assistant. **Superseded or confirmed by Q-001.**
+- **Affects:** website, app, Supabase fee tables, help assistant. **Superseded on 2026-11-20 by the tier pricing (Q-001).**
 
 ### 2026-11-20 — India → Canada is the primary corridor
 - **Decision:** India → Canada (repatriation of NRO funds, property-sale proceeds, rental income) is the primary corridor. Canada → India is secondary. Every change regression-checks the outward corridor (Rule 8).
@@ -40,7 +40,7 @@ This file holds only decisions the founder made. Agents add an entry after the f
   - Do not use "~4–5% below Indian banks".
 - **Decided by:** Venkateswarlu Bhagi.
 - **Source:** founder's agent-company brief.
-- **Affects:** Financial Analyst, Growth, Content Writer, Frontend. **Conflicts with the 2026-11-19 entry; open as Q-001 until the founder confirms which is final.**
+- **Affects:** Financial Analyst, Growth, Content Writer, Frontend. **Confirmed as final on 2026-11-20 (Q-001, see below).**
 
 ### 2026-11-20 — CA team on board
 - **Decision:** the CA team (certified CA associates in India, under CA Partner SriHarsha) is on board and ready to do Form 145/146 and CA certification work. The CA portal is SriHarsha's domain, and the AI workforce never touches it (Rule 7).
@@ -59,3 +59,12 @@ This file holds only decisions the founder made. Agents add an entry after the f
 - **Decided by:** Venkateswarlu Bhagi.
 - **Source:** conversation of 20 Nov 2026.
 - **Affects:** Content Writer and Frontend. The assistant is live at repaihub.com.
+
+### 2026-11-20 — Final pricing: tier pricing (Q-001 closed)
+- **Decision:** the tier pricing in company facts is final. The flat CAD 79 / 199 / 499 is retired.
+  - Express is priced inside the tiers, with no separate CAD 24 surcharge.
+  - The referral free first transfer is kept; it waives only the base fee.
+  - The stale ₹5 lakh minimum-transfer setting is corrected to ₹10,000.
+- **Decided by:** the Financial Analyst agent, under Venkateswarlu Bhagi's explicit delegation ("the finance/market agent selects the price — revenue first, reasonable for ₹1–5 lakh customers — do not ask me").
+- **Source:** `results/finance/pricing-decision-2026-11-20.md`. Flat pricing would charge 5.0% on ₹1 lakh and 2.5% on ₹2 lakh, but only 0.5% on ₹25 lakh. Tier pricing charges 1.2–1.7% at every size and earns about 3.8× more net on ₹25 lakh.
+- **Affects:** website calculator, app (new transfer, Fees), server fee engine, Supabase (`outward_fee_tiers`, `fee_config`, migration 026), help assistant, Terms page.

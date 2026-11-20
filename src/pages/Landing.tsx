@@ -1,3 +1,4 @@
+import { outwardFee } from '../lib/outwardPricing'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
@@ -37,8 +38,8 @@ export default function Landing() {
   const [calcINR, setCalcINR] = useState('500000')
   const calcAmt = parseFloat(calcINR.replace(/,/g,'')) || 0
   const grossCAD = calcAmt / LIVE_RATE
-  // Proposed beta pricing (founder/pricing.md): flat fee by amount band
-  const feeCAD = calcAmt <= 500000 ? 79 : calcAmt <= 2500000 ? 199 : 499
+  // Standard pricing (src/lib/outwardPricing.ts): base fee + marginal markup
+  const feeCAD = outwardFee(calcAmt, LIVE_RATE, 'standard').totalCAD
   const youGetCAD = Math.max(0, grossCAD - feeCAD)
   const formatINRCalc = (v: string) => { const n = v.replace(/\D/g,''); return n ? parseInt(n).toLocaleString('en-IN') : '' }
   const handleCalcInput = useCallback((v: string) => setCalcINR(v.replace(/,/g,'')), [])
@@ -265,7 +266,7 @@ export default function Landing() {
           {[
             { n: '01', title: 'Set Up Once', tag: 'One Time Only', text: 'Connect your Canadian bank account and Indian NRO account. Verify your identity online through your bank and DigiLocker. One-time setup.' },
             { n: '02', title: 'Transfer in 90 Seconds', tag: 'Every Transfer', text: 'Enter the amount, see the live INR to CAD rate, confirm with Face ID. We handle Form 145, Form 146, and all compliance automatically. You just tap.' },
-            { n: '03', title: 'CAD in Your Account', tag: '24–48 Hours', text: 'Track your transfer at every step. Our target is 24–48 hours after your documents are accepted. Rate locked at confirmation.' },
+            { n: '03', title: 'CAD in Your Account', tag: '3–5 Business Days', text: 'Track your transfer at every step. Standard arrives within 5 business days and Express within 3, after your documents are accepted. Rate locked at confirmation.' },
           ].map(c => (
             <div key={c.n} style={{ background: '#132233', padding: '2.5rem 2rem', transition: 'background 0.3s' }}
               onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = '#1C3147')}
@@ -339,7 +340,7 @@ export default function Landing() {
           {[
             { n: '2.6M', label: 'South Asian Canadians', sub: 'Statistics Canada, 2021 Census' },
             { n: 'USD 1M', label: 'Yearly NRO repatriation limit', sub: 'Per person, per financial year' },
-            { n: '24–48h', label: 'Target delivery', sub: 'After documents are accepted' },
+            { n: '3–5 days', label: 'Express or Standard delivery', sub: 'Business days, after documents are accepted' },
             { n: '145 / 146', label: 'Forms handled for you', sub: 'With a partner CA' },
           ].map((s, si) => (
             <div key={s.n} ref={el => addReveal(el, 11 + si)} className="reveal">
@@ -398,7 +399,7 @@ export default function Landing() {
               {[
                 { label: 'Transfer amount', value: `₹${calcAmt.toLocaleString('en-IN')}`, dim: false },
                 { label: `FX conversion at ₹${LIVE_RATE} (indicative)`, value: `CAD $${grossCAD.toFixed(2)}`, dim: false },
-                { label: 'REPAIHUB flat fee (proposed)', value: `−CAD $${feeCAD}`, dim: true },
+                { label: 'REPAIHUB fee, standard (proposed)', value: `−CAD $${feeCAD.toFixed(2)}`, dim: true },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(201,150,58,0.08)', fontSize: '0.88rem' }}>
                   <span style={{ color: row.dim ? '#8BA0B4' : '#FAF6F0' }}>{row.label}</span>
@@ -422,7 +423,7 @@ export default function Landing() {
               onMouseLeave={e => (e.currentTarget.style.background = '#C9963A')}>
               Start Your Transfer →
             </Link>
-            <p style={{ textAlign: 'center', fontSize: '0.72rem', color: '#8BA0B4', marginTop: '0.75rem' }}>Rate locked at confirmation · No surprises · Standard delivery 24–48 hrs</p>
+            <p style={{ textAlign: 'center', fontSize: '0.72rem', color: '#8BA0B4', marginTop: '0.75rem' }}>Base fee + a percentage applied band by band, like tax brackets · Standard up to 5 business days</p>
           </div>
         </div>
       </section>
