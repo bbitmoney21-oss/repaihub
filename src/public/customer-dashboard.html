@@ -387,10 +387,8 @@
               <div class="field">
                 <label>Purpose Code (RBI)</label>
                 <select id="nt-purpose">
-                  <option value="S0014">S0014 — Repatriation of NRO Deposits (outward NRO)</option>
-                  <option value="P1302">P1302 — Repatriation of NRE Funds</option>
-                  <option value="P1101">P1101 — Family Maintenance</option>
-                  <option value="P0001">P0001 — Indian Investment Abroad</option>
+                  <option value="S0014">S0014 — Repatriation of non-resident deposits (NRO / NRE)</option>
+                  <option value="S1301">S1301 — Family maintenance and savings (by non-residents)</option>
                 </select>
               </div>
               <div class="field">
@@ -912,7 +910,7 @@ function updateOutwardAccountNote() {
   if (accountType === 'NRE') {
     note.textContent = 'NRE: Tax-free repatriation. No Form 145/146. No CA portal. Fable executes immediately. No RBI annual cap.';
     note.style.color = 'var(--green)';
-    document.getElementById('nt-purpose').value = 'P1302';
+    document.getElementById('nt-purpose').value = 'S0014';
   } else {
     note.textContent = 'NRO: Subject to Form 145/146 compliance (IT Act 2025, Section 397(3)(d)). FEMA annual limit USD 1,000,000 (≈₹8.3 crore). CA review required above ₹5L.';
     note.style.color = 'var(--muted)';

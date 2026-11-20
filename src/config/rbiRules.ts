@@ -37,12 +37,13 @@ export const getRBIRules = () => ({
   fyStartMonth: Number(process.env.RBI_FY_START_MONTH ?? 3),
 
   // Enabled RBI purpose codes for outward transfers (REQ-03)
-  // S0014 = NRO repatriation (repatriation of non-resident deposits) — correct RBI AP Dir code
-  // P1302 = NRE repatriation | P0001 = Investment abroad | S0001 = Services | P1101 = Family maintenance
+  // Verified by the Legal agent (results/legal/purpose-codes-2026-11-20.md):
+  // outward S0014 = repatriation of non-resident deposits, S1301 = family maintenance & savings;
+  // inward P1301 = family maintenance & savings, P0014 = deposit to own NRE, P1302 = gifts.
   // IMPORTANT: Update RBI_PURPOSE_CODES_ENABLED env var on Render to match this default.
   purposeCodesEnabled: (
     process.env.RBI_PURPOSE_CODES_ENABLED ??
-    'S0014,P1302,P0001,S0001,P1101'
+    'S0014,S1301,P1301,P0014,P1302'
   ).split(',').map(c => c.trim()),
 
   // Date of last RBI rule update — shown in app and audit logs
@@ -54,6 +55,7 @@ export type RBIRules = ReturnType<typeof getRBIRules>;
 export interface ComplianceRequirementsOptions {
   purposeCode?: string;
   fyOutwardTotalInr?: number;
+  sourceOfFunds?: string;
 }
 
 /**
@@ -70,9 +72,10 @@ export const getComplianceRequirements = (
   opts: ComplianceRequirementsOptions = {},
 ) => {
   const rules = getRBIRules();
-  const { purposeCode, fyOutwardTotalInr } = opts;
+  const { purposeCode, fyOutwardTotalInr, sourceOfFunds } = opts;
 
-  const isPropertySale = purposeCode === 'P1004';
+  // Property sale is identified by source of funds (P1004 was 'legal services' — wrong).
+  const isPropertySale = sourceOfFunds === 'property_sale' || purposeCode === 'P1004';
   const fyTotal = fyOutwardTotalInr ?? amountInr;
 
   // Form 146 required when: single amount > threshold, OR cumulative FY exceeds threshold, OR property sale

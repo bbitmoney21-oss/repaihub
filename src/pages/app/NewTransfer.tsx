@@ -34,20 +34,20 @@ const PURPOSES = [
   'Property sale proceeds',
   'Investment returns',
   'Family maintenance',
-  'Other',
 ]
 
 // RBI purpose codes — must match RBIPurposeCode type and RBI_PURPOSE_CODES_ENABLED env
 // S0014 = repatriation of non-resident deposits (correct RBI code for NRO outward, REQ-03)
-// P1301 was wrong — removed. P1302 used for NRE path.
+// RBI purpose codes verified by the Legal agent (results/legal/purpose-codes-2026-11-20.md):
+// outward S0014 (repatriation of non-resident deposits), S1301 (family maintenance & savings);
+// inward P1301. 'Other' is not offered — no safe code; such cases go to founder@ for review.
 const PURPOSE_CODES: Record<string, string> = {
   'Repatriation of savings': 'S0014',
   'Rental income':           'S0014',
   'Pension / salary':        'S0014',
   'Property sale proceeds':  'S0014',
-  'Investment returns':      'P0001',
-  'Family maintenance':      'P1101',
-  'Other':                   'S0014',
+  'Investment returns':      'S0014',
+  'Family maintenance':      'S1301',
 }
 
 // SourceOfFunds type values — must match SourceOfFunds union in types/compliance.ts
@@ -259,7 +259,7 @@ export default function NewTransfer() {
       amountFrom:    isOutward ? amt : amt,
       exchangeRate:  rate,
       feeCad:        isOutward ? totalFees : 0,
-      purposeCode:   isOutward ? (accountType === 'NRE' ? 'P1302' : (PURPOSE_CODES[purpose] ?? 'S0014')) : 'S0014',
+      purposeCode:   isOutward ? (accountType === 'NRE' ? 'S0014' : (PURPOSE_CODES[purpose] ?? 'S0014')) : 'P1301',
       sourceOfFunds: isOutward ? (SOURCE_OF_FUNDS[purpose] ?? 'other') : 'other',
       speed:         express ? 'express' : 'standard',
       reference:     ref,
@@ -802,7 +802,7 @@ export default function NewTransfer() {
 
           {isOutward && accountType === 'NRO' && (
             <div style={{ background: 'rgba(201,150,58,0.06)', border: '1px solid rgba(201,150,58,0.2)', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: '#8BA0B4', lineHeight: 1.6 }}>
-              By confirming, you authorise REPAIHUB to file Form 145 on your behalf under IT Act 2025 and engage our CA partner to certify Form 146 (purpose code S0014). This transfer complies with RBI FEMA regulations.
+              By confirming, you authorise REPAIHUB to file Form 145 on your behalf under IT Act 2025 and engage our partner CA to certify Form 146 when your tax-year total is above ₹5 lakh (RBI purpose code {PURPOSE_CODES[purpose] ?? 'S0014'}). This transfer follows RBI FEMA rules.
             </div>
           )}
 
@@ -1013,7 +1013,7 @@ export default function NewTransfer() {
         amountInr={amt}
         amountCad={amtCAD > 0 ? amtCAD : 0}
         exchangeRate={rate}
-        purposeCode={isOutward ? (accountType === 'NRE' ? 'P1302' : (PURPOSE_CODES[purpose] ?? 'S0014')) : 'S0014'}
+        purposeCode={isOutward ? (accountType === 'NRE' ? 'S0014' : (PURPOSE_CODES[purpose] ?? 'S0014')) : 'P1301'}
         remitterName={user?.name ?? ''}
         remitterPAN={(user as { pan?: string | null } | null | undefined)?.pan ?? null}
         remitterEmail={user?.email ?? ''}
